@@ -1,0 +1,9 @@
+CREATE TYPE "Gender" AS ENUM ('FEMALE', 'MALE', 'NON_BINARY', 'UNSPECIFIED');
+
+ALTER TABLE "User" ADD COLUMN "gender" "Gender",
+ADD COLUMN "birthDate" DATE,
+ADD COLUMN "phone" TEXT,
+ADD COLUMN "country" TEXT,
+ADD COLUMN "address" TEXT,
+ADD COLUMN "city" TEXT,
+ADD COLUMN "postalCode" TEXT;

@@ -1,0 +1,208 @@
+import { MapPin } from "lucide-react";
+import { ActionForm, InlineAction } from "@/components/action-form";
+import { ActivityComposer } from "@/components/activity-composer";
+import { PlaceLinks } from "@/components/place-links";
+import { DestinationCard } from "@/components/destination-card";
+import { DestinationForm } from "@/components/destination-form";
+import { CheckList, CostFields, Field, FieldGroup } from "@/components/fields";
+import { MapView } from "@/components/map-view";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { createActivity, deleteActivity, deleteDestination } from "@/lib/actions/destinations";
+import { ACTIVITY_TAGS } from "@/lib/constants";
+import { formatDate, formatDateLong, formatTime } from "@/lib/dates";
+import { prisma } from "@/lib/prisma";
+import { ACTIVITY_COLORS, ActivityTagLabel, isActivityTag } from "@/lib/tag-meta";
+import { requireTrip } from "@/lib/trip-access";
+import { cn } from "@/lib/utils";
+
+function stayLabel(start: Date, end: Date) {
+  if (formatDate(start) === formatDate(end)) return formatDateLong(start);
+  const first = new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(start);
+  const last = new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(end);
+  return `${first} – ${last}`;
+}
+
+function activityWhen(start: Date, end: Date | null) {
+  const day = formatDateLong(start);
+  const startTime = formatTime(start);
+  if (!end || end.getTime() === start.getTime()) return `${day} · ${startTime}`;
+  if (formatDate(start) === formatDate(end)) return `${day} · ${startTime}–${formatTime(end)}`;
+  return `${day} · ${startTime} – ${formatDateLong(end)} · ${formatTime(end)}`;
+}
+
+export default async function MapPage({ params }: { params: Promise<{ tripId: string }> }) {
+  const { tripId } = await params;
+  const { trip } = await requireTrip(tripId);
+  const destinations = await prisma.destination.findMany({
+    where: { tripId },
+    include: { activities: { orderBy: { startAt: "asc" } } },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const markers = destinations.map((destination) => ({
+    id: destination.id,
+    lat: destination.lat,
+    lng: destination.lng,
+    label: destination.name,
+  }));
+  const dateHint = `During the trip, ${formatDateLong(trip.startDate)} – ${formatDateLong(trip.endDate)}.`;
+
+  return (
+    <div className="grid gap-6">
+      <MapView apiKey={process.env.GOOGLE_MAPS_API_KEY ?? ""} markers={markers} />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <section className="grid gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-medium">
+              <MapPin className="size-4" />
+              Destinations
+            </h2>
+            <p className="text-sm text-muted-foreground">Each stop is a place and the days you are there.</p>
+          </div>
+          {destinations.length === 0 ? (
+            <Card>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">No destinations yet. Search for the first city on this trip.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            destinations.map((destination, index) => {
+              const note = destination.notes?.trim();
+              const noteRepeatsActivity = destination.activities.some((activity) => activity.title.trim() === note);
+              return (
+                <DestinationCard
+                  key={destination.id}
+                  tripId={tripId}
+                  index={index}
+                  dates={stayLabel(destination.startDate, destination.endDate)}
+                  dateHint={dateHint}
+                  note={note && !noteRepeatsActivity ? note : null}
+                  remove={deleteDestination.bind(null, tripId, destination.id)}
+                  destination={{
+                    id: destination.id,
+                    name: destination.name,
+                    address: destination.address,
+                    placeId: destination.placeId,
+                    lat: destination.lat,
+                    lng: destination.lng,
+                    startDate: formatDate(destination.startDate),
+                    endDate: formatDate(destination.endDate),
+                    notes: destination.notes,
+                  }}
+                >
+                  <div className="grid gap-2">
+                      <p className="text-sm font-medium">Activities</p>
+                      {destination.activities.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nothing planned at this stop yet.</p>
+                      ) : (
+                        <ul className="grid gap-2">
+                          {destination.activities.map((activity) => (
+                            <li key={activity.id} className="flex items-start justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 text-sm">
+                              <span>
+                                <span className="inline-flex flex-wrap items-center gap-1.5">
+                                  <span className="font-medium">{activity.title}</span>
+                                  {activity.tags.filter(isActivityTag).map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className={cn(
+                                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs",
+                                        ACTIVITY_COLORS[tag],
+                                      )}
+                                    >
+                                      <ActivityTagLabel tag={tag} iconClassName="size-3.5" />
+                                    </span>
+                                  ))}
+                                </span>
+                                {activity.startAt ? (
+                                  <span className="block text-muted-foreground">
+                                    {activityWhen(activity.startAt, activity.endAt)}
+                                  </span>
+                                ) : null}
+                                {activity.notes && activity.notes.trim() !== activity.title.trim() ? (
+                                  <span className="block text-muted-foreground">{activity.notes}</span>
+                                ) : null}
+                                {activity.lat != null && activity.lng != null ? (
+                                  <PlaceLinks
+                                    className="mt-1.5"
+                                    place={{
+                                      name: activity.title,
+                                      placeId: activity.placeId,
+                                      lat: activity.lat,
+                                      lng: activity.lng,
+                                    }}
+                                  />
+                                ) : null}
+                              </span>
+                              <InlineAction
+                                action={deleteActivity.bind(null, tripId, activity.id)}
+                                label="Remove"
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <ActivityComposer>
+                        <ActionForm action={createActivity.bind(null, tripId, destination.id)} submitLabel="Add activity">
+                          <Field label="Activity">
+                            <Input name="title" required />
+                          </Field>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Starts">
+                              <Input name="startAt" type="datetime-local" />
+                            </Field>
+                            <Field label="Ends">
+                              <Input name="endAt" type="datetime-local" />
+                            </Field>
+                          </div>
+                          <FieldGroup label="Tags">
+                            <CheckList
+                              name="tags"
+                              defaultChecked={false}
+                              options={ACTIVITY_TAGS.map((tag) => ({
+                                id: tag,
+                                color: ACTIVITY_COLORS[tag],
+                                label: <ActivityTagLabel tag={tag} />,
+                              }))}
+                            />
+                          </FieldGroup>
+                          <Field label="Notes">
+                            <Textarea name="notes" rows={2} />
+                          </Field>
+                          <CostFields currency={trip.baseCurrency} withSymbols />
+                        </ActionForm>
+                      </ActivityComposer>
+                    </div>
+                </DestinationCard>
+              );
+            })
+          )}
+        </section>
+        <Card className="lg:sticky lg:top-4">
+          <CardHeader>
+            <CardTitle>Add a destination</CardTitle>
+            <CardDescription>Search for a city or place, then set the days you are there.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DestinationForm
+              tripId={tripId}
+              startDate={formatDate(trip.startDate)}
+              endDate={formatDate(trip.endDate)}
+              dateHint={dateHint}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

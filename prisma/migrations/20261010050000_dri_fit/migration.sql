@@ -1,0 +1,1 @@
+ALTER TABLE "ClosetItem" ADD COLUMN "driFit" BOOLEAN NOT NULL DEFAULT false;

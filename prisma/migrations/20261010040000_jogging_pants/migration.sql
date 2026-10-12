@@ -1,0 +1,1 @@
+ALTER TYPE "ClothingSlot" ADD VALUE 'JOGGING_PANTS';

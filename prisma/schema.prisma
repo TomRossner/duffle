@@ -1,0 +1,628 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  FEMALE
+  MALE
+  NON_BINARY
+  UNSPECIFIED
+}
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+enum MemberStatus {
+  INVITED
+  ACCEPTED
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ExpensePhase {
+  PLANNED
+  ACTUAL
+}
+
+enum ExpenseCategory {
+  FLIGHT
+  STAY
+  ACTIVITY
+  INSURANCE
+  FOOD
+  TRANSPORT
+  OTHER
+  SETTLEMENT
+  GAMES
+  MOVIES
+  MUSIC
+  SPORTS
+  GROCERIES
+  LIQUOR
+  RENT
+  HOUSEHOLD
+  FURNITURE
+  MAINTENANCE
+  PETS
+  MEDICAL
+  CLOTHING
+  EDUCATION
+  GIFTS
+  GAS
+  PARKING
+  TAXI
+  TRAIN
+  BICYCLE
+  ELECTRICITY
+  WATER
+  INTERNET
+  PHONE
+}
+
+enum SplitType {
+  EQUAL
+  EXACT
+  PERCENT
+}
+
+enum ClothingSlot {
+  TOP
+  TSHIRT
+  LONG_SLEEVE
+  BASE_LAYER
+  MID_LAYER
+  SWEATER
+  PULLOVER
+  SWEATSHIRT
+  BOTTOM
+  SHORTS
+  RUNNING_SHORTS
+  HIKING_PANTS
+  JOGGING_PANTS
+  JEANS
+  SHORT_JEANS
+  OUTER
+  FLEECE
+  SOFTSHELL
+  CARDIGAN
+  RAIN_JACKET
+  DOWN_JACKET
+  SOCKS
+  SOCKS_LONG
+  SOCKS_SHORT
+  SOCKS_MEDIUM
+  SOCKS_THICK
+  SOCKS_THIN
+  SHOES
+  SWIM
+  FORMAL
+  ACCESSORY
+}
+
+enum PackingStatus {
+  SUGGESTED
+  PACKED
+  SKIPPED
+}
+
+enum LuggageKind {
+  PACK
+  BAG
+  TROLLEY
+  LUGGAGE
+}
+
+enum PackingCategory {
+  CLOTHES
+  TOILETRIES
+  ELECTRONICS
+  DOCUMENTS
+  HEALTH
+  ACCESSORIES
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String    @unique
+  name         String
+  imageKey     String?
+  passwordHash String?
+  gender       Gender?
+  birthDate    DateTime? @db.Date
+  phone        String?
+  country      String?
+  address      String?
+  city         String?
+  postalCode   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  ownedTrips         Trip[]             @relation("TripOwner")
+  memberships        TripMember[]
+  documents          Document[]
+  policies           InsurancePolicy[]
+  closetItems        ClosetItem[]
+  packingChoices     PackingChoice[]
+  luggage            Luggage[]
+  expensesPaid       Expense[]          @relation("ExpensePayer")
+  budgetRowsPaid     BudgetRow[]        @relation("BudgetRowPayer")
+  expenseShares      ExpenseShare[]
+  flightSeats        FlightTraveler[]
+  notifications      Notification[]     @relation("NotificationRecipient")
+  notificationsSent  Notification[]     @relation("NotificationActor")
+  pushSubscriptions  PushSubscription[]
+  personalDocuments   PersonalDocument[]
+  sharedPackingChecks SharedPackingCheck[]
+}
+
+model Trip {
+  id           String   @id @default(cuid())
+  name         String
+  startDate    DateTime @db.Date
+  endDate      DateTime @db.Date
+  baseCurrency String   @default("USD")
+  coverNote    String?
+  joinToken    String   @unique
+  ownerId      String
+  owner        User     @relation("TripOwner", fields: [ownerId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  members        TripMember[]
+  invites        TripInvite[]
+  destinations   Destination[]
+  flights        Flight[]
+  stays          Stay[]
+  scheduleItems  ScheduleItem[]
+  expenses       Expense[]
+  documents      Document[]
+  policies       InsurancePolicy[]
+  packingChoices PackingChoice[]
+  luggage        Luggage[]
+  notifications         Notification[]
+  budgetTables          BudgetTable[]
+  documentAttachments   TripDocumentAttachment[]
+  sharedPackingItems    SharedPackingItem[]
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  tripId    String
+  actorId   String?
+  kind      String
+  title     String
+  body      String
+  href      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  trip      Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model TripMember {
+  id     String       @id @default(cuid())
+  tripId String
+  userId String
+  role   MemberRole   @default(MEMBER)
+  status MemberStatus @default(ACCEPTED)
+  trip   Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+  @@index([userId])
+}
+
+model TripInvite {
+  id        String       @id @default(cuid())
+  tripId    String
+  email     String
+  token     String       @unique
+  status    InviteStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  expiresAt DateTime
+  trip      Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([email])
+}
+
+model Destination {
+  id        String   @id @default(cuid())
+  tripId    String
+  name      String
+  placeId   String?
+  lat       Float
+  lng       Float
+  address   String?
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  notes     String?
+  sortOrder Int      @default(0)
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  activities  Activity[]
+  weatherDays WeatherDay[]
+  stays       Stay[]
+
+  @@index([tripId])
+}
+
+model Activity {
+  id            String    @id @default(cuid())
+  destinationId String
+  title         String
+  tags          String[]
+  startAt       DateTime?
+  endAt         DateTime?
+  notes         String?
+  lat           Float?
+  lng           Float?
+  placeId       String?
+  expenseId     String?   @unique
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  expense       Expense?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([destinationId])
+}
+
+model WeatherDay {
+  id            String      @id @default(cuid())
+  destinationId String
+  date          DateTime    @db.Date
+  tempMin       Float
+  tempMax       Float
+  precipitation Float
+  windSpeed     Float
+  condition     String
+  weatherCode   Int
+  fetchedAt     DateTime    @default(now())
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@unique([destinationId, date])
+}
+
+model Flight {
+  id           String   @id @default(cuid())
+  tripId       String
+  airline      String
+  flightNumber String
+  fromAirport  String
+  toAirport    String
+  fromLat      Float?
+  fromLng      Float?
+  toLat        Float?
+  toLng        Float?
+  departAt     DateTime
+  arriveAt     DateTime
+  confirmation String?
+  notes        String?
+  expenseId    String?  @unique
+  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  expense      Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  travelers    FlightTraveler[]
+
+  @@index([tripId])
+}
+
+model FlightTraveler {
+  flightId String
+  userId   String
+  flight   Flight @relation(fields: [flightId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([flightId, userId])
+}
+
+model Stay {
+  id            String       @id @default(cuid())
+  tripId        String
+  destinationId String?
+  name          String
+  address       String?
+  lat           Float?
+  lng           Float?
+  checkIn       DateTime
+  checkOut      DateTime
+  confirmation  String?
+  notes         String?
+  expenseId     String?      @unique
+  trip          Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  destination   Destination? @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+  expense       Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+}
+
+model ScheduleItem {
+  id        String   @id @default(cuid())
+  tripId    String
+  title     String
+  kind      String
+  startAt   DateTime
+  endAt     DateTime?
+  notes     String?
+  lat       Float?
+  lng       Float?
+  placeName String?
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+}
+
+model Expense {
+  id           String          @id @default(cuid())
+  tripId       String
+  phase        ExpensePhase
+  paid         Boolean         @default(false)
+  category     ExpenseCategory
+  title        String
+  amount       Decimal         @db.Decimal(12, 2)
+  currency     String
+  fxRate       Decimal         @db.Decimal(18, 8)
+  fxDate       DateTime?       @db.Date
+  amountInBase Decimal         @db.Decimal(12, 2)
+  manualRate   Boolean         @default(false)
+  date         DateTime        @db.Date
+  notes        String?
+  paidById     String
+  splitType    SplitType
+  createdAt    DateTime        @default(now())
+  trip         Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  paidBy       User            @relation("ExpensePayer", fields: [paidById], references: [id])
+  shares       ExpenseShare[]
+  flight       Flight?
+  stay         Stay?
+  activity     Activity?
+  policy       InsurancePolicy?
+  budgetRow    BudgetRow?
+
+  @@index([tripId, phase])
+}
+
+enum BudgetTableKind {
+  FLIGHT
+  LODGING
+  CAR
+  CUSTOM
+}
+
+model BudgetTable {
+  id        String          @id @default(cuid())
+  tripId    String
+  title     String
+  kind      BudgetTableKind
+  currency  String
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  trip      Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  rows      BudgetRow[]
+
+  @@index([tripId])
+}
+
+model BudgetRow {
+  id        String    @id @default(cuid())
+  tableId   String
+  label     String
+  amount    Decimal   @db.Decimal(12, 2)
+  note      String?
+  startDate DateTime? @db.Date
+  endDate   DateTime? @db.Date
+  sortOrder Int       @default(0)
+  expenseId String?   @unique
+  paidById  String?
+  table     BudgetTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  expense   Expense?    @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  paidBy    User?       @relation("BudgetRowPayer", fields: [paidById], references: [id], onDelete: SetNull)
+
+  @@index([tableId])
+  @@index([paidById])
+}
+
+model ExpenseShare {
+  id        String   @id @default(cuid())
+  expenseId String
+  userId    String
+  amount    Decimal  @db.Decimal(12, 2)
+  percent   Decimal? @db.Decimal(6, 2)
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+}
+
+model PersonalDocument {
+  id          String                   @id @default(cuid())
+  userId      String
+  title       String
+  kind        String
+  storageKey     String
+  mimeType       String
+  documentNumber String?
+  issuedOn       DateTime?                @db.Date
+  expiresOn      DateTime?                @db.Date
+  createdAt      DateTime                 @default(now())
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments TripDocumentAttachment[]
+
+  @@index([userId])
+}
+
+model TripDocumentAttachment {
+  id                 String           @id @default(cuid())
+  tripId             String
+  personalDocumentId String
+  createdAt          DateTime         @default(now())
+  trip               Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  personalDocument   PersonalDocument @relation(fields: [personalDocumentId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, personalDocumentId])
+  @@index([tripId])
+  @@index([personalDocumentId])
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  tripId     String
+  userId     String
+  title      String
+  kind       String
+  storageKey String
+  mimeType   String
+  createdAt  DateTime @default(now())
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+  policies   InsurancePolicy[]
+
+  @@index([tripId])
+}
+
+model InsurancePolicy {
+  id           String    @id @default(cuid())
+  tripId       String
+  userId       String
+  provider     String
+  type         String
+  policyNumber String?
+  startDate    DateTime  @db.Date
+  endDate      DateTime  @db.Date
+  notes        String?
+  documentId   String?
+  expenseId    String?   @unique
+  trip         Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id])
+  document     Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  expense      Expense?  @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+}
+
+model ClosetItem {
+  id          String       @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  imageKey    String?
+  imageUrl    String?
+  slot        ClothingSlot
+  quantity    Int          @default(1)
+  tempMin     Float?
+  tempMax     Float?
+  conditions  String[]
+  activities  String[]
+  goreTex     Boolean      @default(false)
+  driFit      Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  choices      PackingChoice[]
+  packingItems PackingItem[]
+
+  @@index([userId])
+}
+
+model PackingChoice {
+  id           String         @id @default(cuid())
+  tripId       String
+  userId       String
+  closetItemId String
+  date         DateTime       @db.Date
+  status       PackingStatus
+  reason       String?
+  slot         ClothingSlot
+  trip         Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  closetItem   ClosetItem     @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tripId, closetItemId, date])
+  @@index([tripId, userId])
+}
+
+model Luggage {
+  id        String      @id @default(cuid())
+  tripId    String
+  userId    String
+  name      String
+  kind      LuggageKind
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+  trip      Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     PackingItem[]
+
+  @@index([tripId, userId])
+}
+
+model PackingItem {
+  id           String           @id @default(cuid())
+  luggageId    String
+  name         String
+  category     PackingCategory
+  quantity     Int              @default(1)
+  packed       Boolean          @default(false)
+  closetItemId String?
+  sortOrder    Int              @default(0)
+  createdAt    DateTime         @default(now())
+  luggage      Luggage             @relation(fields: [luggageId], references: [id], onDelete: Cascade)
+  closetItem   ClosetItem?         @relation(fields: [closetItemId], references: [id], onDelete: SetNull)
+  sharedCheck  SharedPackingCheck?
+
+  @@index([luggageId])
+  @@index([closetItemId])
+}
+
+model SharedPackingItem {
+  id        String               @id @default(cuid())
+  tripId    String
+  name      String
+  category  PackingCategory
+  quantity  Int                  @default(1)
+  sortOrder Int                  @default(0)
+  createdAt DateTime             @default(now())
+  trip      Trip                 @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  checks    SharedPackingCheck[]
+
+  @@index([tripId])
+}
+
+model SharedPackingCheck {
+  id            String            @id @default(cuid())
+  sharedItemId  String
+  userId        String
+  packingItemId String?           @unique
+  createdAt     DateTime          @default(now())
+  sharedItem    SharedPackingItem @relation(fields: [sharedItemId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packingItem   PackingItem?      @relation(fields: [packingItemId], references: [id], onDelete: SetNull)
+
+  @@unique([sharedItemId, userId])
+  @@index([userId])
+}

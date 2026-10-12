@@ -32,6 +32,15 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# uploaded images
+/uploads
+
+# local embedded Postgres data, used when Docker is not running
+/.pgdata
+.alex.cookie
+.sam.cookie
 
 # vercel
 .vercel
@@ -39,3 +48,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.neon
