@@ -55,7 +55,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `DATABASE_URL` | Postgres connection string |
 | `AUTH_SECRET`, `AUTH_URL` | Session signing and the public app URL |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google sign-in. Redirect URI: `http://localhost:3000/api/auth/callback/google` |
-| `GOOGLE_MAPS_API_KEY` | Place search and the trip map |
+| `GOOGLE_MAPS_API_KEY` | The trip map in the browser (Maps JavaScript API). Also used for place search when no server key is set |
+| `GOOGLE_MAPS_SERVER_KEY` | Optional. Place search and address lookup from the server (Places API (New), Geocoding API). In production, restrict it by server IP, since a key restricted to websites is rejected on the server |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Confirmation and password-reset email. Unset locally, the link is printed in the server log |
 | `UPLOADS_DIR` | Image directory when `S3_*` is unset. On a server, put this outside the app directory |
 | `S3_*` | Optional object storage. Unset values keep files in `UPLOADS_DIR` or `./uploads` |

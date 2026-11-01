@@ -6,11 +6,22 @@ export type PlaceResult = {
   lng: number;
 };
 
+// Server-side calls send no browser referrer, so a key restricted to websites is rejected here.
+// GOOGLE_MAPS_SERVER_KEY is meant to be restricted by server IP instead.
+function serverKey() {
+  return process.env.GOOGLE_MAPS_SERVER_KEY?.trim() || process.env.GOOGLE_MAPS_API_KEY?.trim();
+}
+
+async function logGoogleError(api: string, response: Response) {
+  const body = await response.text().catch(() => "");
+  console.error(`[google] ${api} failed with ${response.status}: ${body.slice(0, 500)}`);
+}
+
 export async function searchPlaces(query: string): Promise<
   | { results: PlaceResult[] }
   | { error: string; results: PlaceResult[] }
 > {
-  const key = process.env.GOOGLE_MAPS_API_KEY;
+  const key = serverKey();
   if (!key) {
     return {
       error: "Add GOOGLE_MAPS_API_KEY to search places. You can still enter a name and coordinates.",
@@ -30,6 +41,7 @@ export async function searchPlaces(query: string): Promise<
   });
 
   if (!response.ok) {
+    await logGoogleError("Places searchText", response);
     return { error: "Place search failed. Check the Google Maps key and enabled APIs.", results: [] };
   }
 
@@ -56,7 +68,7 @@ export async function searchPlaces(query: string): Promise<
 }
 
 export async function geocodeAddress(address: string) {
-  const key = process.env.GOOGLE_MAPS_API_KEY;
+  const key = serverKey();
   if (!key || !address.trim()) return null;
 
   const params = new URLSearchParams({ address, key });
@@ -64,10 +76,19 @@ export async function geocodeAddress(address: string) {
     `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`,
     { cache: "no-store" },
   );
-  if (!response.ok) return null;
+  if (!response.ok) {
+    await logGoogleError("Geocoding", response);
+    return null;
+  }
   const data = (await response.json()) as {
+    status?: string;
+    error_message?: string;
     results?: { geometry?: { location?: { lat: number; lng: number } } }[];
   };
+  // Geocoding reports key problems as HTTP 200 with a status field.
+  if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+    console.error(`[google] Geocoding returned ${data.status}: ${data.error_message ?? ""}`);
+  }
   const location = data.results?.[0]?.geometry?.location;
   if (!location) return null;
   return { lat: location.lat, lng: location.lng };

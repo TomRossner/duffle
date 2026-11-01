@@ -72,7 +72,14 @@ Copy `/tmp/duffle/deploy/env.production.example` to `/srv/duffle/shared/.env` an
 chown duffle:duffle /srv/duffle/shared/.env && chmod 600 /srv/duffle/shared/.env
 ```
 
-In Google Cloud, add `https://duffle.tomrossner.dev/api/auth/callback/google` as an authorized redirect URI, and allow `duffle.tomrossner.dev/*` on the Maps key.
+In Google Cloud, add `https://duffle.tomrossner.dev/api/auth/callback/google` as an authorized redirect URI.
+
+Maps needs two keys, because place search and address lookup run on the server, which sends no referrer:
+
+- `GOOGLE_MAPS_API_KEY` (browser, loads the map): restrict to websites `https://duffle.tomrossner.dev/*` and to the Maps JavaScript API.
+- `GOOGLE_MAPS_SERVER_KEY` (server): restrict to IP addresses with the VPS IP, and to Places API (New) and Geocoding API.
+
+Enable all three APIs in the project: Maps JavaScript API, Places API (New), and Geocoding API.
 
 ## 6. First release and service
 
