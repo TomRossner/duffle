@@ -99,7 +99,7 @@ export function ExpenseCategoryTag({ category, className }: { category: string; 
 
 export function ExpenseCategoryPicker({ defaultValue = "OTHER" }: { defaultValue?: string }) {
   const initialGroup = expenseGroupFor(defaultValue)?.id ?? "GENERAL";
-  const [groupId, setGroupId] = useState(initialGroup);
+  const [groupId, setGroupId] = useState<string>(initialGroup);
   const [category, setCategory] = useState(defaultValue);
   const group = EXPENSE_GROUPS.find((item) => item.id === groupId) ?? EXPENSE_GROUPS[0];
 

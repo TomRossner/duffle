@@ -25,9 +25,9 @@ function readDetails(formData: FormData) {
   if (!isPersonalDocumentKind(kind)) return { error: "Choose a document type." } as const;
   if (documentNumber.length > 40) return { error: "Document number must be 40 characters or fewer." } as const;
   const issued = readOptionalDate(formData.get("issuedOn"), "Issue date");
-  if ("error" in issued) return issued;
+  if (issued.error) return { error: issued.error } as const;
   const expires = readOptionalDate(formData.get("expiresOn"), "Expiry date");
-  if ("error" in expires) return expires;
+  if (expires.error) return { error: expires.error } as const;
   if (issued.date && expires.date && expires.date < issued.date) {
     return { error: "Expiry date must be on or after the issue date." } as const;
   }

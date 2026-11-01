@@ -15,14 +15,18 @@ export function ActionForm({
   className,
   onSaved,
 }: {
-  action: (state: ActionState, formData: FormData) => Promise<ActionState>;
+  // Actions declare their own state type and ignore the previous state, so accept any of them.
+  action: (state: never, formData: FormData) => Promise<ActionState>;
   children: React.ReactNode;
   submitLabel: string;
   submitIcon?: React.ReactNode;
   className?: string;
   onSaved?: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(action, null);
+  const [state, formAction, pending] = useActionState(
+    action as (state: ActionState, formData: FormData) => Promise<ActionState>,
+    null,
+  );
 
   useEffect(() => {
     if (state?.ok) onSaved?.();

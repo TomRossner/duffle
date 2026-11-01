@@ -41,7 +41,7 @@ function readDestination(trip: { startDate: Date; endDate: Date }, formData: For
 export async function createDestination(tripId: string, _: unknown, formData: FormData) {
   const { trip } = await requireTrip(tripId);
   const parsed = readDestination(trip, formData);
-  if ("error" in parsed) return parsed;
+  if (parsed.error !== undefined) return { error: parsed.error };
 
   const last = await prisma.destination.findFirst({
     where: { tripId },
@@ -66,7 +66,7 @@ export async function updateDestination(tripId: string, destinationId: string, _
   const existing = await prisma.destination.findFirst({ where: { id: destinationId, tripId } });
   if (!existing) return { error: "Destination not found." };
   const parsed = readDestination(trip, formData);
-  if ("error" in parsed) return parsed;
+  if (parsed.error !== undefined) return { error: parsed.error };
 
   await prisma.destination.update({
     where: { id: destinationId },

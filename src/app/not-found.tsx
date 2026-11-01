@@ -14,7 +14,7 @@ export default function NotFound() {
       </Link>
       <div className="grid gap-2">
         <p className="font-mono text-sm tracking-widest text-muted-foreground">404</p>
-        <h1 className="text-balance text-3xl font-semibold tracking-tight">This page isn't on the map.</h1>
+        <h1 className="text-balance text-3xl font-semibold tracking-tight">This page isn&apos;t on the map.</h1>
         <p className="text-balance text-muted-foreground">
           The link may be out of date, or the page may have been removed.
         </p>

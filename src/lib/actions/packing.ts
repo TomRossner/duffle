@@ -81,7 +81,7 @@ export async function collectPackingSuggestions(
 
 export async function generatePacking(tripId: string) {
   const collected = await collectPackingSuggestions(tripId);
-  if ("error" in collected) return collected;
+  if (collected.error !== undefined) return { error: collected.error };
   const { user, suggestions } = collected;
 
   const locked = await prisma.packingChoice.findMany({

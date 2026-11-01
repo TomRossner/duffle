@@ -31,7 +31,6 @@ export function NotificationBell() {
 
   useEffect(() => {
     let stopped = false;
-    let timer: number | undefined;
 
     const unchanged = (current: Notice[], incoming: Notice[]) =>
       current.length === incoming.length &&
@@ -51,7 +50,7 @@ export function NotificationBell() {
     };
 
     void load();
-    timer = window.setInterval(() => void load(), 20000);
+    const timer = window.setInterval(() => void load(), 20000);
     return () => {
       stopped = true;
       window.clearInterval(timer);

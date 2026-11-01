@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { PlaceSearch } from "@/components/place-search";
 import { Field } from "@/components/fields";
 import { Button } from "@/components/ui/button";
@@ -24,16 +24,17 @@ export function DestinationForm({
   const [manual, setManual] = useState(false);
   const [rename, setRename] = useState(false);
   const [formKey, setFormKey] = useState(0);
-  const [state, formAction, pending] = useActionState(createDestination.bind(null, tripId), null);
+  const [state, formAction, pending] = useActionState(async (previous: unknown, formData: FormData) => {
+    const result = await createDestination(tripId, previous, formData);
+    if (result.ok) {
+      setPlace(null);
+      setManual(false);
+      setRename(false);
+      setFormKey((key) => key + 1);
+    }
+    return result;
+  }, null);
   const usingPlace = place !== null && !manual;
-
-  useEffect(() => {
-    if (!state?.ok) return;
-    setPlace(null);
-    setManual(false);
-    setRename(false);
-    setFormKey((key) => key + 1);
-  }, [state]);
 
   return (
     <form action={formAction} className="grid gap-3">

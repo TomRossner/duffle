@@ -5,8 +5,27 @@ on:
   pull_request:
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: trip
+          POSTGRES_PASSWORD: trip
+          POSTGRES_DB: tripplanner
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trip"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://trip:trip@localhost:5432/tripplanner
+      AUTH_SECRET: ci-only-not-a-secret
+      AUTH_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,4 +33,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
+      # Applies every migration to a fresh database, then builds.
+      - run: npm run build

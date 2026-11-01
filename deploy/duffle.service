@@ -1,0 +1,30 @@
+# /etc/systemd/system/duffle.service
+[Unit]
+Description=Duffle (Next.js)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=duffle
+Group=duffle
+WorkingDirectory=/srv/duffle/current
+EnvironmentFile=/srv/duffle/shared/.env
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+# Listen on localhost only so nobody can skip nginx and forge X-Real-IP.
+# One process: sign-in rate limits are kept in memory.
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/duffle
+
+[Install]
+WantedBy=multi-user.target

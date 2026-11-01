@@ -2,7 +2,10 @@ import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } fro
 import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import path from "path";
 
-const uploadsRoot = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"));
+// Uploads are runtime data, not source: keep the build from tracing this directory.
+const uploadsRoot = path.resolve(
+  /*turbopackIgnore: true*/ process.env.UPLOADS_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), "uploads"),
+);
 
 function s3Config() {
   const bucket = process.env.S3_BUCKET;
