@@ -1,3 +1,5 @@
+# Local development database. The port listens on localhost only.
+# On a VPS, keep Postgres off the public internet and replace the password.
 services:
   db:
     image: postgres:16
@@ -6,7 +8,7 @@ services:
       POSTGRES_PASSWORD: trip
       POSTGRES_DB: tripplanner
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 

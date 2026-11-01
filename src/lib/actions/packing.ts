@@ -3,12 +3,18 @@
 import type { ClothingSlot, PackingStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { eachDate, formatDate } from "@/lib/dates";
+import { packingAgentConfigured, suggestPackingWithAgent } from "@/lib/packing-agent";
 import { suggestPacking, type PackingDayContext } from "@/lib/packing";
+import type { SuggestClothesStep } from "@/lib/suggest-clothes-steps";
 import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
 
-export async function collectPackingSuggestions(tripId: string) {
+export async function collectPackingSuggestions(
+  tripId: string,
+  onStep?: (step: SuggestClothesStep) => void | Promise<void>,
+) {
   const { user, trip } = await requireTrip(tripId);
+  await onStep?.("forecast");
   const [items, destinations] = await Promise.all([
     prisma.closetItem.findMany({ where: { userId: user.id } }),
     prisma.destination.findMany({
@@ -28,10 +34,12 @@ export async function collectPackingSuggestions(tripId: string) {
       .find((item) => formatDate(item.startDate) <= key && formatDate(item.endDate) >= key);
     const weather = destination?.weatherDays.find((day) => formatDate(day.date) === key);
     const activityTags = new Set<string>();
+    const plans: string[] = [];
     for (const activity of destination?.activities ?? []) {
       const activityDay = activity.startAt ? formatDate(activity.startAt) : null;
       if (!activityDay || activityDay === key) {
         for (const tag of activity.tags) activityTags.add(tag);
+        if (activity.title) plans.push(activity.title);
       }
     }
     return {
@@ -42,21 +50,31 @@ export async function collectPackingSuggestions(tripId: string) {
       windSpeed: weather?.windSpeed ?? 0,
       condition: weather?.condition ?? null,
       activityTags: [...activityTags],
+      place: destination?.name ?? null,
+      plans,
     };
   });
 
-  const suggestions = suggestPacking(
-    items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      slot: item.slot,
-      tempMin: item.tempMin,
-      tempMax: item.tempMax,
-      conditions: item.conditions,
-      activities: item.activities,
-    })),
-    days,
-  );
+  const closet = items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    slot: item.slot,
+    tempMin: item.tempMin,
+    tempMax: item.tempMax,
+    conditions: item.conditions,
+    activities: item.activities,
+    description: item.description,
+    quantity: item.quantity,
+    goreTex: item.goreTex,
+    driFit: item.driFit,
+  }));
+  await onStep?.("match");
+  const rules = suggestPacking(closet, days);
+  let suggestions = rules;
+  if (packingAgentConfigured()) {
+    await onStep?.("choose");
+    suggestions = (await suggestPackingWithAgent(closet, days, rules)) ?? rules;
+  }
 
   return { user, suggestions, items };
 }

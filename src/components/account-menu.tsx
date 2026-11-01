@@ -84,7 +84,7 @@ export function AccountMenu({ hasPassword }: { hasPassword: boolean }) {
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
         pending={deleting}
-        message="Are you sure you want to delete your account? Trips you created will be deleted, and you will be removed from trips you joined."
+        message="Your profile, closet, and personal documents are deleted. Trips that still have other travelers stay, with another admin in charge. Shared expenses keep a Deleted traveler so the balances still add up."
         onConfirm={() => {
           setDeleting(true);
           setDeleteError(null);

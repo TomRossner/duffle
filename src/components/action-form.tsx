@@ -5,7 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { Button } from "@/components/ui/button";
 
-type ActionState = { error?: string; ok?: boolean; token?: string } | null | undefined;
+type ActionState = { error?: string; ok?: boolean; token?: string; message?: string; devLink?: string } | null | undefined;
 
 export function ActionForm({
   action,
@@ -32,6 +32,15 @@ export function ActionForm({
     <form action={formAction} className={className ?? "grid gap-3"}>
       {children}
       {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+      {state?.message ? <p className="text-sm">{state.message}</p> : null}
+      {state?.devLink ? (
+        <p className="text-sm">
+          <a href={state.devLink} className="underline">
+            Open the email link
+          </a>
+          <span className="text-muted-foreground"> (shown because SMTP is not configured)</span>
+        </p>
+      ) : null}
       {state?.token ? <CopyInvite token={state.token} /> : null}
       <Button type="submit" disabled={pending}>
         {submitIcon}

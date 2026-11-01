@@ -3,6 +3,7 @@
 import type { PackingCategory as PrismaCategory, LuggageKind as PrismaKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { collectPackingSuggestions } from "@/lib/actions/packing";
+import type { SuggestClothesStep } from "@/lib/suggest-clothes-steps";
 import { prisma } from "@/lib/prisma";
 import {
   categoryForSlot,
@@ -12,7 +13,7 @@ import {
 } from "@/lib/packing-list";
 import { requireTrip } from "@/lib/trip-access";
 
-type ActionState = { error?: string; ok?: boolean } | null;
+type ActionState = { error?: string; ok?: boolean; count?: number } | null;
 
 function cleanName(value: FormDataEntryValue | null) {
   return String(value ?? "").trim().slice(0, 80);
@@ -53,6 +54,16 @@ export async function updateLuggage(tripId: string, luggageId: string, _state: A
   if (!name) return { error: "Name the bag." };
   if (!isLuggageKind(kind)) return { error: "Choose a pack, bag, trolley, or luggage." };
   await prisma.luggage.update({ where: { id: luggage.id }, data: { name, kind: kind as PrismaKind } });
+  revalidatePath(`/trips/${tripId}/packing`);
+  return { ok: true };
+}
+
+export async function clearLuggageItems(tripId: string, luggageId: string) {
+  if (process.env.NODE_ENV === "production") return { error: "Not available." };
+  const { user } = await requireTrip(tripId);
+  const luggage = await ownedLuggage(tripId, user.id, luggageId);
+  if (!luggage) return { error: "That bag is not on your list." };
+  await prisma.packingItem.deleteMany({ where: { luggageId: luggage.id } });
   revalidatePath(`/trips/${tripId}/packing`);
   return { ok: true };
 }
@@ -190,21 +201,31 @@ export async function addClosetItems(tripId: string, luggageId: string, _state: 
   return { ok: true };
 }
 
-export async function addSuggestedClothes(tripId: string, _state: ActionState, formData: FormData) {
+export async function addSuggestedClothes(
+  tripId: string,
+  _state: ActionState,
+  formData: FormData,
+  onStep?: (step: SuggestClothesStep) => void | Promise<void>,
+) {
   const { user } = await requireTrip(tripId);
-  const collected = await collectPackingSuggestions(tripId);
+  const collected = await collectPackingSuggestions(tripId, onStep);
   if ("error" in collected) return collected;
   const uniqueIds = [...new Set(collected.suggestions.map((suggestion) => suggestion.closetItemId))];
   const byId = new Map(collected.items.map((item) => [item.id, item]));
   const taken = await takenClosetIds(tripId, user.id);
   const fresh = uniqueIds.flatMap((id) => {
     const item = byId.get(id);
-    return item && !taken.has(item.id) ? [item] : [];
+    if (!item || taken.has(item.id)) return [];
+    const related = collected.suggestions.filter((suggestion) => suggestion.closetItemId === id);
+    const quantity = related.reduce((max, suggestion) => Math.max(max, suggestion.quantity), 1);
+    const note = related.find((suggestion) => suggestion.note)?.note ?? null;
+    return [{ item, quantity, note }];
   });
   if (fresh.length === 0) {
     return { error: "Nothing new to add. Those clothes are already packed, or nothing matched the forecast." };
   }
 
+  await onStep?.("save");
   const requestedId = String(formData.get("luggageId") ?? "");
   let luggage = requestedId ? await ownedLuggage(tripId, user.id, requestedId) : null;
   if (!luggage) {
@@ -213,24 +234,22 @@ export async function addSuggestedClothes(tripId: string, _state: ActionState, f
       orderBy: { sortOrder: "asc" },
     });
   }
-  if (!luggage) {
-    luggage = await prisma.luggage.create({
-      data: { tripId, userId: user.id, name: "Day pack", kind: "PACK" },
-    });
-  }
+  if (!luggage) return { error: "Add a bag before suggesting clothes." };
 
   const count = await prisma.packingItem.count({ where: { luggageId: luggage.id } });
   await prisma.packingItem.createMany({
-    data: fresh.map((item, index) => ({
+    data: fresh.map((entry, index) => ({
       luggageId: luggage.id,
-      name: item.name,
-      category: categoryForSlot(item.slot) as PrismaCategory,
-      closetItemId: item.id,
+      name: entry.item.name,
+      category: categoryForSlot(entry.item.slot) as PrismaCategory,
+      closetItemId: entry.item.id,
+      quantity: entry.quantity,
+      note: entry.note,
       sortOrder: count + index,
     })),
   });
   revalidatePath(`/trips/${tripId}/packing`);
-  return { ok: true };
+  return { ok: true, count: fresh.length };
 }
 
 async function bagForSharedCheck(tripId: string, userId: string, luggageId: string) {

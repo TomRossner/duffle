@@ -14,6 +14,16 @@ export async function requireUser() {
   return user;
 }
 
+export async function requireVerifiedUser() {
+  const sessionUser = await requireUser();
+  const user = await prisma.user.findUnique({
+    where: { id: sessionUser.id },
+    select: { id: true, email: true, name: true, emailVerified: true },
+  });
+  if (!user?.emailVerified) redirect("/login?notice=confirm");
+  return user;
+}
+
 export async function requireTrip(tripId: string) {
   const user = await requireUser();
   const membership = await prisma.tripMember.findUnique({

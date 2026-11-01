@@ -13,14 +13,23 @@ function googleErrorMessage(error?: string) {
   return "Google sign-in failed. Try again.";
 }
 
+function noticeMessage(notice?: string) {
+  if (notice === "verified") return "Email confirmed. Sign in.";
+  if (notice === "password") return "Password updated. Sign in with the new one. Other sessions were signed out.";
+  if (notice === "reset") return "Password updated. Sign in with the new one.";
+  if (notice === "confirm") return "Confirm your email before joining a trip.";
+  return null;
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string; notice?: string }>;
 }) {
   const params = await searchParams;
   const callbackUrl = params.callbackUrl ?? "/trips";
   const googleError = googleErrorMessage(params.error);
+  const notice = noticeMessage(params.notice);
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-md flex-col items-center justify-center gap-6 px-4 py-16">
@@ -33,6 +42,7 @@ export default async function LoginPage({
         <CardContent>
           <GoogleSignIn callbackUrl={callbackUrl} />
           {googleError ? <p className="mt-3 text-sm text-destructive">{googleError}</p> : null}
+          {notice ? <p className="mt-3 text-sm">{notice}</p> : null}
           <p className="my-4 text-center text-xs text-muted-foreground">or</p>
           <ActionForm action={login} submitLabel="Sign in">
             <input type="hidden" name="callbackUrl" value={callbackUrl} />
@@ -44,6 +54,11 @@ export default async function LoginPage({
             </Field>
           </ActionForm>
           <p className="mt-4 text-sm text-muted-foreground">
+            <Link href="/forgot-password" className="text-foreground underline">
+              Forgot password
+            </Link>
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
             No account yet?{" "}
             <Link href="/register" className="text-foreground underline">
               Create one

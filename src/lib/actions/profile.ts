@@ -2,9 +2,11 @@
 
 import { compare, hash } from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { deleteOrAnonymizeUser } from "@/lib/account-deletion";
 import { readAccountDetails } from "@/lib/account-details";
 import { signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteObject } from "@/lib/storage";
 import { requireUser } from "@/lib/trip-access";
 import { storeImage } from "@/lib/uploads";
 
@@ -51,27 +53,30 @@ export async function updatePassword(_: unknown, formData: FormData) {
 
   await prisma.user.update({
     where: { id: sessionUser.id },
-    data: { passwordHash: await hash(password, 12) },
+    data: { passwordHash: await hash(password, 12), sessionVersion: { increment: 1 } },
   });
-  return { ok: true };
+  await prisma.authToken.deleteMany({ where: { userId: sessionUser.id, kind: "RESET_PASSWORD" } });
+  await signOut({ redirectTo: "/login?notice=password" });
 }
 
 export async function deleteAccount() {
   const sessionUser = await requireUser();
   const userId = sessionUser.id;
+  const privateFiles = await prisma.personalDocument.findMany({
+    where: { userId },
+    select: { storageKey: true },
+  });
+  const profile = await prisma.user.findUnique({ where: { id: userId }, select: { imageKey: true } });
+  const keys = [...privateFiles.map((file) => file.storageKey), profile?.imageKey].filter(
+    (key): key is string => Boolean(key),
+  );
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.trip.deleteMany({ where: { ownerId: userId } });
-      await tx.insurancePolicy.deleteMany({ where: { userId } });
-      await tx.document.deleteMany({ where: { userId } });
-      await tx.expense.deleteMany({ where: { paidById: userId } });
-      await tx.expenseShare.deleteMany({ where: { userId } });
-      await tx.user.delete({ where: { id: userId } });
-    });
+    await prisma.$transaction((tx) => deleteOrAnonymizeUser(tx, userId));
   } catch {
     return { error: "Could not delete the account." };
   }
 
+  await Promise.all(keys.map((key) => deleteObject(key).catch(() => undefined)));
   await signOut({ redirectTo: "/" });
 }

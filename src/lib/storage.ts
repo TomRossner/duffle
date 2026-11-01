@@ -1,8 +1,8 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import path from "path";
 
-const uploadsRoot = path.join(process.cwd(), "uploads");
+const uploadsRoot = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"));
 
 function s3Config() {
   const bucket = process.env.S3_BUCKET;
@@ -20,20 +20,26 @@ function s3Config() {
   };
 }
 
-function localPath(key: string) {
-  const normalized = path.normalize(key).replace(/^(\.\.(\/|\\|$))+/, "");
-  const full = path.join(uploadsRoot, normalized);
-  if (!full.startsWith(uploadsRoot)) {
+export function assertSafeKey(key: string) {
+  if (!key || key.includes("..") || key.startsWith("/") || key.includes("\\") || key.includes(":")) {
+    throw new Error("Invalid storage key");
+  }
+  return key;
+}
+
+export function resolveUploadPath(root: string, key: string) {
+  const safeKey = assertSafeKey(key);
+  const base = path.resolve(root);
+  const full = path.resolve(base, safeKey);
+  const relative = path.relative(base, full);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new Error("Invalid storage key");
   }
   return full;
 }
 
-export function assertSafeKey(key: string) {
-  if (!key || key.includes("..") || key.startsWith("/") || key.includes("\\")) {
-    throw new Error("Invalid storage key");
-  }
-  return key;
+function localPath(key: string) {
+  return resolveUploadPath(uploadsRoot, key);
 }
 
 export async function saveObject(key: string, body: Buffer, contentType: string) {
@@ -54,6 +60,16 @@ export async function saveObject(key: string, body: Buffer, contentType: string)
   const full = localPath(safeKey);
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, body);
+}
+
+export async function deleteObject(key: string) {
+  const safeKey = assertSafeKey(key);
+  const remote = s3Config();
+  if (remote) {
+    await remote.client.send(new DeleteObjectCommand({ Bucket: remote.bucket, Key: safeKey }));
+    return;
+  }
+  await rm(localPath(safeKey), { force: true });
 }
 
 export async function readObject(key: string) {

@@ -2,9 +2,12 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export async function claimPendingInvites(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-  const email = user?.email.toLowerCase().trim();
-  if (!email) return;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, emailVerified: true },
+  });
+  const email = user?.emailVerified ? user.email.toLowerCase().trim() : "";
+  if (!email || email.endsWith("@users.invalid")) return;
 
   const invites = await prisma.tripInvite.findMany({
     where: {

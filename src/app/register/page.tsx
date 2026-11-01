@@ -13,7 +13,7 @@ export default function RegisterPage() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Create an account</CardTitle>
-          <CardDescription>Use Google, or your details and a password.</CardDescription>
+          <CardDescription>Use Google, or your details and a password. Password accounts confirm the email before sign-in.</CardDescription>
         </CardHeader>
         <CardContent>
           <GoogleSignIn />

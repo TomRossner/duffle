@@ -2,8 +2,9 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { EllipsisVertical, GripVertical, Pencil, Trash2, X } from "lucide-react";
+import { Check, CloudSun, EllipsisVertical, GripVertical, Luggage, Pencil, Shirt, Sparkles, Trash2, X } from "lucide-react";
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { CheckBox } from "@/components/checkbox";
@@ -13,7 +14,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import {
   addClosetItems,
-  addSuggestedClothes,
+  clearLuggageItems,
   createLuggage,
   createPackingItem,
   createSharedPackingItem,
@@ -44,6 +45,11 @@ import {
   isPackingCategory,
 } from "@/lib/packing-list";
 import { ClothingSlotIcon } from "@/lib/tag-meta";
+import {
+  SUGGEST_CLOTHES_STEP_LABELS,
+  isSuggestClothesStep,
+  type SuggestClothesStep,
+} from "@/lib/suggest-clothes-steps";
 import { cn } from "@/lib/utils";
 
 export type PackingListItem = {
@@ -54,6 +60,7 @@ export type PackingListItem = {
   packed: boolean;
   closetItemId: string | null;
   slot: string | null;
+  note: string | null;
 };
 
 export type PackingBag = {
@@ -108,12 +115,14 @@ export function PackingBoard({
   closet,
   sharedItems,
   travelers,
+  dev = false,
 }: {
   tripId: string;
   bags: PackingBag[];
   closet: ClosetOption[];
   sharedItems: SharedListItem[];
   travelers: SharedTraveler[];
+  dev?: boolean;
 }) {
   const [optimisticBags, applyMove] = useOptimistic(bags, moveItemBetweenBags);
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -169,6 +178,7 @@ export function PackingBoard({
               bag={bag}
               bags={optimisticBags}
               closet={closet.filter((item) => !usedClosetIds.has(item.id))}
+              dev={dev}
               onMove={onMove}
             />
           ))}
@@ -341,31 +351,134 @@ function SharedRow({
   );
 }
 
+const SUGGEST_CLOTHES_STEP_ICONS = {
+  forecast: CloudSun,
+  match: Shirt,
+  choose: Sparkles,
+  save: Luggage,
+} satisfies Record<SuggestClothesStep, typeof CloudSun>;
+
 function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }) {
-  const [state, formAction, pending] = useActionState(addSuggestedClothes.bind(null, tripId), null);
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [steps, setSteps] = useState<SuggestClothesStep[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [count, setCount] = useState<number | null>(null);
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    if (event.target !== event.currentTarget) return;
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    setPending(true);
+    setError(null);
+    setCount(null);
+    setSteps(["forecast"]);
+    try {
+      const response = await fetch(`/api/trips/${tripId}/suggest-clothes`, { method: "POST", body: formData });
+      if (!response.ok || !response.body) {
+        setError("Could not suggest clothes.");
+        return;
+      }
+      const result = await readSuggestEvents(response.body, (step) => {
+        setSteps((current) => (current.includes(step) ? current : [...current, step]));
+      });
+      if (result.error) setError(result.error);
+      else {
+        setCount(result.count ?? 0);
+        router.refresh();
+      }
+    } catch {
+      setError("Could not suggest clothes.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
-    <form action={formAction} className="grid w-full gap-1 sm:w-auto sm:justify-items-end">
-      <div className="flex flex-wrap items-end gap-2 sm:justify-end">
-        {bags.length > 0 ? (
-          <Field label="Suggest into" className="w-40">
-            <Select name="luggageId" defaultValue={bags[0].id}>
-              {bags.map((bag) => (
-                <option key={bag.id} value={bag.id}>
-                  {bag.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        ) : null}
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving..." : "Suggest clothes"}
-        </Button>
+    <div className="grid w-full gap-1 sm:w-auto sm:justify-items-start">
+      <div className="flex flex-wrap items-end gap-2">
+        <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-2">
+          {bags.length > 0 ? (
+            <Field label="Suggest into" className="w-40">
+              <Select name="luggageId" defaultValue={bags[0].id} disabled={pending}>
+                {bags.map((bag) => (
+                  <option key={bag.id} value={bag.id}>
+                    {bag.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+          <Button type="submit" disabled={pending}>
+            Suggest clothes
+          </Button>
+        </form>
         <AddBagButton tripId={tripId} />
       </div>
-      {state?.error ? <p className="max-w-sm text-right text-sm text-destructive">{state.error}</p> : null}
-    </form>
+      {pending && steps.length > 0 ? (
+        <ol className="grid justify-items-start gap-1 text-left text-sm" aria-live="polite">
+          {steps.map((step, index) => {
+            const current = index === steps.length - 1;
+            const Icon = SUGGEST_CLOTHES_STEP_ICONS[step];
+            return (
+              <li
+                key={step}
+                className={cn("flex items-center gap-2", current ? "text-foreground" : "text-muted-foreground")}
+              >
+                <span className="flex size-3.5 shrink-0 items-center justify-center" aria-hidden="true">
+                  {current ? null : <Check className="size-3.5" />}
+                </span>
+                <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  {SUGGEST_CLOTHES_STEP_LABELS[step]}
+                  {current ? "…" : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+      {error ? <p className="max-w-sm text-left text-sm text-destructive">{error}</p> : null}
+      {count != null && !pending ? (
+        <p className="max-w-sm text-left text-sm text-muted-foreground">
+          Added {count} {count === 1 ? "item" : "items"}.
+        </p>
+      ) : null}
+    </div>
   );
+}
+
+async function readSuggestEvents(body: ReadableStream<Uint8Array>, onStep: (step: SuggestClothesStep) => void) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: { error?: string; count?: number } = {};
+
+  const take = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) return;
+    const event = JSON.parse(trimmed.slice(5).trim()) as {
+      step?: unknown;
+      error?: unknown;
+      ok?: unknown;
+      count?: unknown;
+    };
+    if (isSuggestClothesStep(event.step)) onStep(event.step);
+    if (typeof event.error === "string") result = { error: event.error };
+    if (event.ok === true) result = { count: typeof event.count === "number" ? event.count : 0 };
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) take(line);
+  }
+  take(buffer);
+  if (!result.error && result.count == null) return { error: "Could not suggest clothes." };
+  return result;
 }
 
 function AddBagButton({ tripId }: { tripId: string }) {
@@ -389,12 +502,14 @@ function BagCard({
   bag,
   bags,
   closet,
+  dev,
   onMove,
 }: {
   tripId: string;
   bag: PackingBag;
   bags: PackingBag[];
   closet: ClosetOption[];
+  dev: boolean;
   onMove: (itemId: string, toBagId: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -402,6 +517,7 @@ function BagCard({
   const [fromCloset, setFromCloset] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const [over, setOver] = useState(false);
   const packed = bag.items.filter((item) => item.packed).length;
 
@@ -469,6 +585,11 @@ function BagCard({
               <Pencil className="size-3.5" />
               Edit
             </Menu.Item>
+            {dev ? (
+              <Menu.Item className={menuItemClass} onClick={() => setConfirmingClear(true)}>
+                Clear items
+              </Menu.Item>
+            ) : null}
             <Menu.Item
               className={cn(menuItemClass, "text-destructive")}
               onClick={() => setConfirmingDelete(true)}
@@ -555,6 +676,19 @@ function BagCard({
           </ActionForm>
         )}
       </EditorDialog>
+      <DeleteDialog
+        open={confirmingClear}
+        onOpenChange={setConfirmingClear}
+        message={`Are you sure you want to clear the items in "${bag.name}"?`}
+        confirmLabel="Clear items"
+        onConfirm={() => {
+          setConfirmingClear(false);
+          setDeleteError(null);
+          void clearLuggageItems(tripId, bag.id).then((result) => {
+            if (result && "error" in result && result.error) setDeleteError(result.error);
+          });
+        }}
+      />
       <DeleteDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
@@ -682,8 +816,17 @@ function PackedCheck({ tripId, item }: { tripId: string; item: PackingListItem }
           )}
         </span>
       ) : null}
-      <span className={cn("truncate", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
-      {item.quantity > 1 ? <span className="shrink-0 text-sm text-muted-foreground">× {item.quantity}</span> : null}
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className={cn("truncate", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
+          {item.quantity > 1 ? <span className="shrink-0 text-sm text-muted-foreground">× {item.quantity}</span> : null}
+        </span>
+        {item.note ? (
+          <span className="block truncate text-xs text-muted-foreground" title={item.note}>
+            {item.note}
+          </span>
+        ) : null}
+      </span>
     </label>
   );
 }

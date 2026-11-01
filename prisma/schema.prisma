@@ -146,9 +146,12 @@ model User {
   address      String?
   city         String?
   postalCode   String?
+  emailVerified  DateTime?
+  sessionVersion Int       @default(0)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  authTokens         AuthToken[]
   ownedTrips         Trip[]             @relation("TripOwner")
   memberships        TripMember[]
   documents          Document[]
@@ -165,6 +168,18 @@ model User {
   pushSubscriptions  PushSubscription[]
   personalDocuments   PersonalDocument[]
   sharedPackingChecks SharedPackingCheck[]
+}
+
+model AuthToken {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
 }
 
 model Trip {
@@ -589,6 +604,7 @@ model PackingItem {
   quantity     Int              @default(1)
   packed       Boolean          @default(false)
   closetItemId String?
+  note         String?
   sortOrder    Int              @default(0)
   createdAt    DateTime         @default(now())
   luggage      Luggage             @relation(fields: [luggageId], references: [id], onDelete: Cascade)

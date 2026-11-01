@@ -9,19 +9,43 @@ async function userFromGoogle(email: string, name?: string | null) {
   const normalized = email.toLowerCase().trim();
   const displayName = name?.trim() || normalized.split("@")[0] || "Traveler";
   const existing = await prisma.user.findUnique({ where: { email: normalized } });
-  if (existing) return existing;
+  if (existing?.emailVerified) return existing;
+  if (existing) {
+    return prisma.user.update({
+      where: { id: existing.id },
+      data: {
+        emailVerified: new Date(),
+        passwordHash: null,
+        sessionVersion: { increment: 1 },
+      },
+    });
+  }
 
   try {
     return await prisma.user.create({
-      data: { email: normalized, name: displayName },
+      data: { email: normalized, name: displayName, emailVerified: new Date() },
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const created = await prisma.user.findUnique({ where: { email: normalized } });
-      if (created) return created;
+      if (created?.emailVerified) return created;
+      if (created) {
+        return prisma.user.update({
+          where: { id: created.id },
+          data: { emailVerified: new Date(), passwordHash: null, sessionVersion: { increment: 1 } },
+        });
+      }
     }
     throw error;
   }
+}
+
+async function sessionVersionFor(userId: string) {
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sessionVersion: true },
+  });
+  return dbUser?.sessionVersion ?? null;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -47,7 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!email || !password) return null;
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user?.passwordHash) return null;
+        if (!user?.passwordHash || !user.emailVerified) return null;
         const valid = await compare(password, user.passwordHash);
         if (!valid) return null;
 
@@ -67,9 +91,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = dbUser.id;
         token.email = dbUser.email;
         token.name = dbUser.name;
+        token.sessionVersion = dbUser.sessionVersion;
         return token;
       }
-      if (user?.id) token.id = user.id;
+      if (user?.id) {
+        const sessionVersion = await sessionVersionFor(user.id);
+        if (sessionVersion == null) return null;
+        token.id = user.id;
+        token.sessionVersion = sessionVersion;
+        return token;
+      }
+      if (!token.id) return null;
+      const sessionVersion = await sessionVersionFor(token.id as string);
+      const tokenVersion = token.sessionVersion == null ? 0 : Number(token.sessionVersion);
+      if (sessionVersion == null || sessionVersion !== tokenVersion) return null;
+      token.sessionVersion = sessionVersion;
       return token;
     },
     session({ session, token }) {

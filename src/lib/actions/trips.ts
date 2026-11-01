@@ -8,7 +8,7 @@ import { parseDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { claimPendingInvites } from "@/lib/invites";
 import { notifyTrip } from "@/lib/notify";
-import { requireTrip, requireUser } from "@/lib/trip-access";
+import { requireTrip, requireUser, requireVerifiedUser } from "@/lib/trip-access";
 
 export async function createTrip(_: unknown, formData: FormData) {
   const user = await requireUser();
@@ -103,12 +103,12 @@ export async function createInvite(tripId: string, _: unknown, formData: FormDat
 }
 
 export async function acceptInvite(token: string) {
-  const user = await requireUser();
+  const user = await requireVerifiedUser();
   const invite = await prisma.tripInvite.findUnique({ where: { token } });
   if (!invite || invite.status !== "PENDING" || invite.expiresAt < new Date()) {
     return { error: "This invite is no longer valid." };
   }
-  if (invite.email !== user.email?.toLowerCase()) {
+  if (invite.email.toLowerCase() !== user.email.toLowerCase()) {
     return { error: `This invite was sent to ${invite.email}. Sign in with that email.` };
   }
 
@@ -132,7 +132,7 @@ export async function acceptInvite(token: string) {
 }
 
 export async function acceptJoin(token: string) {
-  const user = await requireUser();
+  const user = await requireVerifiedUser();
   const trip = await prisma.trip.findUnique({ where: { joinToken: token } });
   if (!trip) return { error: "This link is no longer valid." };
 
@@ -157,9 +157,9 @@ export async function acceptJoin(token: string) {
 }
 
 export async function declineInvite(token: string) {
-  const user = await requireUser();
+  const user = await requireVerifiedUser();
   const invite = await prisma.tripInvite.findUnique({ where: { token } });
-  if (!invite || invite.email !== user.email?.toLowerCase()) {
+  if (!invite || invite.email.toLowerCase() !== user.email.toLowerCase()) {
     return { error: "This invite is no longer valid." };
   }
 

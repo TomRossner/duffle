@@ -10,6 +10,10 @@ export type PackingClosetItem = {
   tempMax: number | null;
   conditions: string[];
   activities: string[];
+  description?: string | null;
+  quantity?: number;
+  goreTex?: boolean;
+  driFit?: boolean;
 };
 
 export type PackingDayContext = {
@@ -20,12 +24,23 @@ export type PackingDayContext = {
   windSpeed: number;
   condition: string | null;
   activityTags: string[];
+  place?: string | null;
+  plans?: string[];
 };
 
 export type PackingSuggestion = {
   closetItemId: string;
   date: string;
   slot: ClothingSlot;
+  reason: string;
+  quantity: number;
+  note: string | null;
+};
+
+export type PackingPick = {
+  closetItemId: string;
+  quantity: number;
+  dates: string[];
   reason: string;
 };
 
@@ -103,9 +118,95 @@ export function suggestPacking(items: PackingClosetItem[], days: PackingDayConte
         date: dateKey(new Date(`${day.date}T00:00:00.000Z`)),
         slot,
         reason: reasonFor(day, slot),
+        quantity: 1,
+        note: null,
       });
     }
   }
 
+  return suggestions;
+}
+
+const PROMPT_CLOSET_LIMIT = 48;
+
+export function closetForPrompt(items: PackingClosetItem[], days: PackingDayContext[]) {
+  if (items.length <= PROMPT_CLOSET_LIMIT) return items;
+  const best = new Map<string, number>();
+  for (const day of days) {
+    const conditions = dayConditions(day);
+    for (const family of neededSlots(day, conditions)) {
+      const ranked = items
+        .filter((item) => slotFamily(item.slot) === family)
+        .map((item) => ({ item, score: scoreItem(item, day, conditions) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+      for (const row of ranked) {
+        best.set(row.item.id, Math.max(best.get(row.item.id) ?? 0, row.score));
+      }
+    }
+  }
+  const chosen = items.filter((item) => best.has(item.id));
+  return chosen.length > 0 ? chosen : items.slice(0, PROMPT_CLOSET_LIMIT);
+}
+
+function cleanReason(reason: string) {
+  const text = reason.replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  return text.length > 180 ? `${text.slice(0, 177)}...` : text;
+}
+
+function cleanQuantity(requested: number, available: number) {
+  const cap = Math.min(Math.max(available, 1), 99);
+  if (!Number.isFinite(requested)) return 1;
+  return Math.min(cap, Math.max(1, Math.round(requested)));
+}
+
+export function applyPackingPicks(
+  picks: PackingPick[],
+  items: PackingClosetItem[],
+  days: PackingDayContext[],
+): PackingSuggestion[] {
+  if (days.length === 0) return [];
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const allowed = new Set(days.map((day) => day.date));
+  const order = new Map(days.map((day, index) => [day.date, index]));
+  const merged = new Map<string, { quantity: number; dates: Set<string>; reason: string | null }>();
+
+  for (const pick of picks) {
+    const item = byId.get(pick.closetItemId);
+    if (!item || (merged.size >= 24 && !merged.has(item.id))) continue;
+    const dates = [...new Set(pick.dates.filter((date) => allowed.has(date)))];
+    const worn = dates.length > 0 ? dates : [...allowed];
+    const current = merged.get(item.id);
+    if (!current) {
+      merged.set(item.id, {
+        quantity: cleanQuantity(pick.quantity, item.quantity ?? 1),
+        dates: new Set(worn),
+        reason: cleanReason(pick.reason),
+      });
+      continue;
+    }
+    current.quantity = Math.max(current.quantity, cleanQuantity(pick.quantity, item.quantity ?? 1));
+    for (const date of worn) current.dates.add(date);
+    if (!current.reason) current.reason = cleanReason(pick.reason);
+  }
+
+  const suggestions: PackingSuggestion[] = [];
+  for (const [closetItemId, pick] of merged) {
+    const item = byId.get(closetItemId);
+    if (!item) continue;
+    const dates = [...pick.dates].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+    const reason = pick.reason ?? "Suggested for this trip.";
+    for (const date of dates) {
+      suggestions.push({
+        closetItemId,
+        date,
+        slot: item.slot,
+        reason,
+        quantity: pick.quantity,
+        note: pick.reason,
+      });
+    }
+  }
   return suggestions;
 }

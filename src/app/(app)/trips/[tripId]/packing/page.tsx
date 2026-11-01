@@ -2,6 +2,8 @@ import { PackingBoard } from "@/components/packing-list";
 import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
 
+export const maxDuration = 60;
+
 export default async function PackingPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const { user } = await requireTrip(tripId);
@@ -63,6 +65,7 @@ export default async function PackingPage({ params }: { params: Promise<{ tripId
           packed: item.packed,
           closetItemId: item.closetItemId,
           slot: item.closetItem?.slot ?? null,
+          note: item.note,
         })),
       }))}
       closet={closet}
@@ -79,6 +82,7 @@ export default async function PackingPage({ params }: { params: Promise<{ tripId
         name: member.user.name ?? "Traveler",
         packed: packedByUser.get(member.user.id) ?? 0,
       }))}
+      dev={process.env.NODE_ENV !== "production"}
     />
   );
 }
