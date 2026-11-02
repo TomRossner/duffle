@@ -2,11 +2,12 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { Check, Copy, Download, EllipsisVertical, Link2, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
+import { Check, Copy, Download, EllipsisVertical, FileText, Link2, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
+import { DocumentFileField } from "@/components/document-file-field";
 import { Field, Select } from "@/components/fields";
 import { MemberTag } from "@/components/member-tag";
 import { StoredImage } from "@/components/stored-image";
@@ -21,7 +22,7 @@ import {
   createPersonalDocument,
 } from "@/lib/actions/personal-documents";
 import { PERSONAL_DOCUMENT_KINDS, personalDocumentLabel } from "@/lib/constants";
-import { formatDateLong, parseDate } from "@/lib/dates";
+import { formatDateShort, parseDate } from "@/lib/dates";
 
 const menuItemClass =
   "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent";
@@ -50,12 +51,39 @@ function fileName(title: string, mimeType: string) {
     "image/png": "png",
     "image/webp": "webp",
     "image/gif": "gif",
+    "application/pdf": "pdf",
   };
   const base = title.trim().replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
   return `${base}.${extensions[mimeType] ?? "jpg"}`;
 }
 
-function printDocument(src: string, title: string) {
+function isPdf(mimeType: string) {
+  return mimeType === "application/pdf";
+}
+
+// PDFs open in the browser's own viewer: the app sends X-Frame-Options: DENY, so they can't be framed in-page.
+function openInNewTab(src: string) {
+  window.open(src, "_blank", "noopener,noreferrer");
+}
+
+function DocumentThumb({ src, mimeType, title }: { src: string; mimeType: string; title: string }) {
+  if (isPdf(mimeType)) {
+    return (
+      <span className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
+        <FileText className="size-10" />
+        <span className="text-xs font-medium tracking-wide">PDF · Click to open</span>
+      </span>
+    );
+  }
+  return <StoredImage src={src} alt={title} className="aspect-[4/3] w-full object-cover" />;
+}
+
+function printDocument(src: string, title: string, mimeType: string) {
+  if (isPdf(mimeType)) {
+    // The browser's PDF viewer has its own print button.
+    openInNewTab(src);
+    return;
+  }
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.style.cssText = "position:fixed;width:0;height:0;border:0";
@@ -166,8 +194,8 @@ function DocumentDetails({ document }: { document: DocumentFacts }) {
     document.documentNumber
       ? { label: "Number", value: document.documentNumber, copy: document.documentNumber }
       : null,
-    issued ? { label: "Issued", value: formatDateLong(issued), copy: document.issuedOn ?? "" } : null,
-    expires ? { label: "Expires", value: formatDateLong(expires), copy: document.expiresOn ?? "" } : null,
+    issued ? { label: "Issued", value: formatDateShort(issued), copy: document.issuedOn ?? "" } : null,
+    expires ? { label: "Expires", value: formatDateShort(expires), copy: document.expiresOn ?? "" } : null,
   ].filter((row): row is { label: string; value: string; copy: string } => Boolean(row));
   if (rows.length === 0) return null;
   return (
@@ -213,10 +241,8 @@ export function PersonalDocumentAddButton() {
                   </Dialog.Close>
                 </div>
                 <ActionForm action={createPersonalDocument} submitLabel="Save document" onSaved={() => setOpen(false)}>
+                  <DocumentFileField required />
                   <DocumentFields />
-                  <Field label="Image">
-                    <Input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required />
-                  </Field>
                 </ActionForm>
               </Dialog.Popup>
             </Dialog.Viewport>
@@ -234,6 +260,7 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
   const [error, setError] = useState<string | null>(null);
   const src = `/api/files/${document.storageKey}`;
   const filename = fileName(document.title, document.mimeType);
+  const view = () => (isPdf(document.mimeType) ? openInNewTab(src) : setViewing(true));
 
   return (
     <Card className="pt-0">
@@ -241,13 +268,13 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
         type="button"
         className="block w-full cursor-pointer overflow-hidden rounded-t-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         aria-label={`View ${document.title}`}
-        onClick={() => setViewing(true)}
+        onClick={view}
       >
-        <StoredImage src={src} alt={document.title} className="aspect-[4/3] w-full object-cover" />
+        <DocumentThumb src={src} mimeType={document.mimeType} title={document.title} />
       </button>
       <CardHeader>
         <CardTitle>
-          <button type="button" className="text-left hover:underline" onClick={() => setViewing(true)}>
+          <button type="button" className="text-left hover:underline" onClick={view}>
             {document.title}
           </button>
         </CardTitle>
@@ -271,7 +298,7 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
                     <Pencil className="size-3.5" />
                     Edit
                   </Menu.Item>
-                  <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title)}>
+                  <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer className="size-3.5" />
                     Print
                   </Menu.Item>
@@ -325,6 +352,7 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
                   submitLabel="Save"
                   onSaved={() => setEditing(false)}
                 >
+                  <DocumentFileField />
                   <DocumentFields
                     title={document.title}
                     kind={document.kind}
@@ -332,9 +360,6 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
                     issuedOn={document.issuedOn ?? ""}
                     expiresOn={document.expiresOn ?? ""}
                   />
-                  <Field label="Image">
-                    <Input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-                  </Field>
                 </ActionForm>
               </Dialog.Popup>
             </Dialog.Viewport>
@@ -382,6 +407,7 @@ export function AttachedPersonalDocumentCard({
   const [error, setError] = useState<string | null>(null);
   const src = `/api/files/${document.storageKey}`;
   const filename = fileName(document.title, document.mimeType);
+  const view = () => (isPdf(document.mimeType) ? openInNewTab(src) : setViewing(true));
 
   return (
     <Card className="pt-0">
@@ -389,13 +415,13 @@ export function AttachedPersonalDocumentCard({
         type="button"
         className="block w-full cursor-pointer overflow-hidden rounded-t-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         aria-label={`View ${document.title}`}
-        onClick={() => setViewing(true)}
+        onClick={view}
       >
-        <StoredImage src={src} alt={document.title} className="aspect-[4/3] w-full object-cover" />
+        <DocumentThumb src={src} mimeType={document.mimeType} title={document.title} />
       </button>
       <CardHeader>
         <CardTitle>
-          <button type="button" className="text-left hover:underline" onClick={() => setViewing(true)}>
+          <button type="button" className="text-left hover:underline" onClick={view}>
             {document.title}
           </button>
         </CardTitle>
@@ -415,7 +441,7 @@ export function AttachedPersonalDocumentCard({
             <Menu.Portal>
               <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
                 <Menu.Popup className="min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
-                  <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title)}>
+                  <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer className="size-3.5" />
                     Print
                   </Menu.Item>

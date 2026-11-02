@@ -6,7 +6,8 @@ import { notifyTrip } from "@/lib/notify";
 import { isPersonalDocumentKind } from "@/lib/personal-documents";
 import { prisma } from "@/lib/prisma";
 import { requireTrip, requireUser } from "@/lib/trip-access";
-import { storeImage } from "@/lib/uploads";
+import { documentReaderConfigured, readDocumentFacts, type DocumentFacts } from "@/lib/document-reader";
+import { checkUpload, storeImage } from "@/lib/uploads";
 
 function readOptionalDate(value: FormDataEntryValue | null, label: string) {
   const raw = String(value ?? "").trim();
@@ -40,13 +41,28 @@ function readDetails(formData: FormData) {
   } as const;
 }
 
+/** Read the number and dates from an uploaded document so the form can be filled in before saving. */
+export async function scanPersonalDocument(
+  formData: FormData,
+): Promise<{ status: "read"; facts: DocumentFacts } | { status: "unavailable" } | { status: "error"; error: string }> {
+  await requireUser();
+  const checked = checkUpload(formData.get("file"), { allowPdf: true });
+  if (checked.status === "empty") return { status: "error", error: "Choose a file." };
+  if (checked.status === "invalid") return { status: "error", error: checked.error };
+  if (!documentReaderConfigured()) return { status: "unavailable" };
+
+  const facts = await readDocumentFacts(new Uint8Array(await checked.file.arrayBuffer()), checked.file.type);
+  if (!facts) return { status: "error", error: "Couldn't read the document. Fill in the details yourself." };
+  return { status: "read", facts };
+}
+
 export async function createPersonalDocument(_: unknown, formData: FormData) {
   const user = await requireUser();
   const details = readDetails(formData);
   if ("error" in details) return details;
 
-  const stored = await storeImage(formData.get("file"), `identity/${user.id}`);
-  if ("empty" in stored) return { error: "Choose an image." };
+  const stored = await storeImage(formData.get("file"), `identity/${user.id}`, { allowPdf: true });
+  if ("empty" in stored) return { error: "Choose a file." };
   if ("error" in stored) return stored;
 
   await prisma.personalDocument.create({
@@ -77,7 +93,7 @@ export async function updatePersonalDocument(documentId: string, _: unknown, for
   const details = readDetails(formData);
   if ("error" in details) return details;
 
-  const stored = await storeImage(formData.get("file"), `identity/${user.id}`);
+  const stored = await storeImage(formData.get("file"), `identity/${user.id}`, { allowPdf: true });
   if ("error" in stored) return stored;
 
   await prisma.personalDocument.update({

@@ -35,6 +35,11 @@ export function formatDateLong(date: Date) {
 
 const shortMonth = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
 
+/** Single date in the app's compact style: "14 Sep 2026". */
+export function formatDateShort(date: Date) {
+  return `${date.getUTCDate()} ${shortMonth.format(date)} ${date.getUTCFullYear()}`;
+}
+
 /**
  * Compact trip range. The start date drops the parts it shares with the end date:
  * "14 – 20 Sep 2026", "14 Sep – 2 Oct 2026", "28 Dec 2026 – 3 Jan 2027", or "14 Sep 2026" for one day.
@@ -47,7 +52,7 @@ export function formatDateRange(start: Date, end: Date) {
   });
   const from = parts(start);
   const to = parts(end);
-  const toText = `${to.day} ${to.month} ${to.year}`;
+  const toText = formatDateShort(end);
 
   const sameYear = from.year === to.year;
   const sameMonth = sameYear && start.getUTCMonth() === end.getUTCMonth();

@@ -103,6 +103,7 @@ function contentTypeFromKey(key: string) {
   if (lower.endsWith(".png")) return "image/png";
   if (lower.endsWith(".webp")) return "image/webp";
   if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".pdf")) return "application/pdf";
   return "image/jpeg";
 }
 
