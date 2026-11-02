@@ -1,11 +1,13 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { ACTIVITY_TAGS } from "@/lib/constants";
-import { parseDate, parseDateTime } from "@/lib/dates";
+import { parseDate } from "@/lib/dates";
 import { createSimplePlannedExpense, deleteExpenseById } from "@/lib/expenses";
 import { searchPlaces } from "@/lib/places";
 import { prisma } from "@/lib/prisma";
+import { planSeries, readScheduleWhen, repeatTimes } from "@/lib/schedule-when";
 import { acceptedMembers, currentUser, requireTrip } from "@/lib/trip-access";
 
 export async function searchPlacesAction(query: string) {
@@ -94,24 +96,27 @@ export async function deleteDestination(tripId: string, destinationId: string) {
 }
 
 export async function createActivity(tripId: string, destinationId: string, _: unknown, formData: FormData) {
-  const { user } = await requireTrip(tripId);
+  const { user, trip } = await requireTrip(tripId);
   const destination = await prisma.destination.findFirst({ where: { id: destinationId, tripId } });
   if (!destination) return { error: "Destination not found." };
 
   const title = String(formData.get("title") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
-  const startRaw = String(formData.get("startAt") ?? "");
-  const endRaw = String(formData.get("endAt") ?? "");
-  const startAt = startRaw ? parseDateTime(startRaw) : null;
-  const endAt = endRaw ? parseDateTime(endRaw) : null;
   const tags = formData
     .getAll("tags")
     .map(String)
     .filter((tag) => ACTIVITY_TAGS.includes(tag as (typeof ACTIVITY_TAGS)[number]));
 
   if (!title) return { error: "Name the activity." };
-  if (startRaw && !startAt) return { error: "Start time is invalid." };
-  if (endRaw && !endAt) return { error: "End time is invalid." };
+  // An activity may be left unscheduled; then there's nothing to repeat.
+  const when = readScheduleWhen(formData, trip, { requireStart: false });
+  if ("error" in when) return when;
+  const times =
+    "empty" in when
+      ? [{ startAt: null, endAt: null }]
+      : [{ startAt: when.startAt, endAt: when.endAt }, ...repeatTimes(when)];
+  const allDay = "empty" in when ? false : when.allDay;
+  const seriesId = times.length > 1 ? randomUUID() : null;
 
   const amountRaw = String(formData.get("amount") ?? "").trim();
   let expenseId: string | undefined;
@@ -136,16 +141,18 @@ export async function createActivity(tripId: string, destinationId: string, _: u
     expenseId = created.expense.id;
   }
 
-  await prisma.activity.create({
-    data: {
+  // The cost (if any) belongs to the first day only, so it isn't counted once per copy.
+  await prisma.activity.createMany({
+    data: times.map((timing, index) => ({
       destinationId,
       title,
       notes,
       tags,
-      startAt,
-      endAt,
-      expenseId,
-    },
+      ...timing,
+      allDay,
+      seriesId,
+      expenseId: index === 0 ? expenseId : undefined,
+    })),
   });
 
   revalidatePath(`/trips/${tripId}`);
@@ -153,7 +160,7 @@ export async function createActivity(tripId: string, destinationId: string, _: u
 }
 
 export async function updateActivity(tripId: string, activityId: string, _: unknown, formData: FormData) {
-  await requireTrip(tripId);
+  const { trip } = await requireTrip(tripId);
   const activity = await prisma.activity.findFirst({
     where: { id: activityId, destination: { tripId } },
   });
@@ -161,20 +168,59 @@ export async function updateActivity(tripId: string, activityId: string, _: unkn
 
   const title = String(formData.get("title") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
-  const startRaw = String(formData.get("startAt") ?? "").slice(0, 16);
-  const endRaw = String(formData.get("endAt") ?? "").slice(0, 16);
-  const startAt = startRaw ? parseDateTime(startRaw) : null;
-  const endAt = endRaw ? parseDateTime(endRaw) : null;
-
   if (!title) return { error: "Name the activity." };
-  if (startRaw && !startAt) return { error: "Start time is invalid." };
-  if (endRaw && !endAt) return { error: "End time is invalid." };
-  if (startAt && endAt && endAt < startAt) return { error: "End time must be after the start." };
 
-  await prisma.activity.update({
-    where: { id: activityId },
-    data: { title, notes, startAt, endAt },
-  });
+  const when = readScheduleWhen(formData, trip, { requireStart: false });
+  if ("error" in when) return when;
+  if ("empty" in when) {
+    // Unscheduling only affects this activity; its series copies keep their days.
+    await prisma.activity.update({
+      where: { id: activityId },
+      data: { title, notes, startAt: null, endAt: null, allDay: false },
+    });
+    revalidatePath(`/trips/${tripId}`);
+    return { ok: true };
+  }
+
+  // The form's days describe the whole series, so edits apply to every day of it.
+  const members = activity.seriesId
+    ? await prisma.activity.findMany({
+        where: { seriesId: activity.seriesId, destination: { tripId } },
+        select: { id: true, startAt: true, expenseId: true },
+      })
+    : [activity];
+  const plan = planSeries(when, activity.id, members);
+  const seriesId = activity.seriesId ?? (plan.create.length > 0 ? randomUUID() : null);
+  const shared = { title, notes, allDay: when.allDay, seriesId };
+
+  // Keep the cost when the day holding it is dropped: move it to the activity being edited.
+  const removed = members.filter((member) => plan.remove.includes(member.id));
+  const orphanExpense = activity.expenseId ? null : (removed.find((member) => member.expenseId)?.expenseId ?? null);
+
+  await prisma.$transaction([
+    prisma.activity.deleteMany({ where: { id: { in: plan.remove }, destination: { tripId } } }),
+    ...plan.update.map(({ id, startAt, endAt }) =>
+      prisma.activity.update({
+        where: { id },
+        data: { ...shared, startAt, endAt, ...(id === activity.id && orphanExpense ? { expenseId: orphanExpense } : {}) },
+      }),
+    ),
+    // New days share the place and tags; the cost stays on one activity only.
+    prisma.activity.createMany({
+      data: plan.create.map((timing) => ({
+        destinationId: activity.destinationId,
+        tags: activity.tags,
+        lat: activity.lat,
+        lng: activity.lng,
+        placeId: activity.placeId,
+        ...shared,
+        ...timing,
+      })),
+    }),
+  ]);
+  for (const member of removed) {
+    if (member.expenseId && member.expenseId !== orphanExpense) await deleteExpenseById(member.expenseId);
+  }
   revalidatePath(`/trips/${tripId}`);
   return { ok: true };
 }

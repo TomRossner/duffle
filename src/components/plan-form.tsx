@@ -6,6 +6,7 @@ import { ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import { CheckList, CostFields, Field, FieldGroup, Select } from "@/components/fields";
 import { KindIcon } from "@/components/kind-icon";
+import { ScheduleWhenFields } from "@/components/schedule-when-fields";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createPlan, updateFlight, updateStay } from "@/lib/actions/schedule";
@@ -154,12 +155,14 @@ export function PlanForm({
   currency,
   people,
   destinations,
+  tripDays,
   defaultDate = "",
 }: {
   tripId: string;
   currency: string;
   people: PersonOption[];
   destinations: { id: string; name: string }[];
+  tripDays: string[];
   defaultDate?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -194,7 +197,7 @@ export function PlanForm({
         {kind === "STAY" ? (
           <StayFields destinations={destinations} currency={currency} checkIn={preset} checkOut={preset} showCost />
         ) : null}
-        {kind !== "FLIGHT" && kind !== "STAY" ? <ScheduleFields startAt={preset} /> : null}
+        {kind !== "FLIGHT" && kind !== "STAY" ? <ScheduleFields startAt={preset} tripDays={tripDays} /> : null}
       </ActionForm>
     </div>
   );
@@ -317,16 +320,13 @@ function StayFields({
   );
 }
 
-function ScheduleFields({ startAt = "" }: { startAt?: string }) {
+function ScheduleFields({ startAt = "", tripDays }: { startAt?: string; tripDays: string[] }) {
   return (
     <>
       <Field label="Title">
         <Input name="title" required />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <When name="startAt" dateLabel="Starts" timeLabel="Time" defaultValue={startAt} required />
-        <When name="endAt" dateLabel="Ends" timeLabel="Time" />
-      </div>
+      <ScheduleWhenFields tripDays={tripDays} defaultStart={startAt} required />
       <Field label="Place">
         <Input name="placeName" />
       </Field>

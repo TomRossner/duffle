@@ -6,12 +6,13 @@ import { DestinationCard } from "@/components/destination-card";
 import { DestinationForm } from "@/components/destination-form";
 import { CheckList, CostFields, Field, FieldGroup } from "@/components/fields";
 import { MapView } from "@/components/map-view";
+import { ScheduleWhenFields } from "@/components/schedule-when-fields";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createActivity, deleteActivity, deleteDestination } from "@/lib/actions/destinations";
 import { ACTIVITY_TAGS } from "@/lib/constants";
-import { formatDate, formatDateLong, formatTime } from "@/lib/dates";
+import { eachDate, formatDate, formatDateLong, formatTime } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { ACTIVITY_COLORS, ActivityTagLabel, isActivityTag } from "@/lib/tag-meta";
 import { requireTrip } from "@/lib/trip-access";
@@ -33,8 +34,9 @@ function stayLabel(start: Date, end: Date) {
   return `${first} – ${last}`;
 }
 
-function activityWhen(start: Date, end: Date | null) {
+function activityWhen(start: Date, end: Date | null, allDay = false) {
   const day = formatDateLong(start);
+  if (allDay) return `${day} · All day`;
   const startTime = formatTime(start);
   if (!end || end.getTime() === start.getTime()) return `${day} · ${startTime}`;
   if (formatDate(start) === formatDate(end)) return `${day} · ${startTime}–${formatTime(end)}`;
@@ -57,6 +59,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
     label: destination.name,
   }));
   const dateHint = `During the trip, ${formatDateLong(trip.startDate)} – ${formatDateLong(trip.endDate)}.`;
+  const tripDays = eachDate(trip.startDate, trip.endDate).map(formatDate);
 
   return (
     <div className="grid gap-6">
@@ -126,7 +129,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                                 </span>
                                 {activity.startAt ? (
                                   <span className="block text-muted-foreground">
-                                    {activityWhen(activity.startAt, activity.endAt)}
+                                    {activityWhen(activity.startAt, activity.endAt, activity.allDay)}
                                   </span>
                                 ) : null}
                                 {activity.notes && activity.notes.trim() !== activity.title.trim() ? (
@@ -157,14 +160,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                           <Field label="Activity">
                             <Input name="title" required />
                           </Field>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <Field label="Starts">
-                              <Input name="startAt" type="datetime-local" />
-                            </Field>
-                            <Field label="Ends">
-                              <Input name="endAt" type="datetime-local" />
-                            </Field>
-                          </div>
+                          <ScheduleWhenFields tripDays={tripDays} />
                           <FieldGroup label="Tags">
                             <CheckList
                               name="tags"

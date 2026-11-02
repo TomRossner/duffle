@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { Field, FieldGroup } from "@/components/fields";
-import { DateAndTime, KindTags } from "@/components/plan-form";
+import { KindTags } from "@/components/plan-form";
+import { ScheduleWhenFields } from "@/components/schedule-when-fields";
 import { WeatherMark } from "@/components/weather-mark";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,9 @@ export type DayPlan = {
   kind: string;
   startAt: string;
   endAt: string;
+  allDay: boolean;
+  /** Other days of its series (YYYY-MM-DD). */
+  seriesDays: string[];
   placeName: string;
   notes: string;
 };
@@ -33,6 +37,9 @@ export type DayActivity = {
   notes: string;
   startAt: string;
   endAt: string;
+  allDay: boolean;
+  /** Other days of its series (YYYY-MM-DD). */
+  seriesDays: string[];
 };
 
 const scheduleKinds = PLAN_KINDS.filter((kind) =>
@@ -151,10 +158,12 @@ export function ScheduleItemMenu({
 export function PlanEditor({
   tripId,
   plan,
+  tripDays,
   onSaved,
 }: {
   tripId: string;
   plan: DayPlan;
+  tripDays: string[];
   onSaved?: () => void;
 }) {
   return (
@@ -164,7 +173,7 @@ export function PlanEditor({
       onSaved={onSaved}
       className="grid gap-3"
     >
-      <PlanFields defaults={plan} />
+      <PlanFields defaults={plan} tripDays={tripDays} />
     </ActionForm>
   );
 }
@@ -172,10 +181,12 @@ export function PlanEditor({
 export function ActivityEditor({
   tripId,
   activity,
+  tripDays,
   onSaved,
 }: {
   tripId: string;
   activity: DayActivity;
+  tripDays: string[];
   onSaved?: () => void;
 }) {
   return (
@@ -188,14 +199,14 @@ export function ActivityEditor({
       <Field label="Activity">
         <Input name="title" defaultValue={activity.title} required />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="grid grid-cols-2 gap-3">
-          <DateAndTime name="startAt" dateLabel="Starts" timeLabel="Time" defaultValue={activity.startAt} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <DateAndTime name="endAt" dateLabel="Ends" timeLabel="Time" defaultValue={activity.endAt} />
-        </div>
-      </div>
+      <ScheduleWhenFields
+        tripDays={tripDays}
+        defaultStart={activity.startAt}
+        defaultEnd={activity.endAt}
+        defaultAllDay={activity.allDay}
+        defaultRepeat={activity.seriesDays}
+        editing
+      />
       <Field label="Notes">
         <Textarea name="notes" rows={2} defaultValue={activity.notes} />
       </Field>
@@ -205,8 +216,10 @@ export function ActivityEditor({
 
 function PlanFields({
   defaults,
+  tripDays,
 }: {
-  defaults: { title: string; kind: string; startAt: string; endAt: string; placeName: string; notes: string };
+  defaults: DayPlan;
+  tripDays: string[];
 }) {
   const [kind, setKind] = useState(defaults.kind);
   return (
@@ -217,14 +230,15 @@ function PlanFields({
       <FieldGroup label="Kind">
         <KindTags value={kind} onValueChange={setKind} kinds={scheduleKinds} />
       </FieldGroup>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="grid grid-cols-2 gap-3">
-          <DateAndTime name="startAt" dateLabel="Starts" timeLabel="Time" defaultValue={defaults.startAt} required />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <DateAndTime name="endAt" dateLabel="Ends" timeLabel="Time" defaultValue={defaults.endAt} />
-        </div>
-      </div>
+      <ScheduleWhenFields
+        tripDays={tripDays}
+        defaultStart={defaults.startAt}
+        defaultEnd={defaults.endAt}
+        defaultAllDay={defaults.allDay}
+        defaultRepeat={defaults.seriesDays}
+        required
+        editing
+      />
       <Field label="Place">
         <Input name="placeName" defaultValue={defaults.placeName} />
       </Field>

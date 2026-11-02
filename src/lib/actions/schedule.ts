@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { SCHEDULE_KINDS } from "@/lib/constants";
 import { asDateOnly, parseDateTime } from "@/lib/dates";
@@ -7,6 +8,7 @@ import { createSimplePlannedExpense, deleteExpenseById } from "@/lib/expenses";
 import { geocodeAddress } from "@/lib/places";
 import { prisma } from "@/lib/prisma";
 import { notifyTrip } from "@/lib/notify";
+import { planSeries, readScheduleWhen, repeatTimes } from "@/lib/schedule-when";
 import { acceptedMembers, requireTrip } from "@/lib/trip-access";
 
 async function optionalCost(
@@ -319,20 +321,22 @@ export async function deleteStay(tripId: string, stayId: string) {
   return { ok: true };
 }
 
+function onDays(count: number) {
+  return count === 1 ? "" : ` on ${count} days`;
+}
+
 export async function createScheduleItem(tripId: string, _: unknown, formData: FormData) {
-  const { user } = await requireTrip(tripId);
+  const { user, trip } = await requireTrip(tripId);
   const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "OTHER");
-  const startAt = parseDateTime(String(formData.get("startAt") ?? "").slice(0, 16));
-  const endRaw = String(formData.get("endAt") ?? "").slice(0, 16);
-  const endAt = endRaw ? parseDateTime(endRaw) : null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const placeName = String(formData.get("placeName") ?? "").trim() || null;
 
   if (!title) return { error: "Name the plan." };
   if (!SCHEDULE_KINDS.includes(kind as (typeof SCHEDULE_KINDS)[number])) return { error: "Choose a kind." };
-  if (!startAt) return { error: "Choose a start time." };
-  if (endRaw && !endAt) return { error: "End time is invalid." };
+  const when = readScheduleWhen(formData, trip);
+  if ("error" in when) return when;
+  if ("empty" in when) return { error: "Choose a start time." };
 
   let lat: number | undefined;
   let lng: number | undefined;
@@ -342,37 +346,50 @@ export async function createScheduleItem(tripId: string, _: unknown, formData: F
     lng = point?.lng;
   }
 
-  await prisma.scheduleItem.create({
-    data: { tripId, title, kind, startAt, endAt, notes, placeName, lat, lng },
+  const times = [{ startAt: when.startAt, endAt: when.endAt }, ...repeatTimes(when)];
+  // Copies share a series id so the edit form can show and manage all their days together.
+  const seriesId = times.length > 1 ? randomUUID() : null;
+  await prisma.scheduleItem.createMany({
+    data: times.map(({ startAt, endAt }) => ({
+      tripId,
+      title,
+      kind,
+      startAt,
+      endAt,
+      allDay: when.allDay,
+      seriesId,
+      notes,
+      placeName,
+      lat,
+      lng,
+    })),
   });
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "SCHEDULE",
     title: "Schedule updated",
-    body: `${user.name ?? "A traveler"} added ${title}.`,
+    body: `${user.name ?? "A traveler"} added ${title}${onDays(times.length)}.`,
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };
 }
 
 export async function updateScheduleItem(tripId: string, itemId: string, _: unknown, formData: FormData) {
-  const { user } = await requireTrip(tripId);
+  const { user, trip } = await requireTrip(tripId);
   const item = await prisma.scheduleItem.findFirst({ where: { id: itemId, tripId } });
   if (!item) return { error: "Plan not found." };
 
   const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "OTHER");
-  const startAt = parseDateTime(String(formData.get("startAt") ?? "").slice(0, 16));
-  const endRaw = String(formData.get("endAt") ?? "").slice(0, 16);
-  const endAt = endRaw ? parseDateTime(endRaw) : null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const placeName = String(formData.get("placeName") ?? "").trim() || null;
 
   if (!title) return { error: "Name the plan." };
   if (!SCHEDULE_KINDS.includes(kind as (typeof SCHEDULE_KINDS)[number])) return { error: "Choose a kind." };
-  if (!startAt) return { error: "Choose a start time." };
-  if (endRaw && !endAt) return { error: "End time is invalid." };
-  if (endAt && endAt < startAt) return { error: "End time must be after the start." };
+  const when = readScheduleWhen(formData, trip);
+  if ("error" in when) return when;
+  if ("empty" in when) return { error: "Choose a start time." };
+  const { allDay } = when;
 
   let lat: number | null = item.lat;
   let lng: number | null = item.lng;
@@ -386,15 +403,27 @@ export async function updateScheduleItem(tripId: string, itemId: string, _: unkn
     lng = null;
   }
 
-  await prisma.scheduleItem.update({
-    where: { id: itemId },
-    data: { title, kind, startAt, endAt, notes, placeName, lat, lng },
-  });
+  // The form's days describe the whole series, so edits apply to every day of it.
+  const members = item.seriesId
+    ? await prisma.scheduleItem.findMany({ where: { tripId, seriesId: item.seriesId }, select: { id: true, startAt: true } })
+    : [item];
+  const plan = planSeries(when, item.id, members);
+  const seriesId = item.seriesId ?? (plan.create.length > 0 ? randomUUID() : null);
+  const shared = { title, kind, allDay, notes, placeName, lat, lng, seriesId };
+
+  await prisma.$transaction([
+    ...plan.update.map(({ id, startAt, endAt }) =>
+      prisma.scheduleItem.update({ where: { id }, data: { ...shared, startAt, endAt } }),
+    ),
+    prisma.scheduleItem.deleteMany({ where: { tripId, id: { in: plan.remove } } }),
+    prisma.scheduleItem.createMany({ data: plan.create.map((timing) => ({ tripId, ...shared, ...timing })) }),
+  ]);
   revalidatePath(`/trips/${tripId}`);
+  const days = plan.update.length + plan.create.length;
   await notifyTrip(tripId, user.id, {
     kind: "SCHEDULE",
     title: "Schedule updated",
-    body: `${user.name ?? "A traveler"} updated ${title}.`,
+    body: `${user.name ?? "A traveler"} updated ${title}${onDays(days)}.`,
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };

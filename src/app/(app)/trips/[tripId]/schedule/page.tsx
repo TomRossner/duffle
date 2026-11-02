@@ -38,6 +38,20 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
     label: <MemberTag userId={member.userId} name={member.user.name} imageKey={member.user.imageKey} />,
   }));
   const days = eachDate(trip.startDate, trip.endDate);
+  const tripDays = days.map(dateKey);
+
+  // Days each repeating plan/activity is on, so its edit form can show (and manage) all of them.
+  const seriesDays = new Map<string, string[]>();
+  const addSeriesDay = (seriesId: string | null, startAt: Date | null) => {
+    if (!seriesId || !startAt) return;
+    seriesDays.set(seriesId, [...(seriesDays.get(seriesId) ?? []), dateKey(startAt)]);
+  };
+  for (const item of items) addSeriesDay(item.seriesId, item.startAt);
+  for (const destination of destinations) {
+    for (const activity of destination.activities) addSeriesDay(activity.seriesId, activity.startAt);
+  }
+  const otherSeriesDays = (seriesId: string | null, startAt: Date | null) =>
+    seriesId && startAt ? (seriesDays.get(seriesId) ?? []).filter((day) => day !== dateKey(startAt)) : [];
   const itemClass =
     "schedule-item flex items-start justify-between gap-3 rounded-lg border border-border bg-muted px-3 py-2.5 text-sm in-data-[layout=calendar]:items-center in-data-[layout=calendar]:gap-1 in-data-[layout=calendar]:rounded-md in-data-[layout=calendar]:relative in-data-[layout=calendar]:w-full in-data-[layout=calendar]:min-w-0 in-data-[layout=calendar]:overflow-hidden in-data-[layout=calendar]:cursor-pointer in-data-[layout=calendar]:py-1 in-data-[layout=calendar]:pr-6 in-data-[layout=calendar]:pl-1.5 in-data-[layout=calendar]:text-xs in-data-[layout=calendar]:transition-colors in-data-[layout=calendar]:hover:border-foreground/30 in-data-[layout=calendar]:hover:bg-background in-data-[layout=calendar]:hover:shadow-sm";
   const detailClass = "in-data-[layout=calendar]:hidden";
@@ -51,6 +65,7 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
         currency={trip.baseCurrency}
         people={people}
         destinations={destinations.map((destination) => ({ id: destination.id, name: destination.name }))}
+        tripDays={tripDays}
       />
 
       <ScheduleBoard
@@ -232,15 +247,18 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                       <p className={titleClass}>
                         <span className="min-w-0 flex-1 truncate font-medium">
                           <span className="hidden in-data-[layout=calendar]:inline">
-                            {activity.startAt ? `${formatTime(activity.startAt)} ` : ""}
+                            {activity.startAt && !activity.allDay ? `${formatTime(activity.startAt)} ` : ""}
                           </span>
                           {activity.title}
                         </span>
-                        <span className={`font-normal text-muted-foreground ${detailClass}`}>
-                          {" "}
-                          · {activity.place}
-                          {activity.startAt ? ` · ${formatTime(activity.startAt)}` : ""}
-                        </span>
+                      </p>
+                      <p className={`text-muted-foreground ${detailClass}`}>
+                        {activity.place}
+                        {activity.allDay
+                          ? " · All day"
+                          : activity.startAt
+                            ? ` · ${formatTime(activity.startAt)}${activity.endAt ? `–${formatTime(activity.endAt)}` : ""}`
+                            : ""}
                       </p>
                       <PlaceLinks className={`mt-1.5 ${detailClass}`} place={activity.target} />
                     </div>
@@ -251,12 +269,15 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                     >
                       <ActivityEditor
                         tripId={tripId}
+                        tripDays={tripDays}
                         activity={{
                           id: activity.id,
                           title: activity.title,
                           notes: activity.notes ?? "",
                           startAt: activity.startAt ? activity.startAt.toISOString().slice(0, 16) : "",
                           endAt: activity.endAt ? activity.endAt.toISOString().slice(0, 16) : "",
+                          allDay: activity.allDay,
+                          seriesDays: otherSeriesDays(activity.seriesId, activity.startAt),
                         }}
                       />
                     </ScheduleItemMenu>
@@ -275,7 +296,16 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                       <p className={titleClass}>
                         <PlanTag kind={item.kind} />
                         <span className="min-w-0 flex-1 truncate">
-                          {formatTime(item.startAt)} {item.title}
+                          {item.allDay ? (
+                            <span
+                              className={`mr-1.5 rounded bg-background px-1.5 py-0.5 text-xs font-normal text-muted-foreground ${detailClass}`}
+                            >
+                              All day
+                            </span>
+                          ) : (
+                            `${formatTime(item.startAt)}${item.endAt ? `–${formatTime(item.endAt)}` : ""} `
+                          )}
+                          {item.title}
                         </span>
                       </p>
                       {item.placeName ? <p className={`text-muted-foreground ${detailClass}`}>{item.placeName}</p> : null}
@@ -293,12 +323,15 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                     >
                       <PlanEditor
                         tripId={tripId}
+                        tripDays={tripDays}
                         plan={{
                           id: item.id,
                           title: item.title,
                           kind: item.kind,
                           startAt: item.startAt.toISOString().slice(0, 16),
                           endAt: item.endAt ? item.endAt.toISOString().slice(0, 16) : "",
+                          allDay: item.allDay,
+                          seriesDays: otherSeriesDays(item.seriesId, item.startAt),
                           placeName: item.placeName ?? "",
                           notes: item.notes ?? "",
                         }}
