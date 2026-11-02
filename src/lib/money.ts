@@ -1,5 +1,17 @@
 import { roundMoney } from "@/lib/utils";
 
+/** Short symbol for an ISO currency code ("USD" → "$", "ILS" → "₪"), or null when only the code exists. */
+export function currencySymbol(code: string) {
+  try {
+    const symbol = new Intl.NumberFormat("en", { style: "currency", currency: code, currencyDisplay: "narrowSymbol" })
+      .formatToParts(0)
+      .find((part) => part.type === "currency")?.value;
+    return symbol && symbol !== code ? symbol : null;
+  } catch {
+    return null;
+  }
+}
+
 export type ShareInput = {
   userId: string;
   amount?: number;

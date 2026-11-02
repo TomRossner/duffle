@@ -2,6 +2,7 @@ import Link from "next/link";
 import { IdCard, Luggage, MapPinned } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { BackButton } from "@/components/back-button";
+import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 import { prisma } from "@/lib/prisma";
@@ -18,11 +19,20 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-full bg-background">
       <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:gap-x-4">
+          <MobileNav
+            signedIn
+            signOut={
+              <SignOutButton
+                label="Log out"
+                className="h-auto w-full justify-start border-0 px-3 py-2 font-normal"
+              />
+            }
+          />
           <Link href="/trips" aria-label="Duffle" className="inline-flex shrink-0 items-center">
             <img src="/duffle%20logo.webp" alt="" className="h-10 w-auto sm:h-12" />
           </Link>
-          <nav className="order-last flex w-full items-center gap-4 text-sm sm:order-none sm:w-auto">
+          <nav className="hidden items-center gap-4 text-sm sm:flex">
             <Link href="/trips" className="inline-flex items-center gap-1.5 hover:text-primary">
               <MapPinned className="size-4" />
               Trips
@@ -42,7 +52,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               <Avatar name={user.name} userId={user.id} imageKey={user.imageKey} />
               <span className="hidden max-w-40 truncate sm:inline">{user.name}</span>
             </Link>
-            <SignOutButton />
+            <div className="hidden sm:block">
+              <SignOutButton />
+            </div>
           </div>
         </div>
       </header>

@@ -8,7 +8,8 @@ import { login } from "@/lib/actions/auth";
 
 function googleErrorMessage(error?: string) {
   if (!error) return null;
-  if (error === "Configuration") return "Google sign-in is not configured yet. Add the OAuth client to .env.";
+  // Auth.js reports every server-side failure as "Configuration"; the real cause is in the server log.
+  if (error === "Configuration") return "Google sign-in failed on the server. Try again, or use email and password.";
   if (error === "AccessDenied") return "Google did not confirm this email address.";
   return "Google sign-in failed. Try again.";
 }
@@ -32,7 +33,7 @@ export default async function LoginPage({
   const notice = noticeMessage(params.notice);
 
   return (
-    <main className="mx-auto flex min-h-full w-full max-w-md flex-col items-center justify-center gap-6 px-4 py-16">
+    <main className="mx-auto flex min-h-full w-full max-w-md flex-col items-center justify-center gap-6 px-4 pt-6 pb-16 sm:pt-10">
       <img src="/duffle%20logo.webp" alt="Duffle" className="h-24 w-auto" />
       <Card className="w-full">
         <CardHeader>

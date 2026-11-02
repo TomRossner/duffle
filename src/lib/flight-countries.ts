@@ -18,7 +18,6 @@ export function flagsForTrip(input: {
   flights: { toAirport: string; departAt: Date }[];
   destinations: { address: string | null; startDate: Date }[];
 }) {
-  if (input.flights.length === 0) return [];
   const home = input.homeCountry?.trim().toUpperCase() || null;
   const stops = [
     ...input.flights.map((flight) => ({ at: flight.departAt, code: countryForAirport(flight.toAirport) })),

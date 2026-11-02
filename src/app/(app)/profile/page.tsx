@@ -7,7 +7,7 @@ import { ProfileEditor } from "@/components/profile-editor";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { countryName, formatPhone, genderLabel } from "@/lib/account-details";
-import { formatDate, formatDateLong, formatDateText } from "@/lib/dates";
+import { formatDate, formatDateRange, formatDateText } from "@/lib/dates";
 import { flagsForTrip } from "@/lib/flight-countries";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
@@ -74,12 +74,12 @@ export default async function ProfilePage() {
       <Card>
         <CardContent className="grid gap-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-4 text-left sm:flex-row sm:items-center">
               <Avatar name={user.name} userId={user.id} imageKey={user.imageKey} size="lg" />
               <div className="grid min-w-0 gap-1">
-                <p className="text-lg font-medium">{user.name}</p>
+                <p className="text-lg font-medium break-words">{user.name}</p>
                 <p className="text-sm break-all text-muted-foreground">{user.email}</p>
-                <div className="mt-1 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">{user.passwordHash ? "Email and password" : "Google"}</Badge>
                   <span className="text-xs text-muted-foreground">Joined {joined}</span>
                 </div>
@@ -162,7 +162,7 @@ export default async function ProfilePage() {
                       </span>
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                          {formatDateLong(membership.trip.startDate)} – {formatDateLong(membership.trip.endDate)}
+                          {formatDateRange(membership.trip.startDate, membership.trip.endDate)}
                         </span>
                         <Badge variant="secondary">{membership.role === "ADMIN" ? "Admin" : "Traveler"}</Badge>
                       </span>

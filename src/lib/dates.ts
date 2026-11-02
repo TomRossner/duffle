@@ -33,6 +33,30 @@ export function formatDateLong(date: Date) {
   }).format(date);
 }
 
+const shortMonth = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
+
+/**
+ * Compact trip range. The start date drops the parts it shares with the end date:
+ * "14 – 20 Sep 2026", "14 Sep – 2 Oct 2026", "28 Dec 2026 – 3 Jan 2027", or "14 Sep 2026" for one day.
+ */
+export function formatDateRange(start: Date, end: Date) {
+  const parts = (date: Date) => ({
+    day: date.getUTCDate(),
+    month: shortMonth.format(date),
+    year: date.getUTCFullYear(),
+  });
+  const from = parts(start);
+  const to = parts(end);
+  const toText = `${to.day} ${to.month} ${to.year}`;
+
+  const sameYear = from.year === to.year;
+  const sameMonth = sameYear && start.getUTCMonth() === end.getUTCMonth();
+  if (sameMonth && from.day === to.day) return toText;
+
+  const fromText = sameMonth ? `${from.day}` : sameYear ? `${from.day} ${from.month}` : `${from.day} ${from.month} ${from.year}`;
+  return `${fromText} – ${toText}`;
+}
+
 export function formatDateText(date: Date) {
   return new Intl.DateTimeFormat("en", {
     month: "short",

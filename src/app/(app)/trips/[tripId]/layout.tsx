@@ -2,8 +2,9 @@ import { FlagStack } from "@/components/country-flag";
 import { ShareTrip } from "@/components/share-trip";
 import { TripNav } from "@/components/trip-nav";
 import { countryName } from "@/lib/account-details";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateRange } from "@/lib/dates";
 import { flagsForTrip } from "@/lib/flight-countries";
+import { currencySymbol } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
 
@@ -30,9 +31,11 @@ export default async function TripLayout({
     }),
   ]);
   const countries = flagsForTrip({ homeCountry: account?.country, flights, destinations });
+  const symbol = currencySymbol(trip.baseCurrency);
+  const currencyLabel = symbol ? `${symbol} (${trip.baseCurrency})` : trip.baseCurrency;
 
   return (
-    <div className="grid min-w-0 gap-6">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
@@ -40,7 +43,7 @@ export default async function TripLayout({
             <span className="min-w-0 flex-1 break-words">{trip.name}</span>
           </h1>
           <p className="text-sm text-muted-foreground">
-            {formatDateLong(trip.startDate)} – {formatDateLong(trip.endDate)} · balances in {trip.baseCurrency}
+            {formatDateRange(trip.startDate, trip.endDate)} · Balances in {currencyLabel}
           </p>
         </div>
         <ShareTrip

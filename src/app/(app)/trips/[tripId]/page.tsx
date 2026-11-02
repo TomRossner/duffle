@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate, formatDateLong } from "@/lib/dates";
+import { formatDate, formatDateRange } from "@/lib/dates";
 import { netBalances } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { acceptedMembers, requireTrip } from "@/lib/trip-access";
@@ -146,7 +146,7 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
                     <span className="font-medium">{destination.name}</span>
                     <span className="text-muted-foreground">
                       {" "}
-                      · {formatDateLong(destination.startDate)} – {formatDateLong(destination.endDate)}
+                      · {formatDateRange(destination.startDate, destination.endDate)}
                     </span>
                   </p>
                   <PlaceLinks

@@ -2,7 +2,7 @@ import { CloudRain, CloudSun, Wind } from "lucide-react";
 import { RefreshWeather } from "@/components/refresh-weather";
 import { weatherLook } from "@/components/weather-mark";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateLong, formatDateRange } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
 import { cn } from "@/lib/utils";
@@ -18,8 +18,8 @@ export default async function WeatherPage({ params }: { params: Promise<{ tripId
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-medium">Forecast</h2>
           <p className="text-sm text-muted-foreground">Daily conditions from Open-Meteo for each destination&apos;s dates.</p>
         </div>
@@ -44,7 +44,7 @@ export default async function WeatherPage({ params }: { params: Promise<{ tripId
               <div className={cn("rounded-xl px-4 py-3", header?.panel ?? "bg-muted")}>
                 <h3 className="text-lg font-medium">{destination.name}</h3>
                 <p className="text-sm opacity-80">
-                  {formatDateLong(destination.startDate)} – {formatDateLong(destination.endDate)}
+                  {formatDateRange(destination.startDate, destination.endDate)}
                 </p>
               </div>
               {destination.weatherDays.length === 0 ? (

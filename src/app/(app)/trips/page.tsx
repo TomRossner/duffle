@@ -7,7 +7,7 @@ import { memberColor } from "@/lib/member-color";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { countryName } from "@/lib/account-details";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateRange } from "@/lib/dates";
 import { flagsForTrip } from "@/lib/flight-countries";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
@@ -77,7 +77,7 @@ export default async function TripsPage() {
                     </Badge>
                   </CardTitle>
                   <CardDescription>
-                    {formatDateLong(membership.trip.startDate)} – {formatDateLong(membership.trip.endDate)} ·{" "}
+                    {formatDateRange(membership.trip.startDate, membership.trip.endDate)} ·{" "}
                     {membership.trip._count.members} travelers · {membership.trip.baseCurrency}
                   </CardDescription>
                 </CardHeader>

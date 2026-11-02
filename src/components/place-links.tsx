@@ -49,8 +49,9 @@ export function PlaceLinks({
   if (!maps && !directions && !waze) return null;
 
   return (
-    <span className={cn("inline-flex flex-wrap items-center gap-1.5", className)}>
+    <span className={cn("flex flex-wrap items-center gap-x-2 gap-y-1", className)}>
       {label ? <span className="text-xs text-muted-foreground">{label}</span> : null}
+      <span className="inline-flex items-center gap-1.5">
       {maps ? (
         <a
           href={maps}
@@ -87,6 +88,7 @@ export function PlaceLinks({
           Waze
         </a>
       ) : null}
+      </span>
     </span>
   );
 }

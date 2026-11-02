@@ -16,7 +16,8 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1"],
+  // Lets phones on the home network open the dev server via this PC's LAN IP (e.g. 192.168.1.13).
+  allowedDevOrigins: ["127.0.0.1", "192.168.*.*"],
   serverExternalPackages: ["xlsx"],
   experimental: {
     serverActions: {

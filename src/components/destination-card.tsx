@@ -60,16 +60,6 @@ export function DestinationCard({
               <CardDescription>{destination.address}</CardDescription>
             ) : null}
             <p className="mt-1 text-sm">{dates}</p>
-            <PlaceLinks
-              className="mt-2"
-              place={{
-                name: destination.name,
-                address: destination.address,
-                placeId: destination.placeId,
-                lat: destination.lat,
-                lng: destination.lng,
-              }}
-            />
           </div>
         </div>
         <CardAction>
@@ -87,6 +77,17 @@ export function DestinationCard({
             <InlineAction action={remove} label="Remove" variant="destructive" />
           </div>
         </CardAction>
+        {/* Full-width row below the title so the Edit/Remove column doesn't squeeze the buttons on mobile. */}
+        <PlaceLinks
+          className="col-span-full mt-1 sm:pl-10"
+          place={{
+            name: destination.name,
+            address: destination.address,
+            placeId: destination.placeId,
+            lat: destination.lat,
+            lng: destination.lng,
+          }}
+        />
       </CardHeader>
       <CardContent className="grid gap-4">
         {editing ? (
