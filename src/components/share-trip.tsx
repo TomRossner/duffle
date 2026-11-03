@@ -38,8 +38,8 @@ export function ShareTrip({ tripId, name, url }: { tripId: string; name: string;
                 </Dialog.Close>
               </div>
               <div className="flex flex-wrap items-center gap-6">
-                <div className="rounded-xl bg-white p-3">
-                  <QRCodeSVG value={url} size={148} />
+                <div className="mx-auto rounded-xl bg-white p-3 sm:mx-0">
+                  <QRCodeSVG value={url} size={200} className="size-50 sm:size-37" />
                 </div>
                 <div className="grid w-full min-w-0 flex-1 basis-full gap-3 sm:basis-60">
                   <input
@@ -48,7 +48,7 @@ export function ShareTrip({ tripId, name, url }: { tripId: string; name: string;
                     className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-sm"
                     onFocus={(event) => event.currentTarget.select()}
                   />
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid gap-2 sm:flex sm:flex-wrap">
                     <Button
                       type="button"
                       variant="outline"

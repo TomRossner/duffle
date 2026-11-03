@@ -12,9 +12,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const description = "Plan a shared trip: map, weather, schedule, money, documents, and packing.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.AUTH_URL ?? "http://localhost:3000"),
   title: "Duffle",
-  description: "Plan a shared trip: map, weather, schedule, money, documents, and packing.",};
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "Duffle",
+    title: "Duffle",
+    description,
+  },
+};
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
