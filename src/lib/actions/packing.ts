@@ -20,7 +20,7 @@ export async function collectPackingSuggestions(
     prisma.destination.findMany({
       where: { tripId },
       include: { weatherDays: true, activities: true },
-      orderBy: { sortOrder: "asc" },
+      orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { sortOrder: "asc" }],
     }),
   ]);
 

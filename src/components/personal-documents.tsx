@@ -218,37 +218,35 @@ export function PersonalDocumentAddButton() {
 
   return (
     <>
-      <Button type="button" className="w-fit shrink-0" onClick={() => setOpen(true)}>
+      <Button type="button" className="w-full shrink-0 sm:w-fit" onClick={() => setOpen(true)}>
         <Plus />
         Add a document
       </Button>
-      {open ? (
-        <Dialog.Root open onOpenChange={setOpen}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-              <Dialog.Popup className="relative my-auto w-full max-w-lg rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <Dialog.Title className="text-lg font-medium">Add a document</Dialog.Title>
-                    <Dialog.Description className="text-sm text-muted-foreground">
-                      A passport, ID, license, or visa. Number and dates are optional, and stay private until you attach
-                      this document to a trip.
-                    </Dialog.Description>
-                  </div>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                    <X />
-                  </Dialog.Close>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <Dialog.Popup className="dialog-popup relative my-auto w-full max-w-lg rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <Dialog.Title className="text-lg font-medium">Add a document</Dialog.Title>
+                  <Dialog.Description className="text-sm text-muted-foreground">
+                    A passport, ID, license, or visa. Number and dates are optional, and stay private until you attach
+                    this document to a trip.
+                  </Dialog.Description>
                 </div>
-                <ActionForm action={createPersonalDocument} submitLabel="Save document" onSaved={() => setOpen(false)}>
-                  <DocumentFileField required />
-                  <DocumentFields />
-                </ActionForm>
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              <ActionForm action={createPersonalDocument} submitLabel="Save document" onSaved={() => setOpen(false)}>
+                <DocumentFileField required />
+                <DocumentFields />
+              </ActionForm>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }
@@ -316,56 +314,52 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
           </Menu.Root>
         </CardAction>
       </CardHeader>
-      {viewing ? (
-        <Dialog.Root open onOpenChange={setViewing}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <Dialog.Popup className="w-full max-w-3xl rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <Dialog.Title className="text-lg font-medium">{document.title}</Dialog.Title>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                    <X />
-                  </Dialog.Close>
-                </div>
-                <DocumentDetails document={document} />
-                <StoredImage src={src} alt={document.title} className="max-h-[75vh] w-full object-contain" />
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
-      {editing ? (
-        <Dialog.Root open onOpenChange={setEditing}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-              <Dialog.Popup className="relative my-auto w-full max-w-lg rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <Dialog.Title className="text-lg font-medium">Edit document</Dialog.Title>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                    <X />
-                  </Dialog.Close>
-                </div>
-                <ActionForm
-                  action={updatePersonalDocument.bind(null, document.id)}
-                  submitLabel="Save"
-                  onSaved={() => setEditing(false)}
-                >
-                  <DocumentFileField />
-                  <DocumentFields
-                    title={document.title}
-                    kind={document.kind}
-                    documentNumber={document.documentNumber ?? ""}
-                    issuedOn={document.issuedOn ?? ""}
-                    expiresOn={document.expiresOn ?? ""}
-                  />
-                </ActionForm>
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
+      <Dialog.Root open={viewing} onOpenChange={setViewing}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <Dialog.Popup className="dialog-popup w-full max-w-3xl rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <Dialog.Title className="text-lg font-medium">{document.title}</Dialog.Title>
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              <DocumentDetails document={document} />
+              <StoredImage src={src} alt={document.title} className="max-h-[75vh] w-full object-contain" />
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <Dialog.Root open={editing} onOpenChange={setEditing}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <Dialog.Popup className="dialog-popup relative my-auto w-full max-w-lg rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <Dialog.Title className="text-lg font-medium">Edit document</Dialog.Title>
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              <ActionForm
+                action={updatePersonalDocument.bind(null, document.id)}
+                submitLabel="Save"
+                onSaved={() => setEditing(false)}
+              >
+                <DocumentFileField />
+                <DocumentFields
+                  title={document.title}
+                  kind={document.kind}
+                  documentNumber={document.documentNumber ?? ""}
+                  issuedOn={document.issuedOn ?? ""}
+                  expiresOn={document.expiresOn ?? ""}
+                />
+              </ActionForm>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}
@@ -461,25 +455,23 @@ export function AttachedPersonalDocumentCard({
           </Menu.Root>
         </CardAction>
       </CardHeader>
-      {viewing ? (
-        <Dialog.Root open onOpenChange={setViewing}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <Dialog.Popup className="w-full max-w-3xl rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <Dialog.Title className="text-lg font-medium">{document.title}</Dialog.Title>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                    <X />
-                  </Dialog.Close>
-                </div>
-                <DocumentDetails document={document} />
-                <StoredImage src={src} alt={document.title} className="max-h-[75vh] w-full object-contain" />
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
+      <Dialog.Root open={viewing} onOpenChange={setViewing}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <Dialog.Popup className="dialog-popup w-full max-w-3xl rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <Dialog.Title className="text-lg font-medium">{document.title}</Dialog.Title>
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              <DocumentDetails document={document} />
+              <StoredImage src={src} alt={document.title} className="max-h-[75vh] w-full object-contain" />
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}

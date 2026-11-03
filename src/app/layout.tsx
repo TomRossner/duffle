@@ -14,9 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Duffle",
-  description: "Plan a shared trip: map, weather, schedule, money, documents, and packing.",
-  icons: { icon: "/duffle%20logo.webp" },
-};
+  description: "Plan a shared trip: map, weather, schedule, money, documents, and packing.",};
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

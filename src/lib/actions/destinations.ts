@@ -169,6 +169,13 @@ export async function updateActivity(tripId: string, activityId: string, _: unkn
   const title = String(formData.get("title") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
   if (!title) return { error: "Name the activity." };
+  // Only forms that show the tag picker send this marker; others leave tags as they are.
+  const tags = formData.has("editTags")
+    ? formData
+        .getAll("tags")
+        .map(String)
+        .filter((tag) => ACTIVITY_TAGS.includes(tag as (typeof ACTIVITY_TAGS)[number]))
+    : undefined;
 
   const when = readScheduleWhen(formData, trip, { requireStart: false });
   if ("error" in when) return when;
@@ -176,7 +183,7 @@ export async function updateActivity(tripId: string, activityId: string, _: unkn
     // Unscheduling only affects this activity; its series copies keep their days.
     await prisma.activity.update({
       where: { id: activityId },
-      data: { title, notes, startAt: null, endAt: null, allDay: false },
+      data: { title, notes, ...(tags ? { tags } : {}), startAt: null, endAt: null, allDay: false },
     });
     revalidatePath(`/trips/${tripId}`);
     return { ok: true };
@@ -191,7 +198,7 @@ export async function updateActivity(tripId: string, activityId: string, _: unkn
     : [activity];
   const plan = planSeries(when, activity.id, members);
   const seriesId = activity.seriesId ?? (plan.create.length > 0 ? randomUUID() : null);
-  const shared = { title, notes, allDay: when.allDay, seriesId };
+  const shared = { title, notes, allDay: when.allDay, seriesId, ...(tags ? { tags } : {}) };
 
   // Keep the cost when the day holding it is dropped: move it to the activity being edited.
   const removed = members.filter((member) => plan.remove.includes(member.id));
@@ -211,6 +218,7 @@ export async function updateActivity(tripId: string, activityId: string, _: unkn
         destinationId: activity.destinationId,
         tags: activity.tags,
         lat: activity.lat,
+        // `shared` overrides the tags above when this form edits them.
         lng: activity.lng,
         placeId: activity.placeId,
         ...shared,

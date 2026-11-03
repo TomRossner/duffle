@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import { CheckList, CostFields, Field, FieldGroup, Select } from "@/components/fields";
+import { AirlineInput, AirportInput } from "@/components/flight-autocomplete";
 import { KindIcon } from "@/components/kind-icon";
 import { ScheduleWhenFields } from "@/components/schedule-when-fields";
 import { Input } from "@/components/ui/input";
@@ -157,6 +158,7 @@ export function PlanForm({
   destinations,
   tripDays,
   defaultDate = "",
+  compact = false,
 }: {
   tripId: string;
   currency: string;
@@ -164,6 +166,8 @@ export function PlanForm({
   destinations: { id: string; name: string }[];
   tripDays: string[];
   defaultDate?: string;
+  /** A small "Add a plan" button, for adding to a single day. */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<PlanKindId>("FLIGHT");
@@ -171,7 +175,12 @@ export function PlanForm({
   const submitLabel = kind === "FLIGHT" ? "Add flight" : kind === "STAY" ? "Add stay" : "Add to schedule";
 
   if (!open) {
-    return (
+    return compact ? (
+      <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
+        <Plus />
+        Add a plan
+      </Button>
+    ) : (
       <Button type="button" size="lg" className="h-10 w-full" onClick={() => setOpen(true)}>
         <Plus />
         Add a plan
@@ -233,17 +242,17 @@ function FlightFields({
   return (
     <>
       <Field label="Airline">
-        <Input name="airline" defaultValue={airline} required />
+        <AirlineInput name="airline" defaultValue={airline} required />
       </Field>
       <Field label="Flight number">
         <Input name="flightNumber" defaultValue={flightNumber} required />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="From">
-          <Input name="fromAirport" defaultValue={fromAirport} placeholder="TLV" required />
+          <AirportInput name="fromAirport" defaultValue={fromAirport} placeholder="TLV" required />
         </Field>
         <Field label="To">
-          <Input name="toAirport" defaultValue={toAirport} placeholder="MUC" required />
+          <AirportInput name="toAirport" defaultValue={toAirport} placeholder="MUC" required />
         </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">

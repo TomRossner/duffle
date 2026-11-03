@@ -94,6 +94,16 @@ export function formatTime(date: Date) {
   return date.toISOString().slice(11, 16);
 }
 
+/**
+ * Compact date-time range in the app's style. The start drops the year when it matches the end:
+ * "14 Sep, 15:00 – 20 Sep 2026, 11:00", "28 Dec 2026, 15:00 – 3 Jan 2027, 11:00".
+ */
+export function formatDateTimeRange(start: Date, end: Date) {
+  const sameYear = start.getUTCFullYear() === end.getUTCFullYear();
+  const startDate = sameYear ? `${start.getUTCDate()} ${shortMonth.format(start)}` : formatDateShort(start);
+  return `${startDate}, ${formatTime(start)} – ${formatDateShort(end)}, ${formatTime(end)}`;
+}
+
 export function eachDate(start: Date, end: Date) {
   const dates: Date[] = [];
   const cursor = new Date(start);

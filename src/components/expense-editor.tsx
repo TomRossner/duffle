@@ -79,38 +79,36 @@ export function ExpenseRowMenu({
         </Menu.Portal>
       </Menu.Root>
       {error ? <p className="mt-1 text-xs text-destructive">{error}</p> : null}
-      {editing ? (
-        <Dialog.Root open onOpenChange={setEditing}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-              <Dialog.Popup className="relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <Dialog.Title className="text-lg font-medium">Edit expense</Dialog.Title>
-                    <Dialog.Description className="text-sm text-muted-foreground">
-                      Change the amount, who paid, or how it is split.
-                    </Dialog.Description>
-                  </div>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                    <X />
-                  </Dialog.Close>
+      <Dialog.Root open={editing} onOpenChange={setEditing}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <Dialog.Title className="text-lg font-medium">Edit expense</Dialog.Title>
+                  <Dialog.Description className="text-sm text-muted-foreground">
+                    Change the amount, who paid, or how it is split.
+                  </Dialog.Description>
                 </div>
-                <ExpenseForm
-                  action={action}
-                  members={members}
-                  currency={currency}
-                  submitLabel="Save"
-                  includeCategory={!settlement}
-                  defaultCategory={defaults.category}
-                  defaults={defaults}
-                  onSaved={() => setEditing(false)}
-                />
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              <ExpenseForm
+                action={action}
+                members={members}
+                currency={currency}
+                submitLabel="Save"
+                includeCategory={!settlement}
+                defaultCategory={defaults.category}
+                defaults={defaults}
+                onSaved={() => setEditing(false)}
+              />
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}

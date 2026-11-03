@@ -6,7 +6,8 @@ import { CLOSET_ACTIVITY_TAGS, CLOTHING_SLOTS, CONDITION_TAGS } from "@/lib/cons
 import { readQuantity } from "@/lib/packing-list";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
-import { storeImage } from "@/lib/uploads";
+import { closetReaderConfigured, readClosetItem, type ClosetFacts } from "@/lib/closet-reader";
+import { checkUpload, storeImage } from "@/lib/uploads";
 
 function readClosetInput(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -58,6 +59,24 @@ function readClosetInput(formData: FormData) {
     goreTex,
     driFit,
   };
+}
+
+/** Describe an uploaded clothing photo so the add form can be filled in before saving. */
+export async function scanClosetItem(
+  formData: FormData,
+): Promise<{ status: "read"; facts: ClosetFacts } | { status: "unavailable" } | { status: "error"; error: string }> {
+  await requireUser();
+  const checked = checkUpload(formData.get("file"));
+  if (checked.status === "empty") return { status: "error", error: "Choose an image." };
+  if (checked.status === "invalid") return { status: "error", error: checked.error };
+  if (!closetReaderConfigured()) return { status: "unavailable" };
+
+  const facts = await readClosetItem(new Uint8Array(await checked.file.arrayBuffer()), checked.file.type);
+  if (facts === "not-clothing") {
+    return { status: "error", error: "This doesn't look like clothing. Fill in the details yourself." };
+  }
+  if (!facts) return { status: "error", error: "Couldn't read the photo. Fill in the details yourself." };
+  return { status: "read", facts };
 }
 
 export async function createClosetItem(_: unknown, formData: FormData) {

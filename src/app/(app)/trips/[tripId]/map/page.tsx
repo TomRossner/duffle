@@ -1,6 +1,7 @@
-import { MapPin } from "lucide-react";
-import { ActionForm, InlineAction } from "@/components/action-form";
+import { ChevronRight, MapPin } from "lucide-react";
+import { ActionForm } from "@/components/action-form";
 import { ActivityComposer } from "@/components/activity-composer";
+import { ActivityEditor, ScheduleItemMenu } from "@/components/day-editor";
 import { PlaceLinks } from "@/components/place-links";
 import { DestinationCard } from "@/components/destination-card";
 import { DestinationForm } from "@/components/destination-form";
@@ -49,7 +50,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
   const destinations = await prisma.destination.findMany({
     where: { tripId },
     include: { activities: { orderBy: { startAt: "asc" } } },
-    orderBy: { sortOrder: "asc" },
+    orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { sortOrder: "asc" }],
   });
 
   const markers = destinations.map((destination) => ({
@@ -60,6 +61,19 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
   }));
   const dateHint = `During the trip, ${formatDateLong(trip.startDate)} – ${formatDateLong(trip.endDate)}.`;
   const tripDays = eachDate(trip.startDate, trip.endDate).map(formatDate);
+
+  // Days each repeating activity is on, so its edit form can show (and manage) all of them.
+  const seriesDays = new Map<string, string[]>();
+  for (const destination of destinations) {
+    for (const activity of destination.activities) {
+      if (!activity.seriesId || !activity.startAt) continue;
+      seriesDays.set(activity.seriesId, [...(seriesDays.get(activity.seriesId) ?? []), formatDate(activity.startAt)]);
+    }
+  }
+  const otherSeriesDays = (seriesId: string | null, startAt: Date | null) =>
+    seriesId && startAt
+      ? (seriesDays.get(seriesId) ?? []).filter((day) => day !== formatDate(startAt))
+      : [];
 
   return (
     <div className="grid gap-6">
@@ -104,15 +118,20 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                     notes: destination.notes,
                   }}
                 >
-                  <div className="grid gap-2">
-                      <p className="text-sm font-medium">Activities</p>
+                  <details open className="group">
+                    <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-sm font-medium outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                      <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
+                      Activities
+                      <span className="font-normal text-muted-foreground">({destination.activities.length})</span>
+                    </summary>
+                    <div className="mt-2 grid gap-2">
                       {destination.activities.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Nothing planned at this stop yet.</p>
                       ) : (
                         <ul className="grid gap-2">
                           {destination.activities.map((activity) => (
                             <li key={activity.id} className="flex items-start justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 text-sm">
-                              <span>
+                              <span className="min-w-0 flex-1">
                                 <span className="inline-flex flex-wrap items-center gap-1.5">
                                   <span className="font-medium">{activity.title}</span>
                                   {activity.tags.filter(isActivityTag).map((tag) => (
@@ -147,10 +166,26 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                                   />
                                 ) : null}
                               </span>
-                              <InlineAction
-                                action={deleteActivity.bind(null, tripId, activity.id)}
-                                label="Remove"
-                              />
+                              <ScheduleItemMenu
+                                label={activity.title}
+                                confirmMessage={`Are you sure you want to remove ${activity.title}?`}
+                                remove={deleteActivity.bind(null, tripId, activity.id)}
+                              >
+                                <ActivityEditor
+                                  tripId={tripId}
+                                  tripDays={tripDays}
+                                  activity={{
+                                    id: activity.id,
+                                    title: activity.title,
+                                    notes: activity.notes ?? "",
+                                    startAt: activity.startAt ? activity.startAt.toISOString().slice(0, 16) : "",
+                                    endAt: activity.endAt ? activity.endAt.toISOString().slice(0, 16) : "",
+                                    allDay: activity.allDay,
+                                    seriesDays: otherSeriesDays(activity.seriesId, activity.startAt),
+                                    tags: activity.tags,
+                                  }}
+                                />
+                              </ScheduleItemMenu>
                             </li>
                           ))}
                         </ul>
@@ -179,6 +214,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                         </ActionForm>
                       </ActivityComposer>
                     </div>
+                  </details>
                 </DestinationCard>
               );
             })

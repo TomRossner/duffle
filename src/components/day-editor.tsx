@@ -7,7 +7,7 @@ import { cloneElement, isValidElement, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
-import { Field, FieldGroup } from "@/components/fields";
+import { CheckList, Field, FieldGroup } from "@/components/fields";
 import { KindTags } from "@/components/plan-form";
 import { ScheduleWhenFields } from "@/components/schedule-when-fields";
 import { WeatherMark } from "@/components/weather-mark";
@@ -16,7 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { updateActivity } from "@/lib/actions/destinations";
 import { updateScheduleItem } from "@/lib/actions/schedule";
-import { PLAN_KINDS, SCHEDULE_KINDS } from "@/lib/constants";
+import { ACTIVITY_TAGS, PLAN_KINDS, SCHEDULE_KINDS } from "@/lib/constants";
+import { ACTIVITY_COLORS, ActivityTagLabel } from "@/lib/tag-meta";
 
 export type DayPlan = {
   id: string;
@@ -40,6 +41,8 @@ export type DayActivity = {
   allDay: boolean;
   /** Other days of its series (YYYY-MM-DD). */
   seriesDays: string[];
+  /** When given, the editor shows the tag picker and saves the chosen tags. */
+  tags?: string[];
 };
 
 const scheduleKinds = PLAN_KINDS.filter((kind) =>
@@ -120,24 +123,22 @@ export function ScheduleItemMenu({
         </Menu.Portal>
       </Menu.Root>
       {error ? <p className="mt-1 text-xs text-destructive">{error}</p> : null}
-      {editing ? (
-        <Dialog.Root open onOpenChange={setEditing}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-              <Dialog.Popup className="relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <Dialog.Title className="text-lg font-medium">Edit {label}</Dialog.Title>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                    <X />
-                  </Dialog.Close>
-                </div>
-                {editor}
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
+      <Dialog.Root open={editing} onOpenChange={setEditing}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <Dialog.Title className="text-lg font-medium">Edit {label}</Dialog.Title>
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              {editor}
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}
@@ -207,6 +208,21 @@ export function ActivityEditor({
         defaultRepeat={activity.seriesDays}
         editing
       />
+      {activity.tags ? (
+        <FieldGroup label="Tags">
+          <input type="hidden" name="editTags" value="on" />
+          <CheckList
+            name="tags"
+            defaultChecked={false}
+            checkedIds={activity.tags}
+            options={ACTIVITY_TAGS.map((tag) => ({
+              id: tag,
+              color: ACTIVITY_COLORS[tag],
+              label: <ActivityTagLabel tag={tag} />,
+            }))}
+          />
+        </FieldGroup>
+      ) : null}
       <Field label="Notes">
         <Textarea name="notes" rows={2} defaultValue={activity.notes} />
       </Field>

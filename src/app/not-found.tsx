@@ -10,7 +10,7 @@ export default function NotFound() {
   return (
     <main className="mx-auto flex min-h-svh w-full max-w-lg flex-col items-center justify-center gap-6 px-6 py-20 text-center">
       <Link href="/">
-        <img src="/duffle%20logo.webp" alt="Duffle" className="h-20 w-auto" />
+        <img src="/duffle%20logo.webp" alt="Duffle" loading="lazy" className="h-20 w-auto" />
       </Link>
       <div className="grid gap-2">
         <p className="font-mono text-sm tracking-widest text-muted-foreground">404</p>

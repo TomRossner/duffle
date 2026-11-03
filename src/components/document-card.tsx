@@ -173,97 +173,93 @@ export function DocumentCard({
           });
         }}
       />
-      {viewing ? (
-        <Dialog.Root open onOpenChange={setViewing}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-              <Dialog.Popup className="relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <Dialog.Title className="text-lg font-medium">{document.title}</Dialog.Title>
-                    <Dialog.Description className="text-sm text-muted-foreground">
-                      {kindLabel(document.kind)} · {document.userName}
-                    </Dialog.Description>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => printDocument(src, document.title)}>
-                      <Printer />
-                      Print
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void downloadDocument(src, filename)}
-                    >
-                      <Download />
-                      Download
-                    </Button>
-                    <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                      <X />
-                    </Dialog.Close>
-                  </div>
+      <Dialog.Root open={viewing} onOpenChange={setViewing}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <Dialog.Title className="text-lg font-medium">{document.title}</Dialog.Title>
+                  <Dialog.Description className="text-sm text-muted-foreground">
+                    {kindLabel(document.kind)} · {document.userName}
+                  </Dialog.Description>
                 </div>
-                <StoredImage src={src} alt={document.title} className="max-h-[75vh] w-full object-contain" />
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
-      {editing ? (
-        <Dialog.Root open onOpenChange={setEditing}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-              <Dialog.Popup className="relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <Dialog.Title className="text-lg font-medium">Edit document</Dialog.Title>
-                    <Dialog.Description className="text-sm text-muted-foreground">
-                      Change the title, type, or traveler. Leave the image empty to keep the current one.
-                    </Dialog.Description>
-                  </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => printDocument(src, document.title)}>
+                    <Printer />
+                    Print
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void downloadDocument(src, filename)}
+                  >
+                    <Download />
+                    Download
+                  </Button>
                   <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
                     <X />
                   </Dialog.Close>
                 </div>
-                <ActionForm
-                  action={updateDocument.bind(null, tripId, document.id)}
-                  submitLabel="Save"
-                  submitIcon={<Save />}
-                  onSaved={() => setEditing(false)}
-                >
-                  <Field label="Title">
-                    <Input name="title" defaultValue={document.title} required />
-                  </Field>
-                  <Field label="Type">
-                    <Select name="kind" defaultValue={document.kind}>
-                      {DOCUMENT_KINDS.map((kind) => (
-                        <option key={kind} value={kind}>
-                          {kindLabel(kind)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="Traveler">
-                    <Select name="userId" defaultValue={document.userId}>
-                      {members.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="Image">
-                    <Input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-                  </Field>
-                </ActionForm>
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
+              </div>
+              <StoredImage src={src} alt={document.title} className="max-h-[75vh] w-full object-contain" />
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <Dialog.Root open={editing} onOpenChange={setEditing}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <Dialog.Title className="text-lg font-medium">Edit document</Dialog.Title>
+                  <Dialog.Description className="text-sm text-muted-foreground">
+                    Change the title, type, or traveler. Leave the image empty to keep the current one.
+                  </Dialog.Description>
+                </div>
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              <ActionForm
+                action={updateDocument.bind(null, tripId, document.id)}
+                submitLabel="Save"
+                submitIcon={<Save />}
+                onSaved={() => setEditing(false)}
+              >
+                <Field label="Title">
+                  <Input name="title" defaultValue={document.title} required />
+                </Field>
+                <Field label="Type">
+                  <Select name="kind" defaultValue={document.kind}>
+                    {DOCUMENT_KINDS.map((kind) => (
+                      <option key={kind} value={kind}>
+                        {kindLabel(kind)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Traveler">
+                  <Select name="userId" defaultValue={document.userId}>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Image">
+                  <Input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+                </Field>
+              </ActionForm>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
     </Card>
   );
 }

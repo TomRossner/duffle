@@ -13,7 +13,7 @@ export default async function WeatherPage({ params }: { params: Promise<{ tripId
   const destinations = await prisma.destination.findMany({
     where: { tripId },
     include: { weatherDays: { orderBy: { date: "asc" } } },
-    orderBy: { sortOrder: "asc" },
+    orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { sortOrder: "asc" }],
   });
 
   return (

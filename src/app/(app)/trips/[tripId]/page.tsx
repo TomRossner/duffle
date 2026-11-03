@@ -22,7 +22,7 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
       where: { tripId, status: "PENDING" },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.destination.findMany({ where: { tripId }, orderBy: { sortOrder: "asc" } }),
+    prisma.destination.findMany({ where: { tripId }, orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { sortOrder: "asc" }] }),
     prisma.expense.findMany({
       where: { tripId, OR: [{ phase: "ACTUAL" }, { phase: "PLANNED", paid: true }] },
       include: { shares: true },
@@ -126,6 +126,7 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
               label="Delete trip"
               variant="destructive"
               confirmMessage={`Are you sure you want to delete "${trip.name}"?`}
+              fullWidthOnMobile
             />
           ) : null}
         </CardContent>

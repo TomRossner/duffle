@@ -21,7 +21,7 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
     prisma.destination.findMany({
       where: { tripId },
       include: { activities: true },
-      orderBy: { sortOrder: "asc" },
+      orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { sortOrder: "asc" }],
     }),
     prisma.flight.findMany({
       where: { tripId },
@@ -53,7 +53,8 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
   const otherSeriesDays = (seriesId: string | null, startAt: Date | null) =>
     seriesId && startAt ? (seriesDays.get(seriesId) ?? []).filter((day) => day !== dateKey(startAt)) : [];
   const itemClass =
-    "schedule-item flex items-start justify-between gap-3 rounded-lg border border-border bg-muted px-3 py-2.5 text-sm in-data-[layout=calendar]:items-center in-data-[layout=calendar]:gap-1 in-data-[layout=calendar]:rounded-md in-data-[layout=calendar]:relative in-data-[layout=calendar]:w-full in-data-[layout=calendar]:min-w-0 in-data-[layout=calendar]:overflow-hidden in-data-[layout=calendar]:cursor-pointer in-data-[layout=calendar]:py-1 in-data-[layout=calendar]:pr-6 in-data-[layout=calendar]:pl-1.5 in-data-[layout=calendar]:text-xs in-data-[layout=calendar]:transition-colors in-data-[layout=calendar]:hover:border-foreground/30 in-data-[layout=calendar]:hover:bg-background in-data-[layout=calendar]:hover:shadow-sm";
+    // Wraps so the place buttons (basis-full, after the menu) get their own full-width row under the text and menu.
+    "schedule-item flex flex-wrap items-start justify-between gap-x-3 in-data-[layout=calendar]:flex-nowrap rounded-lg border border-border bg-muted px-3 py-2.5 text-sm in-data-[layout=calendar]:items-center in-data-[layout=calendar]:gap-1 in-data-[layout=calendar]:rounded-md in-data-[layout=calendar]:relative in-data-[layout=calendar]:w-full in-data-[layout=calendar]:min-w-0 in-data-[layout=calendar]:overflow-hidden in-data-[layout=calendar]:cursor-pointer in-data-[layout=calendar]:py-1 in-data-[layout=calendar]:pr-6 in-data-[layout=calendar]:pl-1.5 in-data-[layout=calendar]:text-xs in-data-[layout=calendar]:transition-colors in-data-[layout=calendar]:hover:border-foreground/30 in-data-[layout=calendar]:hover:bg-background in-data-[layout=calendar]:hover:shadow-sm";
   const detailClass = "in-data-[layout=calendar]:hidden";
   const titleClass =
     "flex w-full min-w-0 flex-wrap items-center gap-2 font-medium in-data-[layout=calendar]:flex-nowrap in-data-[layout=calendar]:gap-1 in-data-[layout=calendar]:overflow-hidden";
@@ -107,7 +108,8 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                     Nothing planned.
                   </p>
                 ) : null}
-                {dayFlights.map((flight) => {
+                {[
+                ...dayFlights.map((flight) => {
                   const card = () => (
                   <div className={itemClass}>
                     <div className="min-w-0 flex-1">
@@ -133,24 +135,6 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                           ))}
                         </p>
                       ) : null}
-                      <span className={`mt-2 grid gap-1.5 ${detailClass}`}>
-                        <PlaceLinks
-                          label={`To ${flight.fromAirport}`}
-                          place={{
-                            name: `${flight.fromAirport} airport`,
-                            lat: flight.fromLat,
-                            lng: flight.fromLng,
-                          }}
-                        />
-                        <PlaceLinks
-                          label={`To ${flight.toAirport}`}
-                          place={{
-                            name: `${flight.toAirport} airport`,
-                            lat: flight.toLat,
-                            lng: flight.toLng,
-                          }}
-                        />
-                      </span>
                     </div>
                     <ScheduleItemMenu
                       label={`${flight.airline} ${flight.flightNumber}`}
@@ -174,19 +158,40 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                         }}
                       />
                     </ScheduleItemMenu>
+                    <span className={`mt-2 grid basis-full gap-1.5 ${detailClass}`}>
+                      <PlaceLinks
+                        label={`To ${flight.fromAirport}`}
+                        place={{
+                          name: `${flight.fromAirport} airport`,
+                          lat: flight.fromLat,
+                          lng: flight.fromLng,
+                        }}
+                      />
+                      <PlaceLinks
+                        label={`To ${flight.toAirport}`}
+                        place={{
+                          name: `${flight.toAirport} airport`,
+                          lat: flight.toLat,
+                          lng: flight.toLng,
+                        }}
+                      />
+                    </span>
                   </div>
                   );
-                  return (
-                    <ScheduleItem
-                      key={flight.id}
-                      label={`${flight.airline} ${flight.flightNumber}`}
-                      details={card()}
-                    >
-                      {card()}
-                    </ScheduleItem>
-                  );
-                })}
-                {dayStays.map((stay) => {
+                  return {
+                    at: flight.departAt.getTime(),
+                    node: (
+                      <ScheduleItem
+                        key={flight.id}
+                        label={`${flight.airline} ${flight.flightNumber}`}
+                        details={card()}
+                      >
+                        {card()}
+                      </ScheduleItem>
+                    ),
+                  };
+                }),
+                ...dayStays.map((stay) => {
                   const card = () => (
                   <div className={itemClass}>
                     <div className="min-w-0 flex-1">
@@ -203,10 +208,6 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                         {formatTime(dateKey(stay.checkIn) === key ? stay.checkIn : stay.checkOut)}
                         {stay.address ? ` · ${stay.address}` : ""}
                       </p>
-                      <PlaceLinks
-                        className={`mt-1.5 ${detailClass}`}
-                        place={{ name: stay.name, address: stay.address, lat: stay.lat, lng: stay.lng }}
-                      />
                     </div>
                     <ScheduleItemMenu
                       label={stay.name}
@@ -231,16 +232,23 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                         }}
                       />
                     </ScheduleItemMenu>
+                    <PlaceLinks
+                      className={`mt-1.5 basis-full ${detailClass}`}
+                      place={{ name: stay.name, address: stay.address, lat: stay.lat, lng: stay.lng }}
+                    />
                   </div>
                   );
                   const stayLabel = dateKey(stay.checkIn) === key ? `Check in · ${stay.name}` : `Check out · ${stay.name}`;
-                  return (
-                    <ScheduleItem key={`${stay.id}-${key}`} label={stayLabel} details={card()}>
-                      {card()}
-                    </ScheduleItem>
-                  );
-                })}
-                {dayActivities.map((activity) => {
+                  return {
+                    at: (dateKey(stay.checkIn) === key ? stay.checkIn : stay.checkOut).getTime(),
+                    node: (
+                      <ScheduleItem key={`${stay.id}-${key}`} label={stayLabel} details={card()}>
+                        {card()}
+                      </ScheduleItem>
+                    ),
+                  };
+                }),
+                ...dayActivities.map((activity) => {
                   const card = () => (
                   <div className={itemClass}>
                     <div className="min-w-0 flex-1">
@@ -260,7 +268,6 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                             ? ` · ${formatTime(activity.startAt)}${activity.endAt ? `–${formatTime(activity.endAt)}` : ""}`
                             : ""}
                       </p>
-                      <PlaceLinks className={`mt-1.5 ${detailClass}`} place={activity.target} />
                     </div>
                     <ScheduleItemMenu
                       label={activity.title}
@@ -281,15 +288,19 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                         }}
                       />
                     </ScheduleItemMenu>
+                    <PlaceLinks className={`mt-1.5 basis-full ${detailClass}`} place={activity.target} />
                   </div>
                   );
-                  return (
-                    <ScheduleItem key={activity.id} label={activity.title} details={card()}>
-                      {card()}
-                    </ScheduleItem>
-                  );
-                })}
-                {dayItems.map((item) => {
+                  return {
+                    at: activity.allDay || !activity.startAt ? 0 : activity.startAt.getTime(),
+                    node: (
+                      <ScheduleItem key={activity.id} label={activity.title} details={card()}>
+                        {card()}
+                      </ScheduleItem>
+                    ),
+                  };
+                }),
+                ...dayItems.map((item) => {
                   const card = () => (
                   <div className={itemClass}>
                     <div className="min-w-0 flex-1">
@@ -309,12 +320,6 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                         </span>
                       </p>
                       {item.placeName ? <p className={`text-muted-foreground ${detailClass}`}>{item.placeName}</p> : null}
-                      {item.placeName || (item.lat != null && item.lng != null) ? (
-                        <PlaceLinks
-                          className={`mt-1.5 ${detailClass}`}
-                          place={{ name: item.placeName || item.title, lat: item.lat, lng: item.lng }}
-                        />
-                      ) : null}
                     </div>
                     <ScheduleItemMenu
                       label={item.title}
@@ -337,14 +342,38 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                         }}
                       />
                     </ScheduleItemMenu>
+                    {item.placeName || (item.lat != null && item.lng != null) ? (
+                      <PlaceLinks
+                        className={`mt-1.5 basis-full ${detailClass}`}
+                        place={{ name: item.placeName || item.title, lat: item.lat, lng: item.lng }}
+                      />
+                    ) : null}
                   </div>
                   );
-                  return (
-                    <ScheduleItem key={item.id} label={item.title} details={card()}>
-                      {card()}
-                    </ScheduleItem>
-                  );
-                })}
+                  return {
+                    at: item.allDay ? 0 : item.startAt.getTime(),
+                    node: (
+                      <ScheduleItem key={item.id} label={item.title} details={card()}>
+                        {card()}
+                      </ScheduleItem>
+                    ),
+                  };
+                }),
+                ]
+                  // Earliest first; all-day plans lead the day.
+                  .sort((a, b) => a.at - b.at)
+                  .map((entry) => entry.node)}
+                <div className={`grid ${detailClass}`}>
+                  <PlanForm
+                    tripId={tripId}
+                    currency={trip.baseCurrency}
+                    people={people}
+                    destinations={destinations.map((destination) => ({ id: destination.id, name: destination.name }))}
+                    tripDays={tripDays}
+                    defaultDate={key}
+                    compact
+                  />
+                </div>
               </>
             );
             return {

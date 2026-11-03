@@ -5,6 +5,7 @@ import { Menu } from "@base-ui/react/menu";
 import { Droplets, EllipsisVertical, Pencil, Plus, Shirt, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
+import { ClosetImageField } from "@/components/closet-image-field";
 import { CheckList, Field, FieldGroup, Select } from "@/components/fields";
 import { StoredImage } from "@/components/stored-image";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export function ClosetFields({
   goreTex = false,
   driFit = false,
   keepImage = false,
+  scan = true,
 }: {
   name?: string;
   description?: string;
@@ -68,9 +70,11 @@ export function ClosetFields({
   goreTex?: boolean;
   driFit?: boolean;
   keepImage?: boolean;
+  scan?: boolean;
 }) {
   return (
     <>
+      <ClosetImageField imageUrl={imageUrl} keepImage={keepImage} scan={scan} />
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Name" className="sm:col-span-2">
           <Input name="name" defaultValue={name} required />
@@ -101,13 +105,6 @@ export function ClosetFields({
       <Field label="Description">
         <Textarea name="description" rows={2} defaultValue={description} />
       </Field>
-      <Field label="Image URL">
-        <Input name="imageUrl" type="url" placeholder="https://" defaultValue={imageUrl} />
-      </Field>
-      <Field label="Or upload an image">
-        <Input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-      </Field>
-      {keepImage ? <p className="text-sm text-muted-foreground">Leave both image fields blank to keep the current photo.</p> : null}
       <FieldGroup label="Weather">
         <CheckList
           name="conditions"
@@ -288,48 +285,47 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
         )}
         {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
       </CardContent>
-      {editing ? (
-        <Dialog.Root open onOpenChange={setEditing}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-              <Dialog.Popup className="relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <Dialog.Title className="text-lg font-medium">Edit {item.name}</Dialog.Title>
-                    <Dialog.Description className="text-sm text-muted-foreground">
-                      Change the type, weather, or activities.
-                    </Dialog.Description>
-                  </div>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                    <X />
-                  </Dialog.Close>
+      <Dialog.Root open={editing} onOpenChange={setEditing}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <Dialog.Title className="text-lg font-medium">Edit {item.name}</Dialog.Title>
+                  <Dialog.Description className="text-sm text-muted-foreground">
+                    Change the type, weather, or activities.
+                  </Dialog.Description>
                 </div>
-                <ActionForm
-                  action={updateClosetItem.bind(null, item.id)}
-                  submitLabel="Save"
-                  onSaved={() => setEditing(false)}
-                >
-                  <ClosetFields
-                    name={item.name}
-                    description={item.description}
-                    imageUrl={item.imageUrl}
-                    slot={item.slot}
-                    quantity={item.quantity}
-                    tempMin={item.tempMin}
-                    tempMax={item.tempMax}
-                    conditions={item.conditions}
-                    activities={item.activities}
-                    goreTex={item.goreTex}
-                    driFit={item.driFit}
-                    keepImage={item.hasImage}
-                  />
-                </ActionForm>
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              <ActionForm
+                action={updateClosetItem.bind(null, item.id)}
+                submitLabel="Save"
+                onSaved={() => setEditing(false)}
+              >
+                <ClosetFields
+                  name={item.name}
+                  description={item.description}
+                  imageUrl={item.imageUrl}
+                  slot={item.slot}
+                  quantity={item.quantity}
+                  tempMin={item.tempMin}
+                  tempMax={item.tempMax}
+                  conditions={item.conditions}
+                  activities={item.activities}
+                  goreTex={item.goreTex}
+                  driFit={item.driFit}
+                  keepImage={item.hasImage}
+                  scan={false}
+                />
+              </ActionForm>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
       <DeleteDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
@@ -356,35 +352,33 @@ export function ClosetAddButton() {
 
   return (
     <>
-      <Button type="button" className="w-fit shrink-0" onClick={() => setOpen(true)}>
+      <Button type="button" className="w-full shrink-0 sm:w-fit" onClick={() => setOpen(true)}>
         <Plus />
         Add an item
       </Button>
-      {open ? (
-        <Dialog.Root open onOpenChange={setOpen}>
-          <Dialog.Portal>
-            <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
-            <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-              <Dialog.Popup className="relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <Dialog.Title className="text-lg font-medium">Add an item</Dialog.Title>
-                    <Dialog.Description className="text-sm text-muted-foreground">
-                      Upload a photo or paste an image URL, then tag when you would wear it.
-                    </Dialog.Description>
-                  </div>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                    <X />
-                  </Dialog.Close>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <Dialog.Title className="text-lg font-medium">Add an item</Dialog.Title>
+                  <Dialog.Description className="text-sm text-muted-foreground">
+                    Drop in a photo and the details are filled in for you. Check them, then save.
+                  </Dialog.Description>
                 </div>
-                <ActionForm action={createClosetItem} submitLabel="Add to closet" onSaved={() => setOpen(false)}>
-                  <ClosetFields />
-                </ActionForm>
-              </Dialog.Popup>
-            </Dialog.Viewport>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <X />
+                </Dialog.Close>
+              </div>
+              <ActionForm action={createClosetItem} submitLabel="Add to closet" onSaved={() => setOpen(false)}>
+                <ClosetFields />
+              </ActionForm>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }

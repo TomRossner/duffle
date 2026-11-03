@@ -25,12 +25,13 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             signOut={
               <SignOutButton
                 label="Log out"
-                className="h-auto w-full justify-start border-0 px-3 py-2 font-normal"
+                className="h-auto w-full justify-start gap-4 rounded-xl border-0 px-5 py-4 text-lg font-normal [&_svg]:size-6"
               />
             }
           />
-          <Link href="/trips" aria-label="Duffle" className="inline-flex shrink-0 items-center">
-            <img src="/duffle%20logo.webp" alt="" className="h-10 w-auto sm:h-12" />
+          <Link href="/trips" aria-label="Duffle" className="inline-flex shrink-0 items-center gap-2">
+            <img src="/duffle-bag.webp" alt="" className="h-8 w-auto -translate-y-0.5 sm:h-10 sm:translate-y-0" />
+            <span className="text-xl font-bold tracking-tight text-[#234570] sm:hidden">Duffle</span>
           </Link>
           <nav className="hidden items-center gap-4 text-sm sm:flex">
             <Link href="/trips" className="inline-flex items-center gap-1.5 hover:text-primary">

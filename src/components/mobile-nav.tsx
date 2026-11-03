@@ -14,7 +14,7 @@ const links = [
   { href: "/profile", label: "Profile", icon: UserRound },
 ];
 
-const itemClass = "flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted";
+const itemClass = "flex items-center gap-4 rounded-xl px-5 py-4 text-lg hover:bg-muted [&_svg]:size-6";
 
 export function MobileNav({ signedIn, signOut }: { signedIn: boolean; signOut?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -44,54 +44,84 @@ export function MobileNav({ signedIn, signOut }: { signedIn: boolean; signOut?: 
     };
   }, [open]);
 
+  // Each item slides in a little after the previous one when the menu opens.
+  const item = (index: number) => ({
+    className: cn(
+      "transition-[opacity,translate] duration-150 ease-out motion-reduce:transition-none",
+      open ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
+    ),
+    style: { transitionDelay: open ? `${20 + index * 15}ms` : "0ms" },
+  });
+
+  const items = signedIn
+    ? [
+        ...links.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            onClick={() => setOpen(false)}
+            className={cn(itemClass, pathname.startsWith(href) && "bg-muted font-medium text-primary")}
+          >
+            <Icon />
+            {label}
+          </Link>
+        )),
+        <div key="divider" className="my-1 h-px bg-border" />,
+        <div key="sign-out">{signOut}</div>,
+      ]
+    : [
+        <Link key="login" href="/login" onClick={() => setOpen(false)} className={itemClass}>
+          <LogIn />
+          Sign in
+        </Link>,
+        <Link key="register" href="/register" onClick={() => setOpen(false)} className={itemClass}>
+          <UserPlus />
+          Sign up
+        </Link>,
+      ];
+
   return (
     <div ref={containerRef} className="relative sm:hidden">
       <Button
         type="button"
         variant="outline"
-        size="icon"
+        size="icon-lg"
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
         aria-controls="mobile-nav-menu"
         onClick={() => setOpen((current) => !current)}
+        className="relative"
       >
-        {open ? <X /> : <Menu />}
-      </Button>
-      {open ? (
-        <nav
-          id="mobile-nav-menu"
-          className="fixed inset-x-4 z-30 mt-2 grid gap-1 rounded-xl bg-card p-2 shadow-lg ring-1 ring-foreground/10"
-        >
-          {signedIn ? (
-            <>
-              {links.map(({ href, label, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setOpen(false)}
-                  className={cn(itemClass, pathname.startsWith(href) && "bg-muted font-medium text-primary")}
-                >
-                  <Icon className="size-4" />
-                  {label}
-                </Link>
-              ))}
-              <div className="my-1 h-px bg-border" />
-              {signOut}
-            </>
-          ) : (
-            <>
-              <Link href="/login" onClick={() => setOpen(false)} className={itemClass}>
-                <LogIn className="size-4" />
-                Sign in
-              </Link>
-              <Link href="/register" onClick={() => setOpen(false)} className={itemClass}>
-                <UserPlus className="size-4" />
-                Sign up
-              </Link>
-            </>
+        <Menu
+          className={cn(
+            "absolute size-5 transition-all duration-150 motion-reduce:transition-none",
+            open ? "rotate-90 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100",
           )}
-        </nav>
-      ) : null}
+        />
+        <X
+          className={cn(
+            "absolute size-5 transition-all duration-150 motion-reduce:transition-none",
+            open ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-50 opacity-0",
+          )}
+        />
+      </Button>
+      <nav
+        id="mobile-nav-menu"
+        inert={!open}
+        className={cn(
+          "fixed inset-x-3 z-30 mt-2 grid origin-top gap-1.5 rounded-2xl bg-card p-4 shadow-xl ring-1 ring-foreground/10",
+          "transition-[opacity,scale,translate,visibility] duration-150 ease-out motion-reduce:transition-none",
+          open
+            ? "visible translate-y-0 scale-100 opacity-100"
+            : "invisible -translate-y-3 scale-95 opacity-0 duration-100 ease-in",
+        )}
+      >
+        {items.map((node, index) => (
+          <div key={node.key} {...item(index)}>
+            {node}
+          </div>
+        ))}
+      </nav>
     </div>
   );
 }

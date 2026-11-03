@@ -42,7 +42,42 @@ declare global {
   interface Window {
     google?: GoogleNamespace;
     gm_authFailure?: () => void;
+    __duffleMapsReady?: () => void;
   }
+}
+
+let mapsLoader: Promise<GoogleNamespace["maps"]> | null = null;
+
+/**
+ * Loads the Maps script once and resolves when Google calls back, i.e. once `importLibrary` is usable.
+ * Waiting for `window.google.maps` alone is not enough: on a cold load it exists before the API is ready.
+ */
+function loadGoogleMaps(apiKey: string) {
+  if (window.google?.maps && typeof window.google.maps.importLibrary === "function") {
+    return Promise.resolve(window.google.maps);
+  }
+  if (mapsLoader) return mapsLoader;
+  mapsLoader = new Promise((resolve, reject) => {
+    window.__duffleMapsReady = () => {
+      if (window.google?.maps) resolve(window.google.maps);
+      else reject(new Error("Google Maps did not initialise."));
+    };
+    document.getElementById("google-maps-js")?.remove();
+    const script = document.createElement("script");
+    script.id = "google-maps-js";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async&callback=__duffleMapsReady`;
+    script.async = true;
+    script.onerror = () => {
+      script.remove();
+      reject(new Error("Google Maps failed to load."));
+    };
+    document.head.appendChild(script);
+  });
+  // Let a later mount try again after a failed load.
+  mapsLoader.catch(() => {
+    mapsLoader = null;
+  });
+  return mapsLoader;
 }
 
 export function MapView({ apiKey, markers }: { apiKey: string; markers: MapMarker[] }) {
@@ -55,7 +90,6 @@ export function MapView({ apiKey, markers }: { apiKey: string; markers: MapMarke
     if (!apiKey || !ref.current) return;
 
     let cancelled = false;
-    let waitTimer = 0;
     let errorTimer = 0;
     const previousAuthFailure = window.gm_authFailure;
     window.gm_authFailure = () => {
@@ -64,20 +98,22 @@ export function MapView({ apiKey, markers }: { apiKey: string; markers: MapMarke
     };
 
     const draw = async () => {
-      const bootstrap = window.google?.maps;
-      if (!ref.current || !bootstrap || cancelled) return;
+      const bootstrap = await loadGoogleMaps(apiKey);
+      if (!ref.current || cancelled) return;
       const load = async (name: string) =>
         typeof bootstrap.importLibrary === "function" ? bootstrap.importLibrary(name) : bootstrap;
-      const mapsLibrary = await load("maps");
-      const coreLibrary = await load("core");
-      const markerLibrary = await load("marker");
+      const [mapsLibrary, coreLibrary, markerLibrary] = await Promise.all([load("maps"), load("core"), load("marker")]);
       const MapCtor = constructorOf<MapsLibrary["Map"]>(mapsLibrary.Map);
       const BoundsCtor = constructorOf<MapsLibrary["LatLngBounds"]>(coreLibrary.LatLngBounds);
       const MarkerCtor =
         constructorOf<MapsLibrary["Marker"]>(markerLibrary.Marker) ??
         constructorOf<MapsLibrary["Marker"]>(mapsLibrary.Marker) ??
         constructorOf<MapsLibrary["Marker"]>(markerLibrary.AdvancedMarkerElement);
-      if (!ref.current || cancelled || !MapCtor) return;
+      if (!ref.current || cancelled) return;
+      if (!MapCtor) {
+        setFailed(true);
+        return;
+      }
 
       const center = markers[0] ?? { lat: 20, lng: 0 };
       let map: InstanceType<MapsLibrary["Map"]>;
@@ -104,30 +140,12 @@ export function MapView({ apiKey, markers }: { apiKey: string; markers: MapMarke
       }, 800);
     };
 
-    const start = () => {
-      if (cancelled) return;
-      if (window.google?.maps) {
-        void draw();
-        return;
-      }
-      waitTimer = window.setTimeout(start, 50);
-    };
-
-    if (!document.getElementById("google-maps-js")) {
-      const script = document.createElement("script");
-      script.id = "google-maps-js";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async`;
-      script.async = true;
-      script.onerror = () => {
-        if (!cancelled) setFailed(true);
-      };
-      document.head.appendChild(script);
-    }
-    start();
+    draw().catch(() => {
+      if (!cancelled) setFailed(true);
+    });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(waitTimer);
       window.clearTimeout(errorTimer);
       window.gm_authFailure = previousAuthFailure;
     };

@@ -1,5 +1,8 @@
+"use client";
+
 import { useId } from "react";
-import { Navigation } from "lucide-react";
+import { Menu } from "@base-ui/react/menu";
+import { ChevronDown, Navigation } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl, wazeUrl, type PlaceTarget } from "@/lib/place-links";
 import { cn } from "@/lib/utils";
@@ -33,6 +36,15 @@ function WazeIcon() {
   );
 }
 
+// A stronger edge than the default outline, so the buttons stand out on the grey cards they sit on.
+const linkButtonClass = cn(
+  buttonVariants({ variant: "outline", size: "xs" }),
+  "border-foreground/25 shadow-xs dark:border-foreground/25",
+);
+
+const menuItemClass =
+  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent";
+
 export function PlaceLinks({
   place,
   label,
@@ -51,43 +63,57 @@ export function PlaceLinks({
   return (
     <span className={cn("flex flex-wrap items-center gap-x-2 gap-y-1", className)}>
       {label ? <span className="text-xs text-muted-foreground">{label}</span> : null}
-      <span className="inline-flex items-center gap-1.5">
-      {maps ? (
-        <a
-          href={maps}
-          target="_blank"
-          rel="noreferrer"
-          className={buttonVariants({ variant: "outline", size: "xs" })}
-          aria-label={`Open ${name} in Google Maps`}
-        >
-          <GoogleMapsIcon />
-          Maps
-        </a>
-      ) : null}
-      {directions ? (
-        <a
-          href={directions}
-          target="_blank"
-          rel="noreferrer"
-          className={buttonVariants({ variant: "outline", size: "xs" })}
-          aria-label={`Directions to ${name}`}
-        >
-          <Navigation className="size-4" />
-          Directions
-        </a>
-      ) : null}
-      {waze ? (
-        <a
-          href={waze}
-          target="_blank"
-          rel="noreferrer"
-          className={buttonVariants({ variant: "outline", size: "xs" })}
-          aria-label={`Navigate to ${name} in Waze`}
-        >
-          <WazeIcon />
-          Waze
-        </a>
-      ) : null}
+      {/* On phones the buttons share a full-width row; from sm up they sit inline at their natural width. */}
+      <span className="flex w-full items-center gap-1.5 *:flex-1 sm:inline-flex sm:w-auto sm:*:flex-none">
+        {maps ? (
+          <a
+            href={maps}
+            target="_blank"
+            rel="noreferrer"
+            className={linkButtonClass}
+            aria-label={`Show ${name} on Google Maps`}
+          >
+            <GoogleMapsIcon />
+            Show on Maps
+          </a>
+        ) : null}
+        {directions || waze ? (
+          <Menu.Root>
+            <Menu.Trigger
+              className={linkButtonClass}
+              aria-label={`Get directions to ${name}`}
+            >
+              <Navigation className="size-4" />
+              Get directions
+              <ChevronDown className="size-3 opacity-60" />
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner className="z-[90] outline-none" sideOffset={4} align="start">
+                <Menu.Popup className="min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+                  <p className="px-2 pt-1 pb-1.5 text-xs text-muted-foreground">Navigate with</p>
+                  {directions ? (
+                    <Menu.LinkItem
+                      href={directions}
+                      target="_blank"
+                      rel="noreferrer"
+                      closeOnClick
+                      className={menuItemClass}
+                    >
+                      <GoogleMapsIcon />
+                      Google Maps
+                    </Menu.LinkItem>
+                  ) : null}
+                  {waze ? (
+                    <Menu.LinkItem href={waze} target="_blank" rel="noreferrer" closeOnClick className={menuItemClass}>
+                      <WazeIcon />
+                      Waze
+                    </Menu.LinkItem>
+                  ) : null}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+        ) : null}
       </span>
     </span>
   );

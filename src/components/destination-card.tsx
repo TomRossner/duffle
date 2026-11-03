@@ -1,17 +1,21 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Menu } from "@base-ui/react/menu";
+import { EllipsisVertical, Pencil, Trash2 } from "lucide-react";
 import { useActionState, useCallback, useEffect, useState } from "react";
-import { InlineAction } from "@/components/action-form";
+import { DeleteDialog } from "@/components/delete-dialog";
 import { Field } from "@/components/fields";
 import { PlaceSearch } from "@/components/place-search";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PlaceLinks } from "@/components/place-links";
 import { updateDestination } from "@/lib/actions/destinations";
 import type { PlaceResult } from "@/lib/places";
+
+const menuItemClass =
+  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent";
 
 type DestinationDetails = {
   id: string;
@@ -46,6 +50,9 @@ export function DestinationCard({
 }) {
   const [editing, setEditing] = useState(false);
   const close = useCallback(() => setEditing(false), []);
+  const [confirming, setConfirming] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <Card>
@@ -63,21 +70,53 @@ export function DestinationCard({
           </div>
         </div>
         <CardAction>
-          <div className="flex items-center gap-1">
-            <Button type="button" variant="outline" size="sm" onClick={() => setEditing((open) => !open)}>
-              {editing ? (
-                "Close"
-              ) : (
-                <>
-                  <Pencil />
-                  Edit
-                </>
-              )}
-            </Button>
-            <InlineAction action={remove} label="Remove" variant="destructive" />
-          </div>
+          <Menu.Root>
+            <Menu.Trigger
+              className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+              aria-label={`Actions for ${destination.name}`}
+            >
+              <EllipsisVertical />
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
+                <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+                  <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
+                    <Pencil className="size-3.5" />
+                    Edit
+                  </Menu.Item>
+                  <Menu.Item
+                    className={`${menuItemClass} text-destructive`}
+                    disabled={removing}
+                    onClick={() => setConfirming(true)}
+                  >
+                    <Trash2 className="size-3.5" />
+                    {removing ? "Removing..." : "Remove"}
+                  </Menu.Item>
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+          <DeleteDialog
+            open={confirming}
+            onOpenChange={setConfirming}
+            message={`Are you sure you want to remove ${destination.name} and its activities?`}
+            confirmLabel="Remove"
+            pending={removing}
+            onConfirm={() => {
+              setConfirming(false);
+              setRemoving(true);
+              setError(null);
+              void remove().then((result) => {
+                if (result && "error" in result && result.error) {
+                  setError(result.error);
+                  setRemoving(false);
+                }
+              });
+            }}
+          />
         </CardAction>
-        {/* Full-width row below the title so the Edit/Remove column doesn't squeeze the buttons on mobile. */}
+        {error ? <p className="col-span-full text-sm text-destructive">{error}</p> : null}
+        {/* Full-width row below the title so the actions column doesn't squeeze it on mobile. */}
         <PlaceLinks
           className="col-span-full mt-1 sm:pl-10"
           place={{

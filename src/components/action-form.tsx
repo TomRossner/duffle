@@ -93,11 +93,13 @@ export function InlineAction({
   label,
   variant = "ghost",
   confirmMessage,
+  fullWidthOnMobile = false,
 }: {
   action: () => Promise<{ error?: string } | void>;
   label: string;
   variant?: "ghost" | "destructive" | "outline" | "secondary";
   confirmMessage?: string;
+  fullWidthOnMobile?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     async () => {
@@ -114,11 +116,12 @@ export function InlineAction({
 
   return (
     <>
-      <form ref={formRef} action={formAction} className="inline">
+      <form ref={formRef} action={formAction} className={fullWidthOnMobile ? "block sm:inline" : "inline"}>
         <Button
           type="button"
           variant={variant}
           size="sm"
+          className={fullWidthOnMobile ? "w-full sm:w-auto" : undefined}
           disabled={pending}
           onClick={() => {
             if (needsConfirm) setConfirming(true);
