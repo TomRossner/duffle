@@ -3,6 +3,61 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { formatDate, parseDate } from "@/lib/dates";
 
+export function documentReaderConfigured() {
+  return Boolean(process.env.NEON_AI_GATEWAY_TOKEN && process.env.NEON_AI_GATEWAY_BASE_URL);
+}
+
+/** Read structured facts from an image or PDF. Returns null when the reader is off or fails. */
+export async function readFileWithModel<Schema extends z.ZodType>({
+  instructions,
+  prompt,
+  schema,
+  bytes,
+  mediaType,
+}: {
+  instructions: string;
+  prompt: string;
+  schema: Schema;
+  bytes: Uint8Array;
+  mediaType: string;
+}): Promise<z.infer<Schema> | null> {
+  if (!documentReaderConfigured()) return null;
+  const modelId = process.env.DOCUMENT_AGENT_MODEL?.trim() || "gemini-3-flash";
+
+  try {
+    const { output } = await generateText({
+      model: neon(modelId),
+      system: instructions,
+      maxRetries: 0,
+      timeout: { totalMs: 25_000 },
+      output: Output.object({ schema }),
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "file", data: bytes, mediaType },
+          ],
+        },
+      ],
+    });
+    return output as z.infer<Schema>;
+  } catch (error) {
+    console.error("Document reader failed.", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+export function cleanReadDate(value: string | null) {
+  const date = value ? parseDate(value.trim()) : null;
+  return date ? formatDate(date) : null;
+}
+
+export function cleanReadNumber(value: string | null) {
+  const number = value?.replace(/\s+/g, "").trim() ?? "";
+  return number && number.length <= 40 ? number : null;
+}
+
 const READER_INSTRUCTIONS = `You read one travel or identity document (passport, ID card, driver's license, visa, or similar) from an image or PDF and copy three facts from it.
 
 - documentNumber: the document's own number, exactly as printed, without spaces. For a passport or ID card, use the document number, not a personal/national ID number. For a visa, use the visa number or control number.
@@ -23,55 +78,25 @@ export type DocumentFacts = {
   expiresOn: string | null;
 };
 
-export function documentReaderConfigured() {
-  return Boolean(process.env.NEON_AI_GATEWAY_TOKEN && process.env.NEON_AI_GATEWAY_BASE_URL);
-}
-
-function cleanDate(value: string | null) {
-  const date = value ? parseDate(value.trim()) : null;
-  return date ? formatDate(date) : null;
-}
-
-function cleanNumber(value: string | null) {
-  const number = value?.replace(/\s+/g, "").trim() ?? "";
-  return number && number.length <= 40 ? number : null;
-}
-
 /** Read the number and dates from a document image or PDF. Returns null when the reader is off or fails. */
 export async function readDocumentFacts(bytes: Uint8Array, mediaType: string): Promise<DocumentFacts | null> {
-  if (!documentReaderConfigured()) return null;
-  const modelId = process.env.DOCUMENT_AGENT_MODEL?.trim() || "gemini-3-flash";
+  const output = await readFileWithModel({
+    instructions: READER_INSTRUCTIONS,
+    prompt: "Read this document.",
+    schema: readerOutput,
+    bytes,
+    mediaType,
+  });
+  if (!output) return null;
 
-  try {
-    const { output } = await generateText({
-      model: neon(modelId),
-      system: READER_INSTRUCTIONS,
-      maxRetries: 0,
-      timeout: { totalMs: 25_000 },
-      output: Output.object({ schema: readerOutput }),
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Read this document." },
-            { type: "file", data: bytes, mediaType },
-          ],
-        },
-      ],
-    });
-
-    const facts = {
-      documentNumber: cleanNumber(output.documentNumber),
-      issuedOn: cleanDate(output.issuedOn),
-      expiresOn: cleanDate(output.expiresOn),
-    };
-    // A reading with expiry before issue is wrong somewhere; keep the number and drop both dates.
-    if (facts.issuedOn && facts.expiresOn && facts.expiresOn < facts.issuedOn) {
-      return { ...facts, issuedOn: null, expiresOn: null };
-    }
-    return facts;
-  } catch (error) {
-    console.error("Document reader failed.", error instanceof Error ? error.message : error);
-    return null;
+  const facts = {
+    documentNumber: cleanReadNumber(output.documentNumber),
+    issuedOn: cleanReadDate(output.issuedOn),
+    expiresOn: cleanReadDate(output.expiresOn),
+  };
+  // A reading with expiry before issue is wrong somewhere; keep the number and drop both dates.
+  if (facts.issuedOn && facts.expiresOn && facts.expiresOn < facts.issuedOn) {
+    return { ...facts, issuedOn: null, expiresOn: null };
   }
+  return facts;
 }

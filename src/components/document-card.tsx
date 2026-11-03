@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { Download, EllipsisVertical, Pencil, Printer, Save, Trash2, X } from "lucide-react";
+import { Download, EllipsisVertical, FileText, Pencil, Printer, Save, Trash2, X } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { Field, Select } from "@/components/fields";
@@ -41,12 +41,27 @@ function fileName(title: string, mimeType: string) {
     "image/png": "png",
     "image/webp": "webp",
     "image/gif": "gif",
+    "application/pdf": "pdf",
   };
   const base = title.trim().replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
   return `${base}.${extensions[mimeType] ?? "jpg"}`;
 }
 
-function printDocument(src: string, title: string) {
+function isPdf(mimeType: string) {
+  return mimeType === "application/pdf";
+}
+
+// PDFs open in the browser's own viewer: the app sends X-Frame-Options: DENY, so they can't be framed in-page.
+function openInNewTab(src: string) {
+  window.open(src, "_blank", "noopener,noreferrer");
+}
+
+function printDocument(src: string, title: string, mimeType: string) {
+  if (isPdf(mimeType)) {
+    // The browser's PDF viewer has its own print button.
+    openInNewTab(src);
+    return;
+  }
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.style.cssText = "position:fixed;width:0;height:0;border:0";
@@ -104,6 +119,7 @@ export function DocumentCard({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const src = `/api/files/${document.storageKey}`;
   const filename = fileName(document.title, document.mimeType);
+  const view = () => (isPdf(document.mimeType) ? openInNewTab(src) : setViewing(true));
 
   return (
     <Card className="pt-0">
@@ -111,13 +127,20 @@ export function DocumentCard({
         type="button"
         className="block w-full cursor-pointer overflow-hidden rounded-t-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         aria-label={`View ${document.title}`}
-        onClick={() => setViewing(true)}
+        onClick={view}
       >
-        <StoredImage src={src} alt={document.title} className="aspect-[4/3] w-full object-cover" />
+        {isPdf(document.mimeType) ? (
+          <span className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
+            <FileText className="size-10" />
+            <span className="text-xs font-medium tracking-wide">PDF · Click to open</span>
+          </span>
+        ) : (
+          <StoredImage src={src} alt={document.title} className="aspect-[4/3] w-full object-cover" />
+        )}
       </button>
       <CardHeader>
         <CardTitle>
-          <button type="button" className="text-left hover:underline" onClick={() => setViewing(true)}>
+          <button type="button" className="text-left hover:underline" onClick={view}>
             {document.title}
           </button>
         </CardTitle>
@@ -143,7 +166,7 @@ export function DocumentCard({
                     <Pencil className="size-3.5" />
                     Edit
                   </Menu.Item>
-                  <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title)}>
+                  <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer className="size-3.5" />
                     Print
                   </Menu.Item>
@@ -186,7 +209,7 @@ export function DocumentCard({
                   </Dialog.Description>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => printDocument(src, document.title)}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer />
                     Print
                   </Button>

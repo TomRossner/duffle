@@ -10,12 +10,48 @@ const accept = "application/pdf,image/jpeg,image/png,image/webp,image/gif";
 const acceptedTypes = new Set(accept.split(","));
 const serverLimit = 5 * 1024 * 1024;
 
-// Form inputs the reader can fill, with how to name them in the status message.
-const fillable = [
-  { name: "documentNumber", label: "number" },
-  { name: "issuedOn", label: "issue date" },
-  { name: "expiresOn", label: "expiry date" },
-] as const;
+export type ScanResult =
+  | { status: "read"; facts: Record<string, string | null> }
+  | { status: "unavailable" }
+  | { status: "error"; error: string };
+
+/** What the reader reads the file with, and which form inputs it may fill. */
+export type FileReader = {
+  read: (body: FormData) => Promise<ScanResult>;
+  /** Form inputs the reader can fill, with how to name them in the status message. */
+  fields: readonly { name: string; label: string }[];
+  /** Shown under the upload prompt. */
+  hint: string;
+  /** Shown when the reader found none of the fields. */
+  nothingFound: string;
+  /** Also fill inputs that still hold the value the form opened with, not only empty ones. */
+  replaceDefaults?: boolean;
+};
+
+export const personalDocumentReader: FileReader = {
+  read: scanPersonalDocument,
+  fields: [
+    { name: "documentNumber", label: "number" },
+    { name: "issuedOn", label: "issue date" },
+    { name: "expiresOn", label: "expiry date" },
+  ],
+  hint: "The number and dates are filled in for you.",
+  nothingFound: "Couldn't find a number or dates on this document. Fill them in yourself.",
+};
+
+type FillTarget = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
+function isFillTarget(element: unknown): element is FillTarget {
+  return (
+    element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement
+  );
+}
+
+function initialValue(target: FillTarget) {
+  if (!(target instanceof HTMLSelectElement)) return target.defaultValue;
+  const options = Array.from(target.options);
+  return (options.find((option) => option.defaultSelected) ?? options[0])?.value ?? "";
+}
 
 type Status =
   | { kind: "idle" }
@@ -30,10 +66,18 @@ function joinLabels(labels: string[]) {
 }
 
 /**
- * Upload or drop a PDF or image. Large photos are resized in the browser, and when `scan` is on the file is read
- * by the document reader, which fills the number and dates the traveler hasn't typed yet.
+ * Upload or drop a PDF or image. Large photos are resized in the browser, and when a reader is given the file is read
+ * and fills the form inputs the traveler hasn't filled in yet.
  */
-export function DocumentFileField({ required = false, scan = true }: { required?: boolean; scan?: boolean }) {
+export function DocumentFileField({
+  required = false,
+  label = "File",
+  reader = personalDocumentReader,
+}: {
+  required?: boolean;
+  label?: string;
+  reader?: FileReader | null;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const scanId = useRef(0);
   const [dragging, setDragging] = useState(false);
@@ -78,7 +122,7 @@ export function DocumentFileField({ required = false, scan = true }: { required?
       setStatus({ kind: "error", text: `${isPdf ? "This PDF" : "This image"} is over 5MB. Choose a smaller file.` });
       return;
     }
-    if (!scan) {
+    if (!reader) {
       setStatus({ kind: "idle" });
       return;
     }
@@ -86,9 +130,9 @@ export function DocumentFileField({ required = false, scan = true }: { required?
     setStatus({ kind: "reading" });
     const body = new FormData();
     body.set("file", upload);
-    let result: Awaited<ReturnType<typeof scanPersonalDocument>>;
+    let result: ScanResult;
     try {
-      result = await scanPersonalDocument(body);
+      result = await reader.read(body);
     } catch {
       result = { status: "error", error: "Couldn't read the document. Fill in the details yourself." };
     }
@@ -106,11 +150,16 @@ export function DocumentFileField({ required = false, scan = true }: { required?
     const form = input.form;
     const filled: string[] = [];
     const kept: string[] = [];
-    for (const field of fillable) {
+    for (const field of reader.fields) {
       const value = result.facts[field.name];
       const target = form?.elements.namedItem(field.name);
-      if (!value || !(target instanceof HTMLInputElement)) continue;
-      if (target.value.trim() && target.value.trim() !== value) {
+      if (!value || !isFillTarget(target)) continue;
+      if (target instanceof HTMLSelectElement && !Array.from(target.options).some((option) => option.value === value)) {
+        continue;
+      }
+      const current = target.value.trim();
+      const untouched = !current || current === value || (reader.replaceDefaults && target.value === initialValue(target));
+      if (!untouched) {
         kept.push(field.label);
         continue;
       }
@@ -124,13 +173,13 @@ export function DocumentFileField({ required = false, scan = true }: { required?
     } else if (kept.length > 0) {
       setStatus({ kind: "note", text: `Kept the ${joinLabels(kept)} you entered.` });
     } else {
-      setStatus({ kind: "note", text: "Couldn't find a number or dates on this document. Fill them in yourself." });
+      setStatus({ kind: "note", text: reader.nothingFound });
     }
   }
 
   return (
     <div className="grid gap-1.5">
-      <span className="text-sm leading-none font-medium">File</span>
+      <span className="text-sm leading-none font-medium">{label}</span>
       <label
         className={cn(
           "flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-input p-3 transition-colors hover:bg-muted/50",
@@ -189,7 +238,7 @@ export function DocumentFileField({ required = false, scan = true }: { required?
                 <span className="text-primary">Upload a file</span> or drop it here
               </span>
               <span className="text-xs text-muted-foreground">
-                PDF or image, up to 5MB.{scan ? " The number and dates are filled in for you." : ""}
+                PDF or image, up to 5MB.{reader ? ` ${reader.hint}` : ""}
               </span>
             </span>
           </>

@@ -7,7 +7,66 @@ import { createSimplePlannedExpense, deleteExpenseById, updateExpenseRecord } fr
 import { prisma } from "@/lib/prisma";
 import { notifyTrip } from "@/lib/notify";
 import { acceptedMembers, requireTrip } from "@/lib/trip-access";
-import { storeImage } from "@/lib/uploads";
+import { checkUpload, storeImage } from "@/lib/uploads";
+import { documentReaderConfigured } from "@/lib/document-reader";
+import { readPolicyFacts } from "@/lib/policy-reader";
+
+function nameWords(name: string) {
+  return name
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+}
+
+/** The one traveler whose name matches the insured name, ignoring order, accents, and middle names. */
+function matchTraveler(insuredName: string, members: { userId: string; user: { name: string } }[]) {
+  const insured = nameWords(insuredName);
+  if (insured.length === 0) return null;
+  const matches = members.filter((member) => {
+    const words = nameWords(member.user.name);
+    if (words.length === 0) return false;
+    // Every word of the shorter name appears in the longer one.
+    const [shorter, longer] = words.length <= insured.length ? [words, insured] : [insured, words];
+    return shorter.every((word) => longer.includes(word));
+  });
+  return matches.length === 1 ? matches[0].userId : null;
+}
+
+/** Read an uploaded policy so the form can be filled in before saving. */
+export async function scanPolicy(
+  tripId: string,
+  formData: FormData,
+): Promise<
+  | { status: "read"; facts: Record<string, string | null> }
+  | { status: "unavailable" }
+  | { status: "error"; error: string }
+> {
+  await requireTrip(tripId);
+  const checked = checkUpload(formData.get("file"), { allowPdf: true });
+  if (checked.status === "empty") return { status: "error", error: "Choose a file." };
+  if (checked.status === "invalid") return { status: "error", error: checked.error };
+  if (!documentReaderConfigured()) return { status: "unavailable" };
+
+  const facts = await readPolicyFacts(new Uint8Array(await checked.file.arrayBuffer()), checked.file.type);
+  if (!facts) return { status: "error", error: "Couldn't read the policy. Fill in the details yourself." };
+
+  const userId = facts.insuredName ? matchTraveler(facts.insuredName, await acceptedMembers(tripId)) : null;
+  return {
+    status: "read",
+    facts: {
+      provider: facts.provider,
+      type: facts.type,
+      policyNumber: facts.policyNumber,
+      userId,
+      startDate: facts.startDate,
+      endDate: facts.endDate,
+      amount: facts.amount,
+      currency: facts.currency,
+    },
+  };
+}
 
 function readPolicyForm(formData: FormData) {
   const provider = String(formData.get("provider") ?? "").trim();

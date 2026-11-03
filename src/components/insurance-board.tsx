@@ -3,9 +3,10 @@
 import { useState, type ComponentProps } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { EllipsisVertical, Pencil, Plus, Shield, Trash2, X } from "lucide-react";
+import { EllipsisVertical, FileText, Pencil, Plus, Shield, Trash2, X } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
+import { DocumentFileField, type FileReader } from "@/components/document-file-field";
 import { CostFields, Field, Select } from "@/components/fields";
 import { MemberTag } from "@/components/member-tag";
 import { StoredImage } from "@/components/stored-image";
@@ -13,7 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createPolicy, deletePolicy, updatePolicy } from "@/lib/actions/insurance";
+import { createPolicy, deletePolicy, scanPolicy, updatePolicy } from "@/lib/actions/insurance";
 import { INSURANCE_TYPES } from "@/lib/constants";
 import { formatMoney } from "@/lib/utils";
 
@@ -36,6 +37,7 @@ export type InsurancePolicyItem = {
   userName: string;
   userImageKey: string | null;
   imageKey: string | null;
+  imageMimeType: string | null;
   amount: string | null;
   currency: string | null;
 };
@@ -44,46 +46,99 @@ function typeLabel(type: string) {
   return type.charAt(0) + type.slice(1).toLowerCase();
 }
 
-function PolicyImageField({ imageKey, provider }: { imageKey?: string | null; provider?: string }) {
+function isPdf(mimeType?: string | null) {
+  return mimeType === "application/pdf";
+}
+
+function policyReader(tripId: string): FileReader {
+  return {
+    read: scanPolicy.bind(null, tripId),
+    fields: [
+      { name: "provider", label: "insurer" },
+      { name: "type", label: "type" },
+      { name: "policyNumber", label: "policy number" },
+      { name: "userId", label: "traveler" },
+      { name: "startDate", label: "start date" },
+      { name: "endDate", label: "end date" },
+      { name: "amount", label: "cost" },
+      { name: "currency", label: "currency" },
+    ],
+    hint: "The insurer, policy number, dates, and cost are filled in for you.",
+    nothingFound: "Couldn't find policy details in this file. Fill them in yourself.",
+    // The dates and traveler start out filled with the trip's, so let the policy replace them.
+    replaceDefaults: true,
+  };
+}
+
+/** A PDF opens in the browser's own viewer; the app can't frame it in-page. */
+function PolicyPdfLink({ imageKey }: { imageKey: string }) {
+  return (
+    <a
+      href={`/api/files/${imageKey}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex w-fit items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm font-medium hover:bg-muted/70"
+    >
+      <FileText className="size-5 text-muted-foreground" />
+      Open policy PDF
+    </a>
+  );
+}
+
+function PolicyImageField({
+  tripId,
+  imageKey,
+  imageMimeType,
+  provider,
+}: {
+  tripId: string;
+  imageKey?: string | null;
+  imageMimeType?: string | null;
+  provider?: string;
+}) {
   const [removed, setRemoved] = useState(false);
   const showing = Boolean(imageKey) && !removed;
 
   return (
     <div className="grid gap-3">
-      {showing ? (
+      {showing && imageKey ? (
         <div className="grid gap-2">
-          <StoredImage
-            src={`/api/files/${imageKey}`}
-            alt={provider ? `${provider} policy` : "Policy image"}
-            className="max-h-48 rounded-lg bg-muted/40 object-contain"
-          />
+          {isPdf(imageMimeType) ? (
+            <PolicyPdfLink imageKey={imageKey} />
+          ) : (
+            <StoredImage
+              src={`/api/files/${imageKey}`}
+              alt={provider ? `${provider} policy` : "Policy image"}
+              className="max-h-48 rounded-lg bg-muted/40 object-contain"
+            />
+          )}
           <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => setRemoved(true)}>
             <Trash2 />
-            Remove image
+            Remove file
           </Button>
         </div>
       ) : null}
       {removed ? (
         <div className="grid gap-2">
           <input type="hidden" name="removeImage" value="1" />
-          <p className="text-sm text-muted-foreground">The current image will be removed when you save.</p>
+          <p className="text-sm text-muted-foreground">The current file will be removed when you save.</p>
           <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={() => setRemoved(false)}>
-            Keep current image
+            Keep current file
           </Button>
         </div>
       ) : null}
-      <Field label={showing ? "Replace image" : "Policy image"}>
-        <Input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-      </Field>
+      <DocumentFileField label={showing ? "Replace policy" : "Policy image or PDF"} reader={policyReader(tripId)} />
     </div>
   );
 }
 
 function PolicyFields({
+  tripId,
   members,
   currency,
   defaults,
 }: {
+  tripId: string;
   members: Member[];
   currency: string;
   defaults?: {
@@ -97,10 +152,17 @@ function PolicyFields({
     amount?: string;
     currency?: string;
     imageKey?: string | null;
+    imageMimeType?: string | null;
   };
 }) {
   return (
     <>
+      <PolicyImageField
+        tripId={tripId}
+        imageKey={defaults?.imageKey}
+        imageMimeType={defaults?.imageMimeType}
+        provider={defaults?.provider}
+      />
       <Field label="Insurer">
         <Input name="provider" defaultValue={defaults?.provider} required />
       </Field>
@@ -136,13 +198,13 @@ function PolicyFields({
       <Field label="Notes">
         <Textarea name="notes" rows={2} defaultValue={defaults?.notes} />
       </Field>
-      <PolicyImageField imageKey={defaults?.imageKey} provider={defaults?.provider} />
       <CostFields currency={defaults?.currency || currency} amount={defaults?.amount} />
     </>
   );
 }
 
 function PolicyDialog({
+  tripId,
   open,
   onOpenChange,
   title,
@@ -153,6 +215,7 @@ function PolicyDialog({
   currency,
   defaults,
 }: {
+  tripId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -179,7 +242,7 @@ function PolicyDialog({
               </Dialog.Close>
             </div>
             <ActionForm action={action} submitLabel={submitLabel} onSaved={() => onOpenChange(false)}>
-              <PolicyFields members={members} currency={currency} defaults={defaults} />
+              <PolicyFields tripId={tripId} members={members} currency={currency} defaults={defaults} />
             </ActionForm>
           </Dialog.Popup>
         </Dialog.Viewport>
@@ -214,10 +277,11 @@ export function InsuranceBoard({
         Add a policy
       </Button>
       <PolicyDialog
+        tripId={tripId}
         open={adding}
         onOpenChange={setAdding}
         title="Add a policy"
-        description="A cost becomes a planned expense for the insured traveler. An image is stored with the trip documents."
+        description="Upload the policy to fill in the details. A cost becomes a planned expense for the insured traveler, and the file is stored with the trip documents."
         action={createPolicy.bind(null, tripId)}
         submitLabel="Save policy"
         members={members}
@@ -299,7 +363,9 @@ function PolicyCard({
           {policy.amount && policy.currency ? (
             <p className="text-sm">Planned cost {formatMoney(Number(policy.amount), policy.currency)}</p>
           ) : null}
-          {policy.imageKey ? (
+          {policy.imageKey && isPdf(policy.imageMimeType) ? (
+            <PolicyPdfLink imageKey={policy.imageKey} />
+          ) : policy.imageKey ? (
             <StoredImage
               src={`/api/files/${policy.imageKey}`}
               alt={`${policy.provider} policy`}
@@ -309,6 +375,7 @@ function PolicyCard({
         </CardContent>
       ) : null}
       <PolicyDialog
+        tripId={tripId}
         open={editing}
         onOpenChange={setEditing}
         title="Edit policy"
@@ -328,6 +395,7 @@ function PolicyCard({
           amount: policy.amount ?? "",
           currency: policy.currency ?? currency,
           imageKey: policy.imageKey,
+          imageMimeType: policy.imageMimeType,
         }}
       />
       <DeleteDialog

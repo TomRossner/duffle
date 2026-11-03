@@ -37,6 +37,7 @@ export default async function InsurancePage({ params }: { params: Promise<{ trip
         userName: policy.user.name,
         userImageKey: policy.user.imageKey,
         imageKey: policy.document?.storageKey ?? null,
+        imageMimeType: policy.document?.mimeType ?? null,
         amount: policy.expense ? String(policy.expense.amount) : null,
         currency: policy.expense?.currency ?? null,
       }))}

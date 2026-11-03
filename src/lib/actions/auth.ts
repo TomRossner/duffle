@@ -30,21 +30,27 @@ async function sendVerify(userId: string, email: string) {
   return deliverAuthMail({
     to: email,
     subject: "Confirm your Duffle account",
-    text: `Confirm ${email} for Duffle:\n${link}\n\nThis link expires in 24 hours. If you did not create an account, ignore this email.`,
-    link,
+    heading: "Confirm your email",
+    paragraphs: [`Welcome to Duffle! Confirm ${email} to finish setting up your account.`],
+    action: { label: "Confirm email", url: link },
+    note: "This link expires in 24 hours. If you didn't create an account, you can ignore this email.",
   });
 }
 
 async function sendExistingAccount(email: string, usesGoogle: boolean) {
   const link = `${appOrigin()}/login`;
-  const text = usesGoogle
-    ? `An account for ${email} already uses Google sign-in.\n${link}`
-    : `An account for ${email} already exists. Sign in, or reset the password:\n${link}\n${appOrigin()}/forgot-password`;
   return deliverAuthMail({
     to: email,
     subject: "Your Duffle account",
-    text,
-    link,
+    heading: "You already have an account",
+    paragraphs: usesGoogle
+      ? [`The account for ${email} uses Google sign-in. Sign in with Google to get back to your trips.`]
+      : [`An account for ${email} already exists. Sign in, or reset the password if you've forgotten it.`],
+    action: { label: usesGoogle ? "Sign in with Google" : "Sign in", url: link },
+    secondary: usesGoogle
+      ? undefined
+      : { label: "Reset password", url: `${appOrigin()}/forgot-password` },
+    note: "If you didn't ask for this, you can ignore this email.",
   });
 }
 
@@ -160,8 +166,10 @@ export async function requestPasswordReset(_: unknown, formData: FormData) {
   const sent = await deliverAuthMail({
     to: email,
     subject: "Reset your Duffle password",
-    text: `Reset the password for ${email}:\n${link}\n\nThis link expires in one hour. If you did not ask for this, ignore this email.`,
-    link,
+    heading: "Reset your password",
+    paragraphs: [`We got a request to reset the password for ${email}. Choose a new one below.`],
+    action: { label: "Reset password", url: link },
+    note: "This link expires in one hour. If you didn't ask for this, you can ignore this email — your password won't change.",
   });
   if ("error" in sent) return sent;
   return { ok: true, message, ...("devLink" in sent ? { devLink: sent.devLink } : {}) };

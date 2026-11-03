@@ -170,7 +170,7 @@ export function PackingBoard({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
           {optimisticBags.map((bag) => (
             <BagCard
               key={bag.id}
@@ -243,7 +243,7 @@ function SharedList({
             Nothing yet. Add a passport, rain jacket, charger, or anything else each person should pack.
           </p>
         ) : (
-          <ul className="grid gap-1">
+          <ul className="grid grid-cols-1 gap-1 [&>*]:min-w-0">
             {items.map((item) => (
               <SharedRow key={item.id} tripId={tripId} item={item} bagId={selectedBagId} travelerCount={travelers.length} />
             ))}
@@ -302,7 +302,7 @@ function SharedRow({
             <PackingCategoryIcon category={item.category} className="size-3.5" />
           </span>
         ) : null}
-        <span className={cn("truncate", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
+        <span className={cn("min-w-0 break-words", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
         {item.quantity > 1 ? <span className="shrink-0 text-sm text-muted-foreground">× {item.quantity}</span> : null}
       </label>
       {travelerCount > 1 ? (
@@ -624,7 +624,7 @@ function BagCard({
                 </span>
                 {CATEGORY_LABELS[category]}
               </h3>
-              <ul className="grid gap-1">
+              <ul className="grid grid-cols-1 gap-1 [&>*]:min-w-0">
                 {items.map((item) => (
                   <PackingRow key={item.id} tripId={tripId} bagId={bag.id} item={item} bags={bags} />
                 ))}
@@ -723,7 +723,7 @@ function PackingRow({
   const rowRef = useRef<HTMLLIElement>(null);
 
   return (
-    <li ref={rowRef} className={cn("flex items-center gap-2 rounded-lg px-1 py-1", dragging && "opacity-40")}>
+    <li ref={rowRef} className={cn("flex items-start gap-2 rounded-lg px-1 py-1", dragging && "opacity-40")}>
       <span
         draggable
         role="button"
@@ -796,7 +796,7 @@ function PackedCheck({ tripId, item }: { tripId: string; item: PackingListItem }
   const [, startTransition] = useTransition();
 
   return (
-    <label className="flex min-w-0 flex-1 items-center gap-2">
+    <label className="flex min-w-0 flex-1 items-start gap-2">
       <CheckBox
         checked={optimistic}
         onChange={() => {
@@ -818,11 +818,11 @@ function PackedCheck({ tripId, item }: { tripId: string; item: PackingListItem }
       ) : null}
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className={cn("truncate", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
+          <span className={cn("min-w-0 break-words", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
           {item.quantity > 1 ? <span className="shrink-0 text-sm text-muted-foreground">× {item.quantity}</span> : null}
         </span>
         {item.note ? (
-          <span className="block truncate text-xs text-muted-foreground" title={item.note}>
+          <span className="block text-xs break-words whitespace-pre-line text-muted-foreground">
             {item.note}
           </span>
         ) : null}
