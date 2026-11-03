@@ -126,7 +126,7 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
               label="Delete trip"
               variant="destructive"
               confirmMessage={`Are you sure you want to delete "${trip.name}"?`}
-              fullWidthOnMobile
+              fullWidth
             />
           ) : null}
         </CardContent>
