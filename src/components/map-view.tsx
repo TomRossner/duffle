@@ -12,15 +12,15 @@ export type MapMarker = {
 type MapsLibrary = {
   Map: new (
     element: HTMLElement,
-    options: { center: { lat: number; lng: number }; zoom: number },
+    options: { center: { lat: number; lng: number }; zoom: number; mapId: string },
   ) => {
     fitBounds: (bounds: unknown) => void;
   };
-  Marker: new (options: {
+  AdvancedMarkerElement: new (options: {
     position: { lat: number; lng: number };
     map: unknown;
     title: string;
-  }) => void;
+  }) => unknown;
   LatLngBounds: new () => {
     extend: (position: { lat: number; lng: number }) => void;
   };
@@ -80,7 +80,18 @@ function loadGoogleMaps(apiKey: string) {
   return mapsLoader;
 }
 
-export function MapView({ apiKey, markers }: { apiKey: string; markers: MapMarker[] }) {
+/** Advanced markers need a map ID. Google's demo ID works without setup; set GOOGLE_MAPS_MAP_ID for your own. */
+const DEMO_MAP_ID = "DEMO_MAP_ID";
+
+export function MapView({
+  apiKey,
+  mapId,
+  markers,
+}: {
+  apiKey: string;
+  mapId?: string;
+  markers: MapMarker[];
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(!apiKey);
 
@@ -105,10 +116,7 @@ export function MapView({ apiKey, markers }: { apiKey: string; markers: MapMarke
       const [mapsLibrary, coreLibrary, markerLibrary] = await Promise.all([load("maps"), load("core"), load("marker")]);
       const MapCtor = constructorOf<MapsLibrary["Map"]>(mapsLibrary.Map);
       const BoundsCtor = constructorOf<MapsLibrary["LatLngBounds"]>(coreLibrary.LatLngBounds);
-      const MarkerCtor =
-        constructorOf<MapsLibrary["Marker"]>(markerLibrary.Marker) ??
-        constructorOf<MapsLibrary["Marker"]>(mapsLibrary.Marker) ??
-        constructorOf<MapsLibrary["Marker"]>(markerLibrary.AdvancedMarkerElement);
+      const MarkerCtor = constructorOf<MapsLibrary["AdvancedMarkerElement"]>(markerLibrary.AdvancedMarkerElement);
       if (!ref.current || cancelled) return;
       if (!MapCtor) {
         setFailed(true);
@@ -121,6 +129,7 @@ export function MapView({ apiKey, markers }: { apiKey: string; markers: MapMarke
         map = new MapCtor(ref.current, {
           center: { lat: center.lat, lng: center.lng },
           zoom: markers.length ? 6 : 2,
+          mapId: mapId || DEMO_MAP_ID,
         });
       } catch {
         if (!cancelled) setFailed(true);
@@ -151,7 +160,7 @@ export function MapView({ apiKey, markers }: { apiKey: string; markers: MapMarke
     };
     // markerKey tracks pin changes without restarting the map on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, markerKey]);
+  }, [apiKey, mapId, markerKey]);
 
   if (!apiKey || failed) {
     return <FallbackPlot markers={markers} missingKey={!apiKey} />;

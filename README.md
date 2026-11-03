@@ -61,6 +61,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `AUTH_SECRET`, `AUTH_URL` | Session signing and the public app URL |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google sign-in. Redirect URI: `http://localhost:3000/api/auth/callback/google` |
 | `GOOGLE_MAPS_API_KEY` | The trip map in the browser (Maps JavaScript API). Also used for place search when no server key is set |
+| `GOOGLE_MAPS_MAP_ID` | Optional. Map ID for the trip map, which Google's advanced markers require. Create one under Map Management in Google Cloud. Unset, the map uses Google's `DEMO_MAP_ID` |
 | `GOOGLE_MAPS_SERVER_KEY` | Optional. Place search and address lookup from the server (Places API (New), Geocoding API). In production, restrict it by server IP, since a key restricted to websites is rejected on the server |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Confirmation and password-reset email. Unset locally, the link is printed in the server log |
 | `UPLOADS_DIR` | Upload directory when `S3_*` is unset. On a server, put this outside the app directory |
@@ -79,7 +80,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript check without emitting |
 | `npm test` | Unit tests in `src/lib/*.test.ts` |
-| `node scripts/seed-demo.mjs` | Demo users (`alex@example.com`, `sam@example.com`, password `password123`) and a sample trip |
+| `node --env-file=.env.local scripts/seed-demo.mjs` | Demo users (`alex@example.com`, `sam@example.com`, `jordan@example.com`, password `password123`), a past trip, and an upcoming trip with a pending invite |
 | `node scripts/build-flight-data.mjs` | Regenerates the airport and airline data behind flight autocomplete |
 
 ## Production

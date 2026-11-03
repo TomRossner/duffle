@@ -77,7 +77,11 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
 
   return (
     <div className="grid gap-6">
-      <MapView apiKey={process.env.GOOGLE_MAPS_API_KEY ?? ""} markers={markers} />
+      <MapView
+        apiKey={process.env.GOOGLE_MAPS_API_KEY ?? ""}
+        mapId={process.env.GOOGLE_MAPS_MAP_ID}
+        markers={markers}
+      />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="grid gap-3">
           <div>
