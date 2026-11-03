@@ -152,7 +152,7 @@ export default async function ProfilePage() {
                   <li key={membership.id}>
                     <Link
                       href={`/trips/${membership.trip.id}`}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 hover:bg-muted"
+                      className="flex flex-col gap-1.5 rounded-lg bg-muted/60 px-3 py-2 hover:bg-muted sm:flex-row sm:items-center sm:justify-between sm:gap-2"
                     >
                       <span className="flex min-w-0 items-center gap-2 font-medium">
                         {countries.length > 0 ? (
@@ -160,8 +160,8 @@ export default async function ProfilePage() {
                         ) : null}
                         <span className="min-w-0 break-words">{membership.trip.name}</span>
                       </span>
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
+                      <span className="flex shrink-0 items-center gap-2">
+                        <span className="whitespace-nowrap text-sm text-muted-foreground">
                           {formatDateRange(membership.trip.startDate, membership.trip.endDate)}
                         </span>
                         <Badge variant="secondary">{membership.role === "ADMIN" ? "Admin" : "Traveler"}</Badge>
