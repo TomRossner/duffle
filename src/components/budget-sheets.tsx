@@ -72,6 +72,7 @@ function ActionMenu({ label, children }: { label: string; children: React.ReactN
 function ImportExcelButton({ tripId }: { tripId: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   return (
@@ -81,7 +82,7 @@ function ImportExcelButton({ tripId }: { tripId: string }) {
         disabled={pending}
         onClick={() => inputRef.current?.click()}
       >
-        {pending ? "Importing..." : "Import Excel"}
+        {pending ? "Reading the file..." : "Import Excel"}
       </Button>
       <input
         ref={inputRef}
@@ -96,13 +97,20 @@ function ImportExcelButton({ tripId }: { tripId: string }) {
           body.set("file", file);
           setPending(true);
           setError(null);
-          void importBudgetWorkbook(tripId, null, body).then((result) => {
-            setPending(false);
-            if (result && "error" in result && result.error) setError(result.error);
-          });
+          setDone(null);
+          importBudgetWorkbook(tripId, null, body)
+            .then((result) => {
+              if ("error" in result && result.error) setError(result.error);
+              else if ("count" in result && result.count) {
+                setDone(`Added ${result.count} ${result.count === 1 ? "table" : "tables"} from ${file.name}.`);
+              }
+            })
+            .catch(() => setError("Could not import that file."))
+            .finally(() => setPending(false));
         }}
       />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {done ? <p className="text-sm text-muted-foreground">{done}</p> : null}
     </div>
   );
 }

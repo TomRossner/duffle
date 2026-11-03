@@ -8,8 +8,10 @@ import {
   tablesFromMatrix,
   type SheetCell,
 } from "@/lib/budget-sheet";
+import type { CheckedTable } from "@/lib/budget-import";
+import { importBudgetWithAgent } from "@/lib/budget-import-agent";
 import { CURRENCIES } from "@/lib/constants";
-import { parseDate } from "@/lib/dates";
+import { formatDate, parseDate } from "@/lib/dates";
 import { createExpenseRecord } from "@/lib/expenses";
 import { notifyTrip } from "@/lib/notify";
 import { prisma } from "@/lib/prisma";
@@ -226,7 +228,7 @@ export async function importBudgetWorkbook(tripId: string, _: unknown, formData:
   const { user } = await requireTrip(tripId);
   const trip = await prisma.trip.findUnique({
     where: { id: tripId },
-    select: { baseCurrency: true, startDate: true },
+    select: { baseCurrency: true, startDate: true, endDate: true },
   });
   if (!trip) return { error: "Trip not found." };
   const file = formData.get("file");
@@ -242,13 +244,28 @@ export async function importBudgetWorkbook(tripId: string, _: unknown, formData:
     return { error: "That file could not be read as a spreadsheet." };
   }
 
+  // The agent reads the workbook first; the box reader covers a gateway that is off or fails.
+  const members = await acceptedMembers(tripId);
+  const fromAgent = await importBudgetWithAgent(matrices, {
+    baseCurrency: trip.baseCurrency,
+    tripStart: formatDate(trip.startDate),
+    tripEnd: formatDate(trip.endDate),
+    travelers: members.map((member) => ({ id: member.userId, name: member.user.name ?? member.user.email })),
+  });
+
   const year = trip.startDate.getUTCFullYear();
-  const imported = matrices.flatMap((sheet) =>
-    tablesFromMatrix(sheet.matrix, year, sheet.name).map((table) => ({
-      ...table,
-      currency: currencyInMatrix(sheet.matrix) ?? trip.baseCurrency,
-    })),
-  );
+  const imported: CheckedTable[] =
+    fromAgent ??
+    matrices.flatMap((sheet) =>
+      tablesFromMatrix(sheet.matrix, year, sheet.name).map((table) => {
+        const currency = currencyInMatrix(sheet.matrix) ?? trip.baseCurrency;
+        return {
+          ...table,
+          currency: isCurrency(currency) ? currency : trip.baseCurrency,
+          rows: table.rows.map((row) => ({ ...row, paidById: null })),
+        };
+      }),
+    );
   if (imported.length === 0) return { error: "No amount tables were found in that file." };
 
   let sortOrder = await nextTableOrder(tripId);
@@ -261,7 +278,7 @@ export async function importBudgetWorkbook(tripId: string, _: unknown, formData:
           tripId,
           title: table.title,
           kind: table.kind,
-          currency: isCurrency(table.currency) ? table.currency : trip.baseCurrency,
+          currency: table.currency,
           sortOrder: order,
           rows: {
             create: table.rows.map((row, index) => ({
@@ -270,6 +287,7 @@ export async function importBudgetWorkbook(tripId: string, _: unknown, formData:
               note: row.note,
               startDate: row.startDate,
               endDate: row.endDate,
+              paidById: row.paidById,
               sortOrder: index,
             })),
           },
@@ -285,5 +303,5 @@ export async function importBudgetWorkbook(tripId: string, _: unknown, formData:
     body: `${user.name ?? "A traveler"} imported ${imported.length} budget ${imported.length === 1 ? "table" : "tables"}.`,
     href: `/trips/${tripId}/money`,
   });
-  return { ok: true };
+  return { ok: true, count: imported.length };
 }

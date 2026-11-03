@@ -67,10 +67,11 @@ Open [http://localhost:3000](http://localhost:3000).
 | `UPLOADS_DIR` | Upload directory when `S3_*` is unset. On a server, put this outside the app directory |
 | `S3_*` | Optional object storage. Unset values keep files in `UPLOADS_DIR` or `./uploads` |
 | `VAPID_*` | Optional web push. Generate keys with `npx web-push generate-vapid-keys`. The in-app bell works without them |
-| `NEON_AI_GATEWAY_BASE_URL`, `NEON_AI_GATEWAY_TOKEN` | Optional AI features: the packing agent and the document, insurance, and closet photo readers. `neon deploy` writes these after `aiGateway` is enabled in `neon.ts`. When they are unset, suggestions use the scored list and forms are filled in by hand |
+| `NEON_AI_GATEWAY_BASE_URL`, `NEON_AI_GATEWAY_TOKEN` | Optional AI features: the packing agent, the Excel import agent, and the document, insurance, and closet photo readers. `neon deploy` writes these after `aiGateway` is enabled in `neon.ts`. When they are unset, suggestions use the scored list, Excel imports use the built-in table detector, and forms are filled in by hand |
 | `PACKING_AGENT_MODEL` | Optional gateway model id for clothing suggestions. Defaults to `gemini-3-flash` |
 | `DOCUMENT_AGENT_MODEL` | Optional model for reading documents and insurance policies. Must accept images and PDFs. Defaults to `gemini-3-flash` |
 | `CLOSET_AGENT_MODEL` | Optional model for reading closet photos. Must accept images. Defaults to `gemini-3-flash` |
+| `BUDGET_IMPORT_AGENT_MODEL` | Optional model for turning an uploaded Excel workbook into budget tables. Defaults to `gemini-3-flash` |
 
 `npm run build` applies pending migrations and then builds the app. `npm run start` serves that build.
 
