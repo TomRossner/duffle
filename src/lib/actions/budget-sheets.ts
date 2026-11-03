@@ -1,14 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import * as XLSX from "xlsx";
 import {
   BUDGET_TABLE_CATEGORY,
   currencyInMatrix,
   tablesFromMatrix,
-  type SheetCell,
 } from "@/lib/budget-sheet";
-import type { CheckedTable } from "@/lib/budget-import";
+import { readWorkbook, type CheckedTable, type ImportSheet } from "@/lib/budget-import";
 import { importBudgetWithAgent } from "@/lib/budget-import-agent";
 import { CURRENCIES } from "@/lib/constants";
 import { formatDate, parseDate } from "@/lib/dates";
@@ -208,22 +206,6 @@ export async function addBudgetRowToPlan(tripId: string, rowId: string) {
   return { ok: true };
 }
 
-function sheetMatrices(buffer: Buffer) {
-  const book = XLSX.read(buffer, { type: "buffer", cellDates: true });
-  return book.SheetNames.slice(0, 5).map((name) => {
-    const rows = XLSX.utils.sheet_to_json<SheetCell[]>(book.Sheets[name], {
-      header: 1,
-      raw: true,
-      defval: null,
-      blankrows: true,
-    });
-    return {
-      name: name.replace(/^Sheet\d+$/i, "").trim(),
-      matrix: rows.slice(0, 200).map((row) => (Array.isArray(row) ? row.slice(0, 40) : [])),
-    };
-  });
-}
-
 export async function importBudgetWorkbook(tripId: string, _: unknown, formData: FormData) {
   const { user } = await requireTrip(tripId);
   const trip = await prisma.trip.findUnique({
@@ -237,9 +219,9 @@ export async function importBudgetWorkbook(tripId: string, _: unknown, formData:
   const name = file.name.toLowerCase();
   if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) return { error: "Upload an .xlsx or .xls file." };
 
-  let matrices: { name: string; matrix: SheetCell[][] }[];
+  let matrices: ImportSheet[];
   try {
-    matrices = sheetMatrices(Buffer.from(await file.arrayBuffer()));
+    matrices = readWorkbook(new Uint8Array(await file.arrayBuffer()));
   } catch {
     return { error: "That file could not be read as a spreadsheet." };
   }

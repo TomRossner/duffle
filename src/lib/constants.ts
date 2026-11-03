@@ -11,6 +11,7 @@ export const CURRENCIES = [
   "MXN",
   "INR",
   "SGD",
+  "ISK",
 ] as const;
 
 export const CURRENCY_SYMBOLS: Record<(typeof CURRENCIES)[number], string> = {
@@ -26,6 +27,7 @@ export const CURRENCY_SYMBOLS: Record<(typeof CURRENCIES)[number], string> = {
   MXN: "MX$",
   INR: "₹",
   SGD: "S$",
+  ISK: "kr",
 };
 
 export const CURRENCY_NAMES: Record<(typeof CURRENCIES)[number], string> = {
@@ -41,6 +43,7 @@ export const CURRENCY_NAMES: Record<(typeof CURRENCIES)[number], string> = {
   MXN: "Mexican peso",
   INR: "Indian rupee",
   SGD: "Singapore dollar",
+  ISK: "Icelandic króna",
 };
 
 export const ACTIVITY_TAGS = ["HIKE", "SPORT", "BEACH", "CITY", "DINNER", "FLIGHT"] as const;

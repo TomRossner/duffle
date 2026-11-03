@@ -1,4 +1,5 @@
 import type { ExpenseCategory } from "@prisma/client";
+import { CURRENCIES, CURRENCY_SYMBOLS } from "@/lib/constants";
 
 export const BUDGET_TABLE_KINDS = ["FLIGHT", "LODGING", "CAR", "CUSTOM"] as const;
 export type BudgetTableKind = (typeof BUDGET_TABLE_KINDS)[number];
@@ -84,7 +85,13 @@ export function amountOf(cell: SheetCell | undefined) {
 
 function textOf(cell: SheetCell | undefined) {
   if (typeof cell !== "string") return "";
-  return cell.trim();
+  // Some sheets carry invisible direction marks after names.
+  return cell.replace(/[‎‏‪-‮]/g, "").trim();
+}
+
+/** Check marks and yes/no flags say a feature exists; they make noise in a note. */
+function isFlag(text: string) {
+  return /^(ü|û|✓|✔|✗|✘|x|v|yes|no|y|n|true|false|כן|לא)$/i.test(text);
 }
 
 function dateOnly(value: Date) {
@@ -116,8 +123,22 @@ function datesFromText(value: string, year: number) {
   return start ? { start, end: start } : null;
 }
 
+const TOTAL_HEADER = /overall|total|sum|סה|סך/i;
+const PRICE_HEADER = /price|cost|amount|fee|rate|מחיר|עלות|סכום/i;
+const INDEX_HEADER = /^\s*(#|no\.?|num(ber)?|index|id|יום|מס)\s*$|\bday\s*(#|no\b)/i;
+
+/** A column of 1, 2, 3... counts rows; it is not money. */
+function isCounter(values: number[]) {
+  return values.length >= 3 && values.every((value, index) => index === 0 || value === values[index - 1] + 1);
+}
+
 function looksLikeTotal(text: string) {
-  return /total|sum|סה|סך/i.test(text);
+  return /total|overall|sum|סה|סך/i.test(text);
+}
+
+/** A short cell such as "Total:", "Overall (ISK):" or "סה״כ" marks a total row anywhere in a table. */
+function isTotalCell(text: string) {
+  return text.length <= 30 && /^((grand|sub)\s*)?(total|overall|sum)\b|^(סה|סך)/i.test(text);
 }
 
 type Box = { minR: number; maxR: number; minC: number; maxC: number };
@@ -173,21 +194,40 @@ function parseBox(matrix: SheetCell[][], box: Box, year: number, sheetName: stri
   }
 
   const columnCount = box.maxC - box.minC + 1;
+  // Leading rows without amounts are headers; a merged or grouped header can take two or three rows.
+  let headerRows = 0;
+  while (
+    headerRows < Math.min(3, rows.length - 1) &&
+    rows[headerRows].every((cell) => amountOf(cell) == null) &&
+    rows[headerRows].some((cell) => textOf(cell))
+  ) {
+    headerRows += 1;
+  }
+  const headerOf = (col: number) =>
+    rows
+      .slice(0, headerRows)
+      .map((row) => textOf(row[col]))
+      .join(" ");
+
   let amountCol = -1;
-  let amountScore = 0;
+  let amountScore = -Infinity;
   for (let col = 0; col < columnCount; col += 1) {
     const values = rows.map((row) => amountOf(row[col])).filter((value): value is number => value != null);
     if (values.length === 0) continue;
     if (values.every((value) => Number.isInteger(value) && value >= 1900 && value <= 2100)) continue;
-    if (values.length > amountScore || (values.length === amountScore && col > amountCol)) {
-      amountScore = values.length;
+    const heading = headerOf(col);
+    if (INDEX_HEADER.test(heading) || isCounter(values)) continue;
+    // A named total beats a named price, which beats an unnamed column; ties go to more values, then the rightmost.
+    const score = (TOTAL_HEADER.test(heading) ? 2000 : PRICE_HEADER.test(heading) ? 1000 : 0) + values.length;
+    if (score > amountScore || (score === amountScore && col > amountCol)) {
+      amountScore = score;
       amountCol = col;
     }
   }
   if (amountCol < 0) return null;
 
-  const header = rows[0] && rows[0].every((cell) => amountOf(cell) == null) && rows[0].some((cell) => textOf(cell));
-  const data = header ? rows.slice(1) : rows;
+  const header = headerRows > 0;
+  const data = rows.slice(headerRows);
   const amounts = data.map((row) => amountOf(row[amountCol])).filter((value): value is number => value != null);
   const sumAboveLast = roundMoney(amounts.slice(0, -1).reduce((total, value) => total + value, 0));
   const last = data[data.length - 1];
@@ -202,6 +242,7 @@ function parseBox(matrix: SheetCell[][], box: Box, year: number, sheetName: stri
   for (const row of body) {
     const amount = amountOf(row[amountCol]);
     if (amount == null) continue;
+    if (row.some((cell) => isTotalCell(textOf(cell)))) continue;
     const texts: string[] = [];
     let startDate: Date | null = null;
     let endDate: Date | null = null;
@@ -221,19 +262,24 @@ function parseBox(matrix: SheetCell[][], box: Box, year: number, sheetName: stri
         endDate = parsed.end;
         return;
       }
+      if (isFlag(text) || texts.includes(text)) return;
       texts.push(text);
     });
     imported.push({
       label: (texts[0] || "Item").slice(0, 120),
       amount,
-      note: texts.slice(1).join(" · ").slice(0, 200) || null,
+      note: texts.slice(1).join(" · ").replace(/\s+/g, " ").slice(0, 200) || null,
       startDate,
       endDate,
     });
   }
   if (imported.length === 0) return null;
+  // A block of bare numbers, such as totals sitting apart from their labels, is not a table.
+  if (!header && imported.every((row) => row.label === "Item" && !row.note && !row.startDate)) return null;
 
-  const headerText = (header ? rows[0] : []).map((cell) => textOf(cell)).filter(Boolean).join(" ").trim();
+  // A short heading names the table; a row of column names does not.
+  const headerCells = (header ? rows[0] : []).map((cell) => textOf(cell)).filter(Boolean);
+  const headerText = headerCells.length <= 2 ? headerCells.join(" ").trim() : "";
   const title = (headerText || sheetName || "Budget table").slice(0, 80);
 
   return { title, kind: "CUSTOM" as const, rows: imported };
@@ -241,11 +287,22 @@ function parseBox(matrix: SheetCell[][], box: Box, year: number, sheetName: stri
 
 export function currencyInMatrix(matrix: SheetCell[][]) {
   const text = matrix.flat().filter((cell): cell is string => typeof cell === "string").join(" ");
-  if (/₪|ILS|ש״ח|ש"ח/.test(text)) return "ILS";
-  if (/€|\bEUR\b/.test(text)) return "EUR";
-  if (/£|\bGBP\b/.test(text)) return "GBP";
-  if (/\$|\bUSD\b/.test(text)) return "USD";
-  return null;
+  // Count each currency's code and symbol, and take the one named most often:
+  // "(ISK)" in every header beats "110 ILS" in one comment.
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const code of CURRENCIES) {
+    const symbol = CURRENCY_SYMBOLS[code];
+    let count = text.match(new RegExp(`\\b${code}\\b`, "g"))?.length ?? 0;
+    if (code === "USD") count += text.match(/(^|[^A-Z])\$/g)?.length ?? 0;
+    else if (code === "ILS") count += text.match(/₪|ש״ח|ש"ח/g)?.length ?? 0;
+    else if (/^[^\w\s]$/.test(symbol)) count += text.split(symbol).length - 1;
+    if (count > bestCount) {
+      best = code;
+      bestCount = count;
+    }
+  }
+  return best;
 }
 
 export function tablesFromMatrix(matrix: SheetCell[][], year: number, sheetName = "") {

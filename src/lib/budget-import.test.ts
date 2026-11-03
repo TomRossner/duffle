@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkProposedTables, sheetsForPrompt, type ProposedTable } from "./budget-import.ts";
+import * as XLSX from "xlsx";
+import { checkProposedTables, readWorkbook, sheetsForPrompt, type ProposedTable } from "./budget-import.ts";
 
 const options = { currencies: ["USD", "EUR"], memberIds: ["u1"] };
 
@@ -21,6 +22,34 @@ test("sheetsForPrompt writes addressed cells and skips empty sheets", () => {
   ]);
   assert.equal(text, '## Sheet 1: "Costs"\n1: A="Item" | C="Price"\n3: A="Hotel" | C=420\n4: A="Flight" | C=199.5');
   assert.equal(sheetsForPrompt([{ name: "", matrix: [] }]), null);
+});
+
+test("readWorkbook fills merged headers and keeps the sheet's own addresses and formulas", () => {
+  // Shaped like a camping sheet: the table starts at B5, "Parking" spans two columns above "Price".
+  const sheet = XLSX.utils.aoa_to_sheet([
+    ["Date", "Camp", "Parking", null, "Overall"],
+    [null, null, "Exists", "Price", null],
+    [new Date(2024, 8, 30), "Camping Thingvellir‏", "ü", 1000, 3000],
+  ], { origin: "B5", cellDates: true });
+  sheet.F7.f = "D7*3";
+  sheet["!merges"] = [
+    { s: { r: 4, c: 3 }, e: { r: 4, c: 4 } },
+    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } },
+  ];
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, "Camps");
+  const bytes = XLSX.write(book, { type: "buffer", bookType: "xlsx" });
+
+  const text = sheetsForPrompt(readWorkbook(bytes));
+  assert.equal(
+    text,
+    [
+      '## Sheet 1: "Camps"',
+      '5: B="Date" | C="Camp" | D="Parking" | E="Parking" | F="Overall"',
+      '6: B="Date" | D="Exists" | E="Price"',
+      '7: B=2024-09-30 | C="Camping Thingvellir" | D="ü" | E=1000 | F=3000 (=D7*3)',
+    ].join("\n"),
+  );
 });
 
 test("sheetsForPrompt writes dates as YYYY-MM-DD", () => {

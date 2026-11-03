@@ -1,9 +1,64 @@
-// Pure helpers for the Excel import agent: turn sheets into prompt text, and check the tables it proposes.
+// Helpers for the Excel import: read the workbook, turn it into prompt text, and check the tables the agent proposes.
 // Kept free of `@/` imports so `node --test` can load it directly.
+import * as XLSX from "xlsx";
 
 export type ImportCell = string | number | boolean | Date | null;
 
-export type ImportSheet = { name: string; matrix: ImportCell[][] };
+export type ImportSheet = {
+  name: string;
+  matrix: ImportCell[][];
+  /** Zero-based sheet row and column of matrix[0][0], so prompt addresses match Excel's. */
+  firstRow?: number;
+  firstCol?: number;
+  /** Formulas by matrix position, keyed `row,col`. */
+  formulas?: Record<string, string>;
+};
+
+const MAX_SHEETS = 5;
+const MAX_ROWS = 200;
+const MAX_COLS = 40;
+
+/**
+ * Read up to five sheets. A merged cell's value is copied into every cell it covers, so a
+ * two-row header such as "Parking" over "Price" still names the price column below it.
+ */
+export function readWorkbook(buffer: Uint8Array): ImportSheet[] {
+  const book = XLSX.read(buffer, { type: "buffer", cellDates: true, cellFormula: true });
+  return book.SheetNames.slice(0, MAX_SHEETS).map((name) => {
+    const sheet = book.Sheets[name];
+    const range = XLSX.utils.decode_range(sheet["!ref"] ?? "A1");
+    const rows = XLSX.utils.sheet_to_json<ImportCell[]>(sheet, { header: 1, raw: true, defval: null, blankrows: true });
+    const matrix = rows.slice(0, MAX_ROWS).map((row) => (Array.isArray(row) ? row.slice(0, MAX_COLS) : []));
+
+    for (const merge of sheet["!merges"] ?? []) {
+      const value = matrix[merge.s.r - range.s.r]?.[merge.s.c - range.s.c];
+      if (value == null) continue;
+      for (let row = merge.s.r - range.s.r; row <= merge.e.r - range.s.r && row < matrix.length; row += 1) {
+        if (row < 0) continue;
+        for (let col = merge.s.c - range.s.c; col <= merge.e.c - range.s.c && col < MAX_COLS; col += 1) {
+          if (col >= 0 && matrix[row][col] == null) matrix[row][col] = value;
+        }
+      }
+    }
+
+    const formulas: Record<string, string> = {};
+    for (const [address, cell] of Object.entries(sheet)) {
+      if (address.startsWith("!") || !cell?.f) continue;
+      const { r, c } = XLSX.utils.decode_cell(address);
+      const row = r - range.s.r;
+      const col = c - range.s.c;
+      if (row >= 0 && row < MAX_ROWS && col >= 0 && col < MAX_COLS) formulas[`${row},${col}`] = String(cell.f).slice(0, 120);
+    }
+
+    return {
+      name: name.replace(/^Sheet\d+$/i, "").trim(),
+      matrix,
+      firstRow: range.s.r,
+      firstCol: range.s.c,
+      formulas,
+    };
+  });
+}
 
 export const IMPORT_TABLE_KINDS = ["FLIGHT", "LODGING", "CAR", "CUSTOM"] as const;
 export type ImportTableKind = (typeof IMPORT_TABLE_KINDS)[number];
@@ -39,6 +94,8 @@ export type CheckedTable = {
 };
 
 const PROMPT_CHAR_LIMIT = 60_000;
+const MAX_TABLES = 20;
+const MAX_TABLE_ROWS = 200;
 
 function columnName(index: number) {
   let name = "";
@@ -54,31 +111,39 @@ function cellText(cell: ImportCell) {
   if (cell == null) return "";
   if (cell instanceof Date) {
     if (Number.isNaN(cell.getTime())) return "";
-    // SheetJS builds dates in local time; read them back the same way.
+    // sheet_to_json returns a date-only cell as local midnight; read it back the same way.
     const month = String(cell.getMonth() + 1).padStart(2, "0");
     const day = String(cell.getDate()).padStart(2, "0");
     return `${cell.getFullYear()}-${month}-${day}`;
   }
   if (typeof cell === "number") return Number.isFinite(cell) ? String(Math.round(cell * 10_000) / 10_000) : "";
   if (typeof cell === "boolean") return cell ? "TRUE" : "FALSE";
-  return cell.replace(/\s+/g, " ").trim().slice(0, 120);
+  // Strip direction marks that some sheets carry after names.
+  return cell.replace(/[‎‏‪-‮]/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
 }
 
-/** Write each sheet as addressed, non-empty cells, e.g. `3: A="Hotel" | C=420`. Returns null when nothing is filled. */
+/**
+ * Write each sheet as addressed, non-empty cells, e.g. `7: D="Hotel" | Q=420 (=F7+H7)`.
+ * Rows and columns use the sheet's own numbering. Returns null when nothing is filled.
+ */
 export function sheetsForPrompt(sheets: ImportSheet[]) {
   const parts: string[] = [];
   let length = 0;
   for (const [index, sheet] of sheets.entries()) {
     const lines: string[] = [];
+    const firstRow = sheet.firstRow ?? 0;
+    const firstCol = sheet.firstCol ?? 0;
     sheet.matrix.forEach((row, rowIndex) => {
       const cells = row
         .map((cell, col) => {
           const text = cellText(cell);
           if (!text) return null;
-          return typeof cell === "string" ? `${columnName(col)}=${JSON.stringify(text)}` : `${columnName(col)}=${text}`;
+          const value = typeof cell === "string" ? JSON.stringify(text) : text;
+          const formula = sheet.formulas?.[`${rowIndex},${col}`];
+          return `${columnName(firstCol + col)}=${value}${formula ? ` (=${formula})` : ""}`;
         })
         .filter((cell): cell is string => cell != null);
-      if (cells.length > 0) lines.push(`${rowIndex + 1}: ${cells.join(" | ")}`);
+      if (cells.length > 0) lines.push(`${firstRow + rowIndex + 1}: ${cells.join(" | ")}`);
     });
     if (lines.length === 0) continue;
     const block = `## Sheet ${index + 1}: ${JSON.stringify(sheet.name || `Sheet ${index + 1}`)}\n${lines.join("\n")}`;
@@ -156,6 +221,10 @@ export function checkProposedTables(
   });
 
   if (tables.length === 0) problems.push("Save at least one table.");
+  if (tables.length > MAX_TABLES) problems.push(`Save at most ${MAX_TABLES} tables; merge related ones.`);
+  tables.forEach((table, index) => {
+    if (table.rows.length > MAX_TABLE_ROWS) problems.push(`Table ${index + 1} has more than ${MAX_TABLE_ROWS} rows; split it.`);
+  });
   if (problems.length > 0) return { ok: false, error: problems.slice(0, 20).join("\n") };
   return { ok: true, tables: checked };
 }
