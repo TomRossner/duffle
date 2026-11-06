@@ -148,7 +148,7 @@ export default async function ProfilePage() {
                       href={`/trips/${membership.trip.id}`}
                       className="flex flex-col gap-1.5 rounded-lg bg-muted/60 px-3 py-2 hover:bg-muted sm:flex-row sm:items-center sm:justify-between sm:gap-2"
                     >
-                      <span className="flex min-w-0 items-center gap-2 font-medium">
+                      <span className="flex min-w-0 items-start gap-2 font-medium">
                         {countries.length > 0 ? (
                           <FlagStack codes={countries} label={countries.map(countryName).join(", ")} />
                         ) : null}

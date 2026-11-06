@@ -23,7 +23,7 @@ export default async function TripLayout({
     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+          <h1 className="flex items-start gap-2.5 text-2xl font-semibold tracking-tight">
             {countries.length > 0 ? <FlagStack codes={countries} label={countries.map(countryName).join(", ")} /> : null}
             <span className="min-w-0 flex-1 break-words">{trip.name}</span>
           </h1>

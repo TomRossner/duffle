@@ -14,38 +14,51 @@ export function CountryFlag({ code, className }: { code: string; className?: str
   );
 }
 
-const FLAG_WIDTH = 36;
-const FLAG_HEIGHT = 24;
-const STACK_X = 20;
-const STACK_Y = 6;
+const MAX_FLAGS = 4;
 
-export function FlagStack({ codes, label }: { codes: string[]; label: string }) {
-  if (codes.length === 0) return null;
+// While the row is hovered, the flags pull apart and tilt alternately.
+const MOTION = "transition-[margin,rotate] duration-200 ease-out";
+const SPREAD = "-ml-3 group-hover/flags:ml-1.5";
+const TILT = ["group-hover/flags:-rotate-6", "group-hover/flags:rotate-6"];
+
+function StackedFlag({ code, index, zIndex }: { code: string; index: number; zIndex: number }) {
   return (
     <span
-      role="img"
-      aria-label={label}
-      title={label}
-      className="relative inline-block shrink-0"
-      style={{
-        width: FLAG_WIDTH + (codes.length - 1) * STACK_X + 10,
-        height: FLAG_HEIGHT + (codes.length - 1) * STACK_Y + 10,
-      }}
+      className={cn("relative flex rounded-[4px] bg-background p-0.5", MOTION, TILT[index % 2], index > 0 && SPREAD)}
+      style={{ zIndex }}
     >
-      {codes.map((code, index) => (
-        <span
-          key={code}
-          className="absolute"
-          style={{
-            left: 4 + index * STACK_X,
-            top: 2 + index * STACK_Y,
-            zIndex: index + 1,
-            transform: codes.length === 1 ? undefined : `rotate(${index % 2 === 0 ? -7 : 6}deg)`,
-          }}
-        >
-          <CountryFlag code={code} className="h-6 w-9 shadow-none ring-2 ring-background" />
-        </span>
+      <CountryFlag code={code} className="h-6 w-9 rounded-[3px] shadow-none" />
+    </span>
+  );
+}
+
+/**
+ * A straight, overlapping row of flags. Past MAX_FLAGS the rest collapse into a "+N" badge.
+ * Hovering the row spreads the flags out, tilts them, and shows the collapsed ones.
+ */
+export function FlagStack({ codes, label }: { codes: string[]; label: string }) {
+  if (codes.length === 0) return null;
+  const shown = codes.length > MAX_FLAGS ? codes.slice(0, MAX_FLAGS - 1) : codes;
+  const hidden = codes.slice(shown.length);
+  return (
+    <span role="img" aria-label={label} title={label} className="group/flags inline-flex h-lh shrink-0 items-center">
+      {shown.map((code, index) => (
+        <StackedFlag key={code} code={code} index={index} zIndex={codes.length - index} />
       ))}
+      {hidden.length > 0 ? (
+        <>
+          <span className="relative -ml-3 flex rounded-[4px] bg-background p-0.5 group-hover/flags:hidden" style={{ zIndex: hidden.length }}>
+            <span className="flex h-6 min-w-9 items-center justify-center rounded-[3px] bg-muted px-1 text-xs font-medium text-muted-foreground ring-1 ring-foreground/15">
+              +{hidden.length}
+            </span>
+          </span>
+          {hidden.map((code, index) => (
+            <span key={code} className="hidden group-hover/flags:flex">
+              <StackedFlag code={code} index={shown.length + index} zIndex={hidden.length - index} />
+            </span>
+          ))}
+        </>
+      ) : null}
     </span>
   );
 }
