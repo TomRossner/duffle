@@ -1,17 +1,28 @@
 "use client";
 
-import { Plus } from "lucide-react";
-import { useState } from "react";
+import { LoaderCircle, Pencil, Plane, Plus, Search } from "lucide-react";
+import { Fragment, useState, useTransition } from "react";
 import { ActionForm } from "@/components/action-form";
+import { AirlineLogo } from "@/components/airline-logo";
 import { Button } from "@/components/ui/button";
 import { CheckList, CostFields, Field, FieldGroup, Select } from "@/components/fields";
-import { AirlineInput, AirportInput } from "@/components/flight-autocomplete";
+import { AirlineInput, AirportInput, AirportLabel } from "@/components/flight-autocomplete";
 import { KindIcon } from "@/components/kind-icon";
 import { ScheduleWhenFields } from "@/components/schedule-when-fields";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { createPlan, updateFlight, updateStay } from "@/lib/actions/schedule";
+import { createPlan, lookupFlight, updateFlight, updateStay } from "@/lib/actions/schedule";
 import { PLAN_COLORS, PLAN_KINDS, planLabel } from "@/lib/constants";
+import {
+  airlineCodeOf,
+  dayOffset,
+  formatMinutes,
+  journeyRoute,
+  minutesBetween,
+  terminalLabel,
+  type FlightJourney,
+  type FlightMatch,
+} from "@/lib/flight-lookup";
 import { cn } from "@/lib/utils";
 
 type PlanKindId = (typeof PLAN_KINDS)[number]["id"];
@@ -23,7 +34,10 @@ export type FlightDraft = {
   airline: string;
   flightNumber: string;
   fromAirport: string;
+  fromTerminal: string;
   toAirport: string;
+  toTerminal: string;
+  durationMinutes: number | null;
   departAt: string;
   arriveAt: string;
   confirmation: string;
@@ -159,6 +173,7 @@ export function PlanForm({
   tripDays,
   defaultDate = "",
   compact = false,
+  flightLookup = false,
 }: {
   tripId: string;
   currency: string;
@@ -168,6 +183,8 @@ export function PlanForm({
   defaultDate?: string;
   /** A small "Add a plan" button, for adding to a single day. */
   compact?: boolean;
+  /** Whether the flight form can look flights up by number. */
+  flightLookup?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<PlanKindId>("FLIGHT");
@@ -181,7 +198,7 @@ export function PlanForm({
         Add a plan
       </Button>
     ) : (
-      <Button type="button" size="lg" className="h-10 w-full" onClick={() => setOpen(true)}>
+      <Button type="button" className="w-full sm:w-fit" onClick={() => setOpen(true)}>
         <Plus />
         Add a plan
       </Button>
@@ -192,7 +209,7 @@ export function PlanForm({
     <div className="grid gap-3 rounded-xl bg-muted/60 p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium">Add a plan</p>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
           Close
         </Button>
       </div>
@@ -201,7 +218,16 @@ export function PlanForm({
           <KindTags value={kind} onValueChange={(next) => setKind(next as PlanKindId)} kinds={PLAN_KINDS} />
         </FieldGroup>
         {kind === "FLIGHT" ? (
-          <FlightFields people={people} currency={currency} departAt={preset} arriveAt={preset} showCost />
+          <FlightFields
+            tripId={tripId}
+            people={people}
+            currency={currency}
+            lookup={flightLookup}
+            allowAllLegs
+            departAt={preset}
+            arriveAt={preset}
+            showCost
+          />
         ) : null}
         {kind === "STAY" ? (
           <StayFields destinations={destinations} currency={currency} checkIn={preset} checkOut={preset} showCost />
@@ -212,63 +238,500 @@ export function PlanForm({
   );
 }
 
+/** One leg as the form holds it: the flight number and date live in the fields above. */
+type LegDetails = Pick<
+  FlightMatch,
+  "airline" | "fromAirport" | "fromName" | "fromTerminal" | "toAirport" | "toName" | "toTerminal" | "durationMinutes"
+> & {
+  departTime: string;
+  arriveDate: string;
+  arriveTime: string;
+};
+
+function legDetails(match: FlightMatch): LegDetails {
+  return {
+    airline: match.airline,
+    fromAirport: match.fromAirport,
+    fromName: match.fromName,
+    fromTerminal: match.fromTerminal,
+    toAirport: match.toAirport,
+    toName: match.toName,
+    toTerminal: match.toTerminal,
+    durationMinutes: match.durationMinutes,
+    departTime: match.departAt.slice(11, 16),
+    arriveDate: match.arriveAt.slice(0, 10),
+    arriveTime: match.arriveAt.slice(11, 16),
+  };
+}
+
+/** "2026-11-10" → "Tue 10 Nov". The form's dates are local wall-clock dates, so read them as UTC. */
+function shortDay(date: string) {
+  const day = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(day.getTime())) return "";
+  return day.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+}
+
+function DayOffset({ offset }: { offset: number }) {
+  if (offset === 0) return null;
+  return <sup className="ml-0.5 text-xs text-muted-foreground">{offset > 0 ? `+${offset}` : offset}</sup>;
+}
+
+/** One end of a leg: airport, terminal, time, and day. */
+function LegEnd({
+  code,
+  name,
+  terminal,
+  time,
+  date,
+  offset = 0,
+  align = "start",
+}: {
+  code: string;
+  name: string;
+  terminal: string;
+  time: string;
+  date: string;
+  offset?: number;
+  align?: "start" | "end";
+}) {
+  return (
+    <div className={cn("grid min-w-0 content-start gap-0.5", align === "end" && "text-right")}>
+      <AirportLabel code={code} fallbackName={name} align={align} />
+      <p className="mt-1 font-medium">
+        {time}
+        <DayOffset offset={offset} />
+      </p>
+      <p className="text-xs text-muted-foreground">{shortDay(date)}</p>
+      {terminal ? <p className="text-xs text-muted-foreground">{terminalLabel(terminal)}</p> : null}
+    </div>
+  );
+}
+
+/** A leg as a card: who flies it and both ends. */
+function LegCard({
+  leg,
+  number,
+  departDate,
+  action,
+}: {
+  leg: LegDetails;
+  number: string;
+  departDate: string;
+  action?: React.ReactNode;
+}) {
+  const arriveDate = leg.arriveDate || departDate;
+  return (
+    <div className="grid gap-2 rounded-lg border border-border bg-background p-3 text-sm">
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <p className="flex min-w-0 items-center gap-2 font-medium">
+          <AirlineLogo code={airlineCodeOf(number)} className="size-6" />
+          <span className="truncate">
+            {leg.airline} <span className="font-mono">{number}</span>
+          </span>
+        </p>
+        {action}
+      </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-3">
+        <LegEnd
+          code={leg.fromAirport}
+          name={leg.fromName}
+          terminal={leg.fromTerminal}
+          time={leg.departTime}
+          date={departDate}
+        />
+        <div className="grid justify-items-center gap-0.5 pt-1 text-xs whitespace-nowrap text-muted-foreground">
+          <Plane className="size-4" />
+          {leg.durationMinutes ? <span>{formatMinutes(leg.durationMinutes)}</span> : null}
+        </div>
+        <LegEnd
+          code={leg.toAirport}
+          name={leg.toName}
+          terminal={leg.toTerminal}
+          time={leg.arriveTime}
+          date={arriveDate}
+          offset={dayOffset(departDate, arriveDate)}
+          align="end"
+        />
+      </div>
+    </div>
+  );
+}
+
+/** A choice from a lookup: one leg, or every leg of a flight number that stops on the way. */
+type FlightOption = { legs: FlightMatch[]; all: boolean };
+
+function flightOptions(journeys: FlightJourney[], allowAll: boolean): FlightOption[] {
+  return journeys.flatMap((journey) => [
+    ...(allowAll && journey.length > 1 ? [{ legs: journey, all: true }] : []),
+    ...journey.map((leg) => ({ legs: [leg], all: false })),
+  ]);
+}
+
 function FlightFields({
+  tripId,
   people,
   currency,
+  lookup = false,
+  allowAllLegs = false,
   departAt = "",
   arriveAt = "",
   airline = "",
   flightNumber = "",
   fromAirport = "",
+  fromTerminal = "",
   toAirport = "",
+  toTerminal = "",
+  durationMinutes = null,
   confirmation = "",
   notes = "",
   travelerIds,
   showCost = false,
 }: {
+  tripId: string;
   people: PersonOption[];
   currency?: string;
+  /** Whether the server can look flights up by number (AeroDataBox is set up). */
+  lookup?: boolean;
+  /** Whether a lookup can add every leg of a flight number at once, as separate flights. */
+  allowAllLegs?: boolean;
   departAt?: string;
   arriveAt?: string;
   airline?: string;
   flightNumber?: string;
   fromAirport?: string;
+  fromTerminal?: string;
   toAirport?: string;
+  toTerminal?: string;
+  /** The real flying time, which only a lookup knows. */
+  durationMinutes?: number | null;
   confirmation?: string;
   notes?: string;
   travelerIds?: string[];
   showCost?: boolean;
 }) {
+  const [number, setNumber] = useState(flightNumber);
+  const [departDate, setDepartDate] = useState(departAt.split("T")[0] ?? "");
+  const [leg, setLeg] = useState<LegDetails>({
+    airline,
+    fromAirport,
+    fromName: "",
+    fromTerminal,
+    toAirport,
+    toName: "",
+    toTerminal,
+    durationMinutes,
+    departTime: (departAt.split("T")[1] ?? "").slice(0, 5),
+    arriveDate: arriveAt.split("T")[0] ?? "",
+    arriveTime: (arriveAt.split("T")[1] ?? "").slice(0, 5),
+  });
+  // Every leg of a flight number that stops, when the traveler adds them all. Each is saved as a flight.
+  const [legs, setLegs] = useState<FlightMatch[] | null>(null);
+  const complete = Boolean(
+    airline && fromAirport && toAirport && leg.departTime && leg.arriveDate && leg.arriveTime,
+  );
+  // "summary": cards for the flight, after a lookup or for a saved flight. "manual": every field.
+  // "start": only the number and date, until a lookup or "Enter details by hand".
+  const [view, setView] = useState<"start" | "summary" | "manual">(
+    complete ? "summary" : lookup ? "start" : "manual",
+  );
+  // A lookup bumps the version, which remounts the manual inputs with the new defaults.
+  const [version, setVersion] = useState(0);
+  const [options, setOptions] = useState<FlightOption[]>([]);
+  // Whether the looked-up flight number stops on the way, flying more than one leg.
+  const [stopping, setStopping] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+  const [lookupError, setLookupError] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function choose(option: FlightOption) {
+    const [first] = option.legs;
+    setNumber(first.flightNumber || number);
+    setDepartDate(first.departAt.slice(0, 10));
+    if (option.all) {
+      setLegs(option.legs);
+    } else {
+      setLegs(null);
+      setLeg({ ...legDetails(first), airline: first.airline || leg.airline });
+      setVersion((current) => current + 1);
+    }
+    setChoosing(false);
+    // Without an airline name the summary could not be saved, so show the fields to fill it in.
+    setView(option.all || first.airline || leg.airline ? "summary" : "manual");
+  }
+
+  function lookUp() {
+    if (!number.trim() || !departDate || pending) return;
+    setLookupError("");
+    setChoosing(false);
+    startTransition(async () => {
+      const result = await lookupFlight(tripId, number, departDate);
+      if ("error" in result) {
+        setLookupError(result.error ?? "Could not look up that flight.");
+        return;
+      }
+      const found = flightOptions(result.journeys, allowAllLegs);
+      setOptions(found);
+      setStopping(result.journeys.some((journey) => journey.length > 1));
+      if (found.length === 1) choose(found[0]);
+      else setChoosing(true);
+    });
+  }
+
+  const arriveDate = leg.arriveDate || departDate;
+  const departValue = departDate && leg.departTime ? `${departDate}T${leg.departTime}` : "";
+  const arriveValue = arriveDate && leg.arriveTime ? `${arriveDate}T${leg.arriveTime}` : "";
+  const changeButton =
+    options.length > 1 ? (
+      <Button type="button" variant="outline" size="sm" className="bg-muted hover:bg-accent" onClick={() => setChoosing(true)}>
+        Change
+      </Button>
+    ) : null;
+
   return (
     <>
-      <Field label="Airline">
-        <AirlineInput name="airline" defaultValue={airline} required />
-      </Field>
-      <Field label="Flight number">
-        <Input name="flightNumber" defaultValue={flightNumber} required />
-      </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="From">
-          <AirportInput name="fromAirport" defaultValue={fromAirport} placeholder="TLV" required />
-        </Field>
-        <Field label="To">
-          <AirportInput name="toAirport" defaultValue={toAirport} placeholder="MUC" required />
-        </Field>
+      <div className="grid gap-1.5">
+        {/* One row on every width: the inputs shrink before the button would wrap onto a line of its own. */}
+        <div
+          className={cn(
+            "grid items-end gap-2",
+            lookup ? "grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]" : "grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]",
+          )}
+        >
+          <Field label="Flight number">
+            <Input
+              name="flightNumber"
+              value={number}
+              placeholder="LH400"
+              autoCapitalize="characters"
+              onChange={(event) => setNumber(event.target.value)}
+              onKeyDown={(event) => {
+                // Enter looks the flight up instead of submitting a half-filled form.
+                if (lookup && event.key === "Enter") {
+                  event.preventDefault();
+                  lookUp();
+                }
+              }}
+              required
+            />
+          </Field>
+          <Field label="Date">
+            <Input
+              type="date"
+              value={departDate}
+              className="min-w-0"
+              onChange={(event) => setDepartDate(event.target.value)}
+              required
+            />
+          </Field>
+          {lookup ? (
+            <Button
+              type="button"
+              variant={view === "start" ? "default" : "outline"}
+              onClick={lookUp}
+              disabled={pending || !number.trim() || !departDate}
+            >
+              {pending ? <LoaderCircle className="animate-spin" /> : <Search />}
+              <span className="max-[359px]:sr-only">Look up</span>
+            </Button>
+          ) : null}
+        </div>
+        {lookupError ? <p className="text-xs text-destructive">{lookupError}</p> : null}
+        {choosing && options.length > 1 ? (
+          <div className="grid gap-1">
+            <p className="text-xs text-muted-foreground">
+              {stopping
+                ? "This flight number stops on the way, and each leg is its own flight. Add the legs you're on:"
+                : "Several flights match. Choose yours:"}
+            </p>
+            {options.map((option) => {
+              const first = option.legs[0];
+              const last = option.legs[option.legs.length - 1];
+              return (
+                <Button
+                  key={`${option.all ? "all" : "leg"}-${journeyRoute(option.legs)}-${first.departAt}`}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto justify-start py-1.5 text-left whitespace-normal"
+                  onClick={() => choose(option)}
+                >
+                  <AirlineLogo code={airlineCodeOf(first.flightNumber)} className="size-4" />
+                  <span className="font-mono">{journeyRoute(option.legs)}</span>
+                  <span className="text-muted-foreground">
+                    {shortDay(first.departAt.slice(0, 10))} {first.departAt.slice(11)} – {last.arriveAt.slice(11)}
+                    <DayOffset offset={dayOffset(first.departAt, last.arriveAt)} />
+                    {option.legs.every((part) => part.durationMinutes)
+                      ? ` · ${formatMinutes(option.legs.reduce((sum, part) => sum + (part.durationMinutes ?? 0), 0))}${option.all ? " flying" : ""}`
+                      : ""}
+                    {option.all ? ` · all ${option.legs.length} legs` : ""}
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+        ) : null}
+        {view === "start" && !choosing ? (
+          <button
+            type="button"
+            className="justify-self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            onClick={() => setView("manual")}
+          >
+            Enter details by hand
+          </button>
+        ) : null}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <When name="departAt" dateLabel="Departs" timeLabel="Time" defaultValue={departAt} required />
-        <When name="arriveAt" dateLabel="Arrives" timeLabel="Time" defaultValue={arriveAt} required />
-      </div>
-      <Field label="Confirmation">
-        <Input name="confirmation" defaultValue={confirmation} />
-      </Field>
-      <FieldGroup label="Travelers">
-        <CheckList name="traveler" options={people} checkedIds={travelerIds} defaultChecked={travelerIds == null} />
-      </FieldGroup>
-      <Field label="Notes">
-        <Textarea name="notes" rows={2} defaultValue={notes} />
-      </Field>
-      {showCost && currency ? <CostFields currency={currency} /> : null}
+
+      {view === "summary" && legs ? (
+        <div className="grid gap-1.5">
+          {legs.map((part, index) => {
+            const previous = legs[index - 1];
+            return (
+              <Fragment key={`${part.fromAirport}-${part.departAt}`}>
+                {previous ? (
+                  <p className="text-center text-xs text-muted-foreground">
+                    {formatMinutes(minutesBetween(previous.arriveAt, part.departAt))} stop in {part.fromAirport}
+                  </p>
+                ) : null}
+                <LegCard
+                  leg={legDetails(part)}
+                  number={part.flightNumber}
+                  departDate={part.departAt.slice(0, 10)}
+                  action={index === 0 ? changeButton : null}
+                />
+              </Fragment>
+            );
+          })}
+          <p className="text-xs text-muted-foreground">
+            Adds {legs.length} flights, one per leg. Scheduled times, in each airport&apos;s local time.
+          </p>
+          <input
+            type="hidden"
+            name="legs"
+            value={JSON.stringify(
+              legs.map((part) => ({
+                airline: part.airline,
+                flightNumber: part.flightNumber,
+                fromAirport: part.fromAirport,
+                fromTerminal: part.fromTerminal,
+                toAirport: part.toAirport,
+                toTerminal: part.toTerminal,
+                departAt: part.departAt,
+                arriveAt: part.arriveAt,
+                durationMinutes: part.durationMinutes,
+              })),
+            )}
+          />
+        </div>
+      ) : null}
+
+      {view === "summary" && !legs ? (
+        <div className="grid gap-1.5">
+          <LegCard
+            leg={leg}
+            number={number}
+            departDate={departDate}
+            action={
+              <span className="flex shrink-0 gap-1.5">
+                {changeButton}
+                <Button type="button" variant="outline" size="sm" className="bg-muted hover:bg-accent" onClick={() => setView("manual")}>
+                  <Pencil />
+                  Edit<span className="max-sm:sr-only"> details</span>
+                </Button>
+              </span>
+            }
+          />
+          <p className="text-xs text-muted-foreground">Scheduled times, in each airport&apos;s local time.</p>
+          <input type="hidden" name="airline" value={leg.airline} />
+          <input type="hidden" name="fromAirport" value={leg.fromAirport} />
+          <input type="hidden" name="fromTerminal" value={leg.fromTerminal} />
+          <input type="hidden" name="toAirport" value={leg.toAirport} />
+          <input type="hidden" name="toTerminal" value={leg.toTerminal} />
+        </div>
+      ) : null}
+
+      {view === "manual" ? (
+        <>
+          <Field label="Airline">
+            <AirlineInput key={`airline-${version}`} name="airline" defaultValue={leg.airline} required />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(["from", "to"] as const).map((end) => (
+              <div key={end} className="grid grid-cols-[minmax(0,1fr)_5rem] gap-2">
+                <Field label={end === "from" ? "From" : "To"}>
+                  <AirportInput
+                    key={`${end}-${version}`}
+                    name={end === "from" ? "fromAirport" : "toAirport"}
+                    defaultValue={end === "from" ? leg.fromAirport : leg.toAirport}
+                    placeholder={end === "from" ? "TLV" : "MUC"}
+                    required
+                  />
+                </Field>
+                <Field label="Terminal">
+                  <Input
+                    name={end === "from" ? "fromTerminal" : "toTerminal"}
+                    value={end === "from" ? leg.fromTerminal : leg.toTerminal}
+                    placeholder="1"
+                    maxLength={20}
+                    onChange={(event) =>
+                      setLeg({ ...leg, [end === "from" ? "fromTerminal" : "toTerminal"]: event.target.value })
+                    }
+                  />
+                </Field>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Field label="Departs" className="col-span-2 sm:col-span-1">
+              <Input
+                type="time"
+                step={60}
+                value={leg.departTime}
+                onChange={(event) => setLeg({ ...leg, departTime: event.target.value, durationMinutes: null })}
+                required
+              />
+            </Field>
+            <Field label="Arrival date">
+              <Input
+                type="date"
+                value={arriveDate}
+                onChange={(event) => setLeg({ ...leg, arriveDate: event.target.value, durationMinutes: null })}
+                required
+              />
+            </Field>
+            <Field label="Arrives">
+              <Input
+                type="time"
+                step={60}
+                value={leg.arriveTime}
+                onChange={(event) => setLeg({ ...leg, arriveTime: event.target.value, durationMinutes: null })}
+                required
+              />
+            </Field>
+          </div>
+        </>
+      ) : null}
+
+      {view !== "start" ? (
+        <>
+          {legs && view === "summary" ? null : (
+            <>
+              <input type="hidden" name="departAt" value={departValue} />
+              <input type="hidden" name="arriveAt" value={arriveValue} />
+              <input type="hidden" name="durationMinutes" value={leg.durationMinutes ?? ""} />
+            </>
+          )}
+          <Field label="Confirmation">
+            <Input name="confirmation" defaultValue={confirmation} />
+          </Field>
+          <FieldGroup label="Travelers">
+            <CheckList name="traveler" options={people} checkedIds={travelerIds} defaultChecked={travelerIds == null} />
+          </FieldGroup>
+          <Field label="Notes">
+            <Textarea name="notes" rows={2} defaultValue={notes} />
+          </Field>
+          {showCost && currency ? <CostFields currency={currency} /> : null}
+        </>
+      ) : null}
     </>
   );
 }
@@ -388,11 +851,14 @@ export function FlightEditor({
   tripId,
   flight,
   people,
+  lookup = false,
   onSaved,
 }: {
   tripId: string;
   flight: FlightDraft;
   people: PersonOption[];
+  /** Whether the form can look flights up by number. */
+  lookup?: boolean;
   onSaved?: () => void;
 }) {
   return (
@@ -403,11 +869,16 @@ export function FlightEditor({
       onSaved={onSaved}
     >
       <FlightFields
+        tripId={tripId}
         people={people}
         airline={flight.airline}
         flightNumber={flight.flightNumber}
         fromAirport={flight.fromAirport}
+        fromTerminal={flight.fromTerminal}
         toAirport={flight.toAirport}
+        toTerminal={flight.toTerminal}
+        durationMinutes={flight.durationMinutes}
+        lookup={lookup}
         departAt={flight.departAt}
         arriveAt={flight.arriveAt}
         confirmation={flight.confirmation}

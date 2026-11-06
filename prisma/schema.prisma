@@ -188,6 +188,7 @@ model Trip {
   startDate    DateTime @db.Date
   endDate      DateTime @db.Date
   baseCurrency String   @default("USD")
+  countries    String[] @default([])
   coverNote    String?
   joinToken    String   @unique
   ownerId      String
@@ -339,6 +340,14 @@ model Flight {
   fromLng      Float?
   toLat        Float?
   toLng        Float?
+  /// As the airline gives it: "1", "2E", "B". Null when unknown.
+  fromTerminal String?
+  toTerminal   String?
+  /// Real flying time, from the airline schedule's UTC times. Null when unknown: the local times
+  /// alone can't give it across time zones.
+  durationMinutes Int?
+  /// When the airline schedule was last checked for changes (see src/lib/flight-refresh.ts).
+  checkedAt    DateTime?
   departAt     DateTime
   arriveAt     DateTime
   confirmation String?

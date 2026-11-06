@@ -92,6 +92,7 @@ export async function deleteDestination(tripId: string, destinationId: string) {
   }
   await prisma.destination.delete({ where: { id: destinationId } });
   revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/map`);
   return { ok: true };
 }
 

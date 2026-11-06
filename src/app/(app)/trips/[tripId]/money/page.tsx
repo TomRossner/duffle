@@ -1,4 +1,4 @@
-import { Wallet } from "lucide-react";
+import { Check, Wallet } from "lucide-react";
 import { BalanceSummary } from "@/components/balance-summary";
 import { BudgetSheets } from "@/components/budget-sheets";
 import { ExpenseCategoryTag } from "@/components/expense-category";
@@ -86,7 +86,7 @@ export default async function MoneyPage({ params }: { params: Promise<{ tripId: 
         />
       </TabsContent>
       <TabsContent value="actual" className="grid gap-6 pt-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 items-start gap-2 sm:flex sm:flex-wrap">
           <ExpenseFormToggle
             label="Add a shared expense"
             description={`Amounts in other currencies are converted into ${trip.baseCurrency}.`}
@@ -174,12 +174,17 @@ function ExpenseTable({
               <td className="px-3 py-2">
                 <span className="inline-flex flex-wrap items-center gap-2">
                   {row.title}
-                  {row.paid ? <Badge variant="secondary">Paid</Badge> : null}
+                  {row.paid ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                      <Check aria-hidden />
+                      Paid
+                    </Badge>
+                  ) : null}
                 </span>
                 {row.manualRate ? <span className="block text-xs text-muted-foreground">Manual rate</span> : null}
               </td>
               <td className="px-3 py-2">
-                <ExpenseCategoryTag category={row.category} />
+                <ExpenseCategoryTag category={row.category} className="whitespace-nowrap" />
               </td>
               <td className="px-3 py-2">
                 <MemberTag userId={row.paidBy.id} name={firstName(row.paidBy.name)} imageKey={row.paidBy.imageKey} />
@@ -224,7 +229,7 @@ function ExpenseTable({
                     notes: row.notes ?? "",
                   }}
                   markPaid={
-                    row.phase === "PLANNED"
+                    row.category !== "SETTLEMENT"
                       ? {
                           paid: row.paid,
                           action: (row.paid ? markExpenseUnpaid : markExpensePaid).bind(null, tripId, row.id),

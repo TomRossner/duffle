@@ -3,6 +3,7 @@
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { readTripCountries } from "@/lib/account-details";
 import { CURRENCIES } from "@/lib/constants";
 import { parseDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +18,7 @@ export async function createTrip(_: unknown, formData: FormData) {
   const endDate = parseDate(String(formData.get("endDate") ?? ""));
   const baseCurrency = String(formData.get("baseCurrency") ?? "USD").toUpperCase();
   const coverNote = String(formData.get("coverNote") ?? "").trim() || null;
+  const countries = readTripCountries(formData);
 
   if (name.length < 2) return { error: "Give the trip a name." };
   if (!startDate || !endDate) return { error: "Choose start and end dates." };
@@ -31,6 +33,7 @@ export async function createTrip(_: unknown, formData: FormData) {
       startDate,
       endDate,
       baseCurrency,
+      countries,
       coverNote,
       ownerId: user.id,
       joinToken: randomBytes(24).toString("hex"),
@@ -50,6 +53,7 @@ export async function updateTrip(tripId: string, _: unknown, formData: FormData)
   const startDate = parseDate(String(formData.get("startDate") ?? ""));
   const endDate = parseDate(String(formData.get("endDate") ?? ""));
   const coverNote = String(formData.get("coverNote") ?? "").trim() || null;
+  const countries = readTripCountries(formData);
 
   if (name.length < 2) return { error: "Give the trip a name." };
   if (!startDate || !endDate) return { error: "Choose start and end dates." };
@@ -57,9 +61,9 @@ export async function updateTrip(tripId: string, _: unknown, formData: FormData)
 
   await prisma.trip.update({
     where: { id: tripId },
-    data: { name, startDate, endDate, coverNote },
+    data: { name, startDate, endDate, countries, coverNote },
   });
-  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}`, "layout");
   return { ok: true };
 }
 

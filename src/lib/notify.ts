@@ -33,6 +33,22 @@ export async function notifyTrip(tripId: string, actorId: string, notice: TripNo
   );
 }
 
+/** Notifies these users about something no traveler did, such as an airline changing a flight. */
+export async function notifyUsers(tripId: string, userIds: string[], notice: TripNotice) {
+  if (userIds.length === 0) return;
+  await prisma.notification.createMany({
+    data: userIds.map((userId) => ({
+      userId,
+      tripId,
+      kind: notice.kind,
+      title: notice.title,
+      body: notice.body,
+      href: notice.href,
+    })),
+  });
+  await sendPush(userIds, notice);
+}
+
 async function sendPush(userIds: string[], notice: TripNotice) {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;

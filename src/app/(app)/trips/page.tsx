@@ -8,28 +8,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { countryName } from "@/lib/account-details";
 import { formatDateRange } from "@/lib/dates";
-import { flagsForTrip } from "@/lib/flight-countries";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
 
 export default async function TripsPage() {
   const user = await requireUser();
-  const [account, memberships] = await Promise.all([
-    prisma.user.findUnique({ where: { id: user.id }, select: { country: true } }),
-    prisma.tripMember.findMany({
-      where: { userId: user.id, status: "ACCEPTED" },
-      include: {
-        trip: {
-          include: {
-            _count: { select: { members: { where: { status: "ACCEPTED" } } } },
-            flights: { select: { toAirport: true, departAt: true }, orderBy: { departAt: "asc" } },
-            destinations: { select: { address: true, startDate: true }, orderBy: { startDate: "asc" } },
-          },
+  const memberships = await prisma.tripMember.findMany({
+    where: { userId: user.id, status: "ACCEPTED" },
+    include: {
+      trip: {
+        include: {
+          _count: { select: { members: { where: { status: "ACCEPTED" } } } },
         },
       },
-      orderBy: { trip: { startDate: "asc" } },
-    }),
-  ]);
+    },
+    orderBy: { trip: { startDate: "asc" } },
+  });
 
   return (
     <div className="grid gap-6">
@@ -57,11 +51,7 @@ export default async function TripsPage() {
       ) : (
         <div className="grid gap-3">
           {memberships.map((membership) => {
-            const countries = flagsForTrip({
-              homeCountry: account?.country,
-              flights: membership.trip.flights,
-              destinations: membership.trip.destinations,
-            });
+            const countries = membership.trip.countries;
             return (
               <Link key={membership.id} href={`/trips/${membership.tripId}`}>
               <Card className="transition-colors hover:bg-muted/40">

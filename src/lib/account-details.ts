@@ -102,6 +102,11 @@ export type AccountDetails = {
 
 const countrySet = new Set<string>(COUNTRY_CODES);
 
+export function readTripCountries(formData: FormData) {
+  const codes = formData.getAll("countries").map((value) => String(value).trim().toUpperCase());
+  return [...new Set(codes)].filter((code) => countrySet.has(code));
+}
+
 export function readAccountDetails(formData: FormData): { error: string } | { data: AccountDetails } {
   const gender = String(formData.get("gender") ?? "");
   if (!GENDERS.some((option) => option.value === gender)) return { error: "Choose a gender." };

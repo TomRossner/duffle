@@ -12,7 +12,7 @@ Duffle is a shared trip planner. Create a trip, invite the people who are going,
 
 **Trips and people.** Create a trip with dates and a home currency. Admins invite travelers by email or share a join link. Anyone with a Duffle account can join from that link. Travelers see pending invites in the app and get notified when a trip changes.
 
-**Places.** Add destinations with dates and notes. Search places with Google Maps, then see them on the trip map. Flights and stays sit alongside those destinations, with confirmation numbers and the travelers on each flight. The flight form suggests airports and airlines as you type, from bundled OurAirports and OpenFlights data.
+**Places.** Add destinations with dates and notes. Search places with Google Maps, then see them on the trip map. Flights and stays sit alongside those destinations, with confirmation numbers and the travelers on each flight. The flight form suggests airports and airlines as you type, from bundled OurAirports and OpenFlights data, and Look up fills the airline, airports, terminals, and scheduled local times from a flight number and date through AeroDataBox. Each flight is one leg. When a flight number stops on the way (QF1 flies Sydney → Singapore, then Singapore → London), Look up adds every leg as its own flight, or only the leg you are on, and the schedule shows the stop or layover between them. Flights show the airline's logo and, when looked up, the flying time. While travelers use the app, Duffle checks upcoming flights against the airline's schedule (once a day, every 3 hours in the last two days) and notifies everyone on a flight when its times or terminals change.
 
 **Weather.** Each destination loads a daily forecast from [Open-Meteo](https://open-meteo.com/): temperature, rain, wind, and conditions. Past dates use the archive; upcoming dates use the forecast.
 
@@ -63,6 +63,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `GOOGLE_MAPS_API_KEY` | The trip map in the browser (Maps JavaScript API). Also used for place search when no server key is set |
 | `GOOGLE_MAPS_MAP_ID` | Optional. Map ID for the trip map, which Google's advanced markers require. Create one under Map Management in Google Cloud. Unset, the map uses Google's `DEMO_MAP_ID` |
 | `GOOGLE_MAPS_SERVER_KEY` | Optional. Place search and address lookup from the server (Places API (New), Geocoding API). In production, restrict it by server IP, since a key restricted to websites is rejected on the server |
+| `AERODATABOX_API_KEY` | Optional. RapidAPI key for AeroDataBox, used by the flight form's Look up button. Lookups are cached for 6 hours and limited to 30 per traveler per hour. The same key checks saved flights in the next 60 days for schedule changes, at most 4 per page view. Unset, flights are filled in by hand and never rechecked |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Confirmation and password-reset email. Unset locally, the link is printed in the server log |
 | `UPLOADS_DIR` | Upload directory when `S3_*` is unset. On a server, put this outside the app directory |
 | `S3_*` | Optional object storage. Unset values keep files in `UPLOADS_DIR` or `./uploads` |

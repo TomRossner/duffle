@@ -1,5 +1,6 @@
 import { ActionForm } from "@/components/action-form";
-import { CurrencySelect, Field } from "@/components/fields";
+import { CountriesPicker } from "@/components/countries-picker";
+import { CurrencySelect, Field, FieldGroup } from "@/components/fields";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +12,7 @@ export default function NewTripPage() {
       <Card className="w-full max-w-xl">
         <CardHeader>
           <CardTitle>New trip</CardTitle>
-          <CardDescription>The base currency is what balances and budgets are shown in.</CardDescription>
+          <CardDescription>Set the dates, where you&apos;re headed, and how the trip&apos;s money is tracked. You can change these later.</CardDescription>
         </CardHeader>
         <CardContent>
           <ActionForm action={createTrip} submitLabel="Create trip">
@@ -26,6 +27,9 @@ export default function NewTripPage() {
                 <Input name="endDate" type="date" required />
               </Field>
             </div>
+            <FieldGroup label="Countries you'll visit">
+              <CountriesPicker />
+            </FieldGroup>
             <Field label="Base currency">
               <CurrencySelect name="baseCurrency" withSymbols />
             </Field>

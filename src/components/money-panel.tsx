@@ -31,14 +31,14 @@ export function ExpenseFormToggle({
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
-      <Button type="button" className="w-fit" onClick={() => setOpen(true)}>
+      <Button type="button" className="sm:w-fit" onClick={() => setOpen(true)}>
         {label}
       </Button>
     );
   }
 
   return (
-    <Card className="w-full">
+    <Card className="col-span-2 w-full">
       <CardHeader>
         <CardTitle>{label}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -73,14 +73,14 @@ export function SettlementFormToggle({
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
-      <Button type="button" className="w-fit" onClick={() => setOpen(true)}>
+      <Button type="button" className="sm:w-fit" onClick={() => setOpen(true)}>
         Record a payment
       </Button>
     );
   }
 
   return (
-    <Card className="w-full">
+    <Card className="col-span-2 w-full">
       <CardHeader>
         <CardTitle>Record a payment</CardTitle>
         <CardDescription>Someone pays someone else to settle up.</CardDescription>

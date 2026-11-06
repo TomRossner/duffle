@@ -40,10 +40,10 @@ export function FlagStack({ codes, label }: { codes: string[]; label: string }) 
             left: 4 + index * STACK_X,
             top: 2 + index * STACK_Y,
             zIndex: index + 1,
-            transform: `rotate(${index % 2 === 0 ? -7 : 6}deg)`,
+            transform: codes.length === 1 ? undefined : `rotate(${index % 2 === 0 ? -7 : 6}deg)`,
           }}
         >
-          <CountryFlag code={code} className="h-6 w-9 shadow-md ring-2 ring-background" />
+          <CountryFlag code={code} className="h-6 w-9 shadow-none ring-2 ring-background" />
         </span>
       ))}
     </span>

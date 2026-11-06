@@ -2,8 +2,8 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { Check, CloudSun, EllipsisVertical, GripVertical, Luggage, Pencil, Shirt, Sparkles, Trash2, X } from "lucide-react";
-import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { Check, CloudSun, EllipsisVertical, GripVertical, Luggage, Pencil, Plus, Shirt, Sparkles, Trash2, Users, X } from "lucide-react";
+import { useActionState, useEffect, useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
@@ -209,41 +209,69 @@ function SharedList({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Everyone should bring</CardTitle>
-        <CardDescription>
-          A reminder for the whole trip. Anyone can add an item. Checking one packs your own copy
-          {bags.length > 0 ? " into the bag you choose" : " into a new day pack"} and leaves everyone else unchecked.
-        </CardDescription>
-        <CardAction>
-          <Button type="button" onClick={() => setAdding(true)}>
-            Add an item
-          </Button>
-        </CardAction>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid min-w-0 gap-1">
+          <CardTitle className="flex items-center gap-2">
+            <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Users className="size-4" />
+            </span>
+            Everyone should bring
+          </CardTitle>
+          <CardDescription className="max-w-2xl">
+            A reminder for the whole trip. Anyone can add an item. Checking one packs your own copy
+            {bags.length > 0 ? " into the bag you choose" : " into a new day pack"} and leaves everyone else unchecked.
+          </CardDescription>
+        </div>
+        <Button type="button" className="w-full shrink-0 sm:w-auto" onClick={() => setAdding(true)}>
+          <Plus data-icon="inline-start" />
+          Add an item
+        </Button>
       </CardHeader>
-      <CardContent className="grid gap-3">
-        {items.length > 0 && travelers.length > 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {travelers.map((traveler) => `${firstName(traveler.name)} ${traveler.packed} of ${items.length}`).join(" · ")}
-          </p>
-        ) : null}
-        {bags.length > 1 ? (
-          <Field label="Add checked items to" className="max-w-xs">
-            <Select value={selectedBagId} onChange={(event) => setBagId(event.target.value)}>
-              {bags.map((bag) => (
-                <option key={bag.id} value={bag.id}>
-                  {bag.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+      <CardContent className="grid gap-4">
+        {(items.length > 0 && travelers.length > 0) || bags.length > 1 ? (
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            {items.length > 0 && travelers.length > 0 ? (
+              <ul className="flex flex-wrap gap-2" aria-label="Packing progress">
+                {travelers.map((traveler) => {
+                  const done = traveler.packed >= items.length;
+                  return (
+                    <li key={traveler.id} className="grid min-w-32 flex-1 gap-1.5 rounded-lg bg-muted/50 px-3 py-2 sm:flex-none">
+                      <span className="flex items-center justify-between gap-3 text-xs">
+                        <span className="truncate font-medium">{firstName(traveler.name)}</span>
+                        <span className={cn("shrink-0 text-muted-foreground tabular-nums", done && "text-primary")}>
+                          {traveler.packed}/{items.length}
+                        </span>
+                      </span>
+                      <span className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                        <span
+                          className="block h-full rounded-full bg-primary transition-[width]"
+                          style={{ width: `${Math.min(100, (traveler.packed / items.length) * 100)}%` }}
+                        />
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            {bags.length > 1 ? (
+              <Field label="Add checked items to" className="w-full lg:ml-auto lg:w-56 lg:shrink-0">
+                <Select value={selectedBagId} onChange={(event) => setBagId(event.target.value)}>
+                  {bags.map((bag) => (
+                    <option key={bag.id} value={bag.id}>
+                      {bag.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : null}
+          </div>
         ) : null}
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
             Nothing yet. Add a passport, rain jacket, charger, or anything else each person should pack.
           </p>
         ) : (
-          <ul className="grid grid-cols-1 gap-1 [&>*]:min-w-0">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
             {items.map((item) => (
               <SharedRow key={item.id} tripId={tripId} item={item} bagId={selectedBagId} travelerCount={travelers.length} />
             ))}
@@ -282,45 +310,58 @@ function SharedRow({
   const [, startTransition] = useTransition();
 
   return (
-    <li className="flex items-center gap-2 rounded-lg px-1 py-1">
-      <label className="flex min-w-0 flex-1 items-center gap-2">
-        <CheckBox
-          checked={optimistic}
-          aria-label={`Pack ${item.name}`}
-          onChange={() => {
-            const next = !item.packed;
-            setError(null);
-            startTransition(async () => {
-              setOptimistic(next);
-              const result = await setSharedPackingChecked(tripId, item.id, next, bagId);
-              if (result && "error" in result && result.error) setError(result.error);
-            });
-          }}
-        />
-        {isPackingCategory(item.category) ? (
-          <span className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-full", CATEGORY_COLORS[item.category])}>
-            <PackingCategoryIcon category={item.category} className="size-3.5" />
+    <li
+      className={cn(
+        "grid gap-1 rounded-lg border bg-card py-1.5 pr-1 pl-2.5 transition-colors hover:bg-muted/40",
+        optimistic && "bg-muted/30",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+          <CheckBox
+            checked={optimistic}
+            aria-label={`Pack ${item.name}`}
+            onChange={() => {
+              const next = !item.packed;
+              setError(null);
+              startTransition(async () => {
+                setOptimistic(next);
+                const result = await setSharedPackingChecked(tripId, item.id, next, bagId);
+                if (result && "error" in result && result.error) setError(result.error);
+              });
+            }}
+          />
+          {isPackingCategory(item.category) ? (
+            <span className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-full", CATEGORY_COLORS[item.category])}>
+              <PackingCategoryIcon category={item.category} className="size-3.5" />
+            </span>
+          ) : null}
+          <span className={cn("min-w-0 break-words", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
+          {item.quantity > 1 ? <span className="shrink-0 text-sm text-muted-foreground">× {item.quantity}</span> : null}
+        </label>
+        {travelerCount > 1 ? (
+          <span
+            className={cn(
+              "shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums",
+              item.packedCount >= travelerCount && "bg-primary/10 text-primary",
+            )}
+            title={`${item.packedCount} of ${travelerCount} travelers packed`}
+          >
+            {item.packedCount}/{travelerCount}
           </span>
         ) : null}
-        <span className={cn("min-w-0 break-words", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
-        {item.quantity > 1 ? <span className="shrink-0 text-sm text-muted-foreground">× {item.quantity}</span> : null}
-      </label>
-      {travelerCount > 1 ? (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {item.packedCount} of {travelerCount}
-        </span>
-      ) : null}
-      <ItemMenu label={`Actions for ${item.name}`}>
-        <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
-          <Pencil className="size-3.5" />
-          Edit
-        </Menu.Item>
-        <Menu.Item className={cn(menuItemClass, "text-destructive")} onClick={() => setConfirmingDelete(true)}>
-          <Trash2 className="size-3.5" />
-          Delete
-        </Menu.Item>
-      </ItemMenu>
-      {error ? <span className="text-xs text-destructive">{error}</span> : null}
+        <ItemMenu label={`Actions for ${item.name}`}>
+          <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
+            <Pencil className="size-3.5" />
+            Edit
+          </Menu.Item>
+          <Menu.Item className={cn(menuItemClass, "text-destructive")} onClick={() => setConfirmingDelete(true)}>
+            <Trash2 className="size-3.5" />
+            Delete
+          </Menu.Item>
+        </ItemMenu>
+      </div>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
       <EditorDialog
         open={editing}
         onOpenChange={setEditing}
@@ -364,6 +405,7 @@ function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }
   const [steps, setSteps] = useState<SuggestClothesStep[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  const formId = useId();
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     if (event.target !== event.currentTarget) return;
@@ -395,25 +437,28 @@ function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }
   }
 
   return (
-    <div className="grid w-full gap-1 sm:w-auto sm:justify-items-start">
-      <div className="flex flex-wrap items-end gap-2">
-        <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-2">
-          {bags.length > 0 ? (
-            <Field label="Suggest into" className="w-40">
-              <Select name="luggageId" defaultValue={bags[0].id} disabled={pending}>
-                {bags.map((bag) => (
-                  <option key={bag.id} value={bag.id}>
-                    {bag.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          ) : null}
-          <Button type="submit" disabled={pending}>
-            Suggest clothes
-          </Button>
-        </form>
-        <AddBagButton tripId={tripId} />
+    <div className="grid w-full gap-2 sm:w-auto sm:justify-items-start">
+      <div className="grid gap-2 sm:flex sm:items-end">
+        {bags.length > 0 ? (
+          <Field label="Suggest into" className="sm:w-40">
+            <Select form={formId} name="luggageId" defaultValue={bags[0].id} disabled={pending}>
+              {bags.map((bag) => (
+                <option key={bag.id} value={bag.id}>
+                  {bag.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <form id={formId} onSubmit={onSubmit} className="flex">
+            <Button type="submit" disabled={pending} className="w-full">
+              <Sparkles data-icon="inline-start" />
+              Suggest clothes
+            </Button>
+          </form>
+          <AddBagButton tripId={tripId} />
+        </div>
       </div>
       {pending && steps.length > 0 ? (
         <ol className="grid justify-items-start gap-1 text-left text-sm" aria-live="polite">
@@ -484,8 +529,9 @@ async function readSuggestEvents(body: ReadableStream<Uint8Array>, onStep: (step
 function AddBagButton({ tripId }: { tripId: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <span className="inline-flex">
-      <Button type="button" onClick={() => setOpen(true)}>
+    <span className="flex">
+      <Button type="button" className="w-full" onClick={() => setOpen(true)}>
+        <Plus data-icon="inline-start" />
         Add a bag
       </Button>
       <EditorDialog open={open} onOpenChange={setOpen} title="Add a bag" description="A pack, bag, trolley, or piece of luggage.">

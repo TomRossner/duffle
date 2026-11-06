@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { CalendarDays } from "lucide-react";
+import { AirlineLogo } from "@/components/airline-logo";
 import { PlaceLinks } from "@/components/place-links";
 import { ActivityEditor, PlanEditor, ScheduleItemMenu } from "@/components/day-editor";
 import { MemberTag } from "@/components/member-tag";
@@ -8,6 +9,14 @@ import { ScheduleBoard, ScheduleItem } from "@/components/schedule-board";
 import { deleteActivity } from "@/lib/actions/destinations";
 import { deleteFlight, deleteScheduleItem, deleteStay } from "@/lib/actions/schedule";
 import { dateKey, eachDate, formatDateLong, formatTime } from "@/lib/dates";
+import {
+  airlineCodeOf,
+  dayOffset,
+  formatMinutes,
+  MAX_CONNECTION_MINUTES,
+  minutesBetween,
+  terminalLabel,
+} from "@/lib/flight-lookup";
 import { prisma } from "@/lib/prisma";
 import { acceptedMembers, requireTrip } from "@/lib/trip-access";
 
@@ -32,6 +41,21 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
     prisma.scheduleItem.findMany({ where: { tripId }, orderBy: { startAt: "asc" } }),
     prisma.weatherDay.findMany({ where: { destination: { tripId } } }),
   ]);
+
+  const flightLookup = Boolean(process.env.AERODATABOX_API_KEY);
+  // Flight times are stored as each airport's local wall-clock time, so "YYYY-MM-DDTHH:mm" is that local time.
+  const localTime = (date: Date) => date.toISOString().slice(0, 16);
+  // A flight connects from an earlier one that lands at its departure airport within a day. Both times
+  // are local to that airport, so the gap between them is the real layover.
+  const connections = new Map<string, { from: (typeof flights)[number]; minutes: number }>();
+  for (const flight of flights) {
+    const from = flights
+      .filter((other) => other.id !== flight.id && other.toAirport === flight.fromAirport)
+      .map((other) => ({ from: other, minutes: minutesBetween(localTime(other.arriveAt), localTime(flight.departAt)) }))
+      .filter((option) => option.minutes >= 0 && option.minutes <= MAX_CONNECTION_MINUTES)
+      .sort((a, b) => a.minutes - b.minutes)[0];
+    if (from) connections.set(flight.id, from);
+  }
 
   const people = members.map((member) => ({
     id: member.userId,
@@ -67,6 +91,7 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
         people={people}
         destinations={destinations.map((destination) => ({ id: destination.id, name: destination.name }))}
         tripDays={tripDays}
+        flightLookup={flightLookup}
       />
 
       <ScheduleBoard
@@ -110,19 +135,41 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                 ) : null}
                 {[
                 ...dayFlights.map((flight) => {
+                  const connection = connections.get(flight.id);
+                  const overnight = dayOffset(localTime(flight.departAt), localTime(flight.arriveAt));
                   const card = () => (
                   <div className={itemClass}>
                     <div className="min-w-0 flex-1">
                       <p className={titleClass}>
                         <PlanTag kind="FLIGHT" />
+                        <AirlineLogo
+                          code={airlineCodeOf(flight.flightNumber)}
+                          className="in-data-[layout=calendar]:hidden"
+                        />
                         <span className="min-w-0 flex-1 truncate">
                           {formatTime(flight.departAt)} {flight.airline} {flight.flightNumber}
                         </span>
                       </p>
                       <p className={`text-muted-foreground ${detailClass}`}>
-                        {flight.fromAirport} → {flight.toAirport}, arrives {formatTime(flight.arriveAt)}
+                        <span className="font-mono">{flight.fromAirport}</span>
+                        {flight.fromTerminal ? ` (${terminalLabel(flight.fromTerminal)})` : ""} →{" "}
+                        <span className="font-mono">{flight.toAirport}</span>
+                        {flight.toTerminal ? ` (${terminalLabel(flight.toTerminal)})` : ""}, arrives{" "}
+                        {formatTime(flight.arriveAt)}
+                        {overnight !== 0 ? (
+                          <sup className="ml-0.5">{overnight > 0 ? `+${overnight}` : overnight}</sup>
+                        ) : null}
+                        {flight.durationMinutes ? ` · ${formatMinutes(flight.durationMinutes)}` : ""}
                         {flight.confirmation ? ` · ${flight.confirmation}` : ""}
                       </p>
+                      {connection ? (
+                        <p className={`text-xs text-muted-foreground ${detailClass}`}>
+                          {connection.from.flightNumber === flight.flightNumber
+                            ? // The same number flying on: a stop, not a change of plane booked separately.
+                              `Continues ${flight.airline} ${flight.flightNumber} after a ${formatMinutes(connection.minutes)} stop in ${flight.fromAirport}`
+                            : `Connects from ${connection.from.airline} ${connection.from.flightNumber} · ${formatMinutes(connection.minutes)} layover in ${flight.fromAirport}`}
+                        </p>
+                      ) : null}
                       {flight.travelers.length > 0 ? (
                         <p className={`mt-1 flex flex-wrap gap-2 ${detailClass}`}>
                           {flight.travelers.map((traveler) => (
@@ -144,14 +191,18 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                       <FlightEditor
                         tripId={tripId}
                         people={people}
+                        lookup={flightLookup}
                         flight={{
                           id: flight.id,
                           airline: flight.airline,
                           flightNumber: flight.flightNumber,
                           fromAirport: flight.fromAirport,
                           toAirport: flight.toAirport,
-                          departAt: flight.departAt.toISOString().slice(0, 16),
-                          arriveAt: flight.arriveAt.toISOString().slice(0, 16),
+                          fromTerminal: flight.fromTerminal ?? "",
+                          toTerminal: flight.toTerminal ?? "",
+                          durationMinutes: flight.durationMinutes,
+                          departAt: localTime(flight.departAt),
+                          arriveAt: localTime(flight.arriveAt),
                           confirmation: flight.confirmation ?? "",
                           notes: flight.notes ?? "",
                           travelerIds: flight.travelers.map((traveler) => traveler.userId),
@@ -372,6 +423,7 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
                     tripDays={tripDays}
                     defaultDate={key}
                     compact
+                    flightLookup={flightLookup}
                   />
                 </div>
               </>

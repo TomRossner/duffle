@@ -50,8 +50,6 @@ export function DestinationCard({
 }) {
   const [editing, setEditing] = useState(false);
   const close = useCallback(() => setEditing(false), []);
-  const [confirming, setConfirming] = useState(false);
-  const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -70,50 +68,7 @@ export function DestinationCard({
           </div>
         </div>
         <CardAction>
-          <Menu.Root>
-            <Menu.Trigger
-              className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-              aria-label={`Actions for ${destination.name}`}
-            >
-              <EllipsisVertical />
-            </Menu.Trigger>
-            <Menu.Portal>
-              <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
-                <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
-                  <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
-                    <Pencil className="size-3.5" />
-                    Edit
-                  </Menu.Item>
-                  <Menu.Item
-                    className={`${menuItemClass} text-destructive`}
-                    disabled={removing}
-                    onClick={() => setConfirming(true)}
-                  >
-                    <Trash2 className="size-3.5" />
-                    {removing ? "Removing..." : "Remove"}
-                  </Menu.Item>
-                </Menu.Popup>
-              </Menu.Positioner>
-            </Menu.Portal>
-          </Menu.Root>
-          <DeleteDialog
-            open={confirming}
-            onOpenChange={setConfirming}
-            message={`Are you sure you want to remove ${destination.name} and its activities?`}
-            confirmLabel="Remove"
-            pending={removing}
-            onConfirm={() => {
-              setConfirming(false);
-              setRemoving(true);
-              setError(null);
-              void remove().then((result) => {
-                if (result && "error" in result && result.error) {
-                  setError(result.error);
-                  setRemoving(false);
-                }
-              });
-            }}
-          />
+          <DestinationMenu name={destination.name} onEdit={() => setEditing(true)} remove={remove} onError={setError} />
         </CardAction>
         {error ? <p className="col-span-full text-sm text-destructive">{error}</p> : null}
         {/* Full-width row below the title so the actions column doesn't squeeze it on mobile. */}
@@ -137,6 +92,114 @@ export function DestinationCard({
         {children}
       </CardContent>
     </Card>
+  );
+}
+
+/** Compact destination entry for the trip overview, with the same edit/remove actions as the map page. */
+export function DestinationRow({
+  tripId,
+  destination,
+  dates,
+  dateHint,
+  remove,
+}: {
+  tripId: string;
+  destination: DestinationDetails;
+  dates: string;
+  dateHint: string;
+  remove: () => Promise<{ error?: string } | void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const close = useCallback(() => setEditing(false), []);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <li className="grid gap-1.5 rounded-lg bg-muted/60 px-3 py-2">
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0">
+          <span className="font-medium">{destination.name}</span>
+          <span className="text-muted-foreground"> · {dates}</span>
+        </p>
+        <DestinationMenu name={destination.name} onEdit={() => setEditing(true)} remove={remove} onError={setError} />
+      </div>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <PlaceLinks
+        place={{
+          name: destination.name,
+          address: destination.address,
+          placeId: destination.placeId,
+          lat: destination.lat,
+          lng: destination.lng,
+        }}
+      />
+      {editing ? (
+        <EditDestination tripId={tripId} destination={destination} dateHint={dateHint} onDone={close} />
+      ) : null}
+    </li>
+  );
+}
+
+function DestinationMenu({
+  name,
+  onEdit,
+  remove,
+  onError,
+}: {
+  name: string;
+  onEdit: () => void;
+  remove: () => Promise<{ error?: string } | void>;
+  onError: (error: string | null) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  return (
+    <>
+      <Menu.Root>
+        <Menu.Trigger
+          className={`${buttonVariants({ variant: "ghost", size: "icon-sm" })} shrink-0`}
+          aria-label={`Actions for ${name}`}
+        >
+          <EllipsisVertical />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
+            <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+              <Menu.Item className={menuItemClass} onClick={onEdit}>
+                <Pencil className="size-3.5" />
+                Edit
+              </Menu.Item>
+              <Menu.Item
+                className={`${menuItemClass} text-destructive`}
+                disabled={removing}
+                onClick={() => setConfirming(true)}
+              >
+                <Trash2 className="size-3.5" />
+                {removing ? "Removing..." : "Remove"}
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
+      <DeleteDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        message={`Are you sure you want to remove ${name} and its activities?`}
+        confirmLabel="Remove"
+        pending={removing}
+        onConfirm={() => {
+          setConfirming(false);
+          setRemoving(true);
+          onError(null);
+          void remove().then((result) => {
+            if (result && "error" in result && result.error) {
+              onError(result.error);
+              setRemoving(false);
+            }
+          });
+        }}
+      />
+    </>
   );
 }
 

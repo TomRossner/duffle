@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu } from "@base-ui/react/menu";
-import { EllipsisVertical, Pencil, Trash2 } from "lucide-react";
+import { EllipsisVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
@@ -169,6 +169,7 @@ export function BudgetSheets({
   const [adding, setAdding] = useState(false);
   const [editingTable, setEditingTable] = useState<string | null>(null);
   const [editingRow, setEditingRow] = useState<string | null>(null);
+  const [addingRowTo, setAddingRowTo] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<null | { message: string; run: () => void }>(null);
 
   return (
@@ -179,7 +180,7 @@ export function BudgetSheets({
           Group costs into boxes, like a spreadsheet. Each box keeps its own rows and a total.
         </p>
       </div>
-      <div className="flex flex-wrap items-start gap-2">
+      <div className="grid grid-cols-2 items-start gap-2 sm:flex sm:flex-wrap">
         <Button type="button" onClick={() => setAdding((open) => !open)}>
           Add a table
         </Button>
@@ -315,9 +316,28 @@ export function BudgetSheets({
                     <span>Total</span>
                     <span>{formatMoney(total, table.currency)}</span>
                   </div>
-                  <ActionForm action={addBudgetRow.bind(null, tripId, table.id)} submitLabel="Add row">
-                    <RowFields members={members} />
-                  </ActionForm>
+                  {addingRowTo === table.id ? (
+                    <ActionForm
+                      action={addBudgetRow.bind(null, tripId, table.id)}
+                      submitLabel="Add row"
+                      onSaved={() => setAddingRowTo(null)}
+                    >
+                      <RowFields members={members} />
+                      <Button type="button" variant="outline" onClick={() => setAddingRowTo(null)}>
+                        Cancel
+                      </Button>
+                    </ActionForm>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto sm:justify-self-start"
+                      onClick={() => setAddingRowTo(table.id)}
+                    >
+                      <Plus />
+                      Add row
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );

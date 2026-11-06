@@ -3,9 +3,7 @@ import { ShareTrip } from "@/components/share-trip";
 import { TripNav } from "@/components/trip-nav";
 import { countryName } from "@/lib/account-details";
 import { formatDateRange } from "@/lib/dates";
-import { flagsForTrip } from "@/lib/flight-countries";
 import { currencySymbol } from "@/lib/money";
-import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
 
 export default async function TripLayout({
@@ -16,21 +14,8 @@ export default async function TripLayout({
   params: Promise<{ tripId: string }>;
 }) {
   const { tripId } = await params;
-  const { user, trip } = await requireTrip(tripId);
-  const [account, flights, destinations] = await Promise.all([
-    prisma.user.findUnique({ where: { id: user.id }, select: { country: true } }),
-    prisma.flight.findMany({
-      where: { tripId },
-      select: { toAirport: true, departAt: true },
-      orderBy: { departAt: "asc" },
-    }),
-    prisma.destination.findMany({
-      where: { tripId },
-      select: { address: true, startDate: true },
-      orderBy: { startDate: "asc" },
-    }),
-  ]);
-  const countries = flagsForTrip({ homeCountry: account?.country, flights, destinations });
+  const { trip } = await requireTrip(tripId);
+  const countries = trip.countries;
   const symbol = currencySymbol(trip.baseCurrency);
   const currencyLabel = symbol ? `${symbol} (${trip.baseCurrency})` : trip.baseCurrency;
 

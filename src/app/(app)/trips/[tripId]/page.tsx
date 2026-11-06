@@ -1,17 +1,19 @@
 import { ActionForm, InlineAction } from "@/components/action-form";
 import { BalanceSummary } from "@/components/balance-summary";
-import { PlaceLinks } from "@/components/place-links";
-import { Field } from "@/components/fields";
+import { CountriesPicker } from "@/components/countries-picker";
+import { DestinationRow } from "@/components/destination-card";
+import { Field, FieldGroup } from "@/components/fields";
 import { MemberTag } from "@/components/member-tag";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate, formatDateRange } from "@/lib/dates";
+import { formatDate, formatDateLong, formatDateRange } from "@/lib/dates";
 import { netBalances } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { acceptedMembers, requireTrip } from "@/lib/trip-access";
 import { createInvite, deleteTrip, makeAdmin, removeMember, updateTrip } from "@/lib/actions/trips";
+import { deleteDestination } from "@/lib/actions/destinations";
 
 export default async function TripOverviewPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
@@ -29,6 +31,7 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
     }),
   ]);
 
+  const dateHint = `During the trip, ${formatDateLong(trip.startDate)} – ${formatDateLong(trip.endDate)}.`;
   const people = members.map((member) => ({
     id: member.userId,
     name: member.user.name.trim().split(/\s+/)[0] || member.user.name,
@@ -116,6 +119,9 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
                   <Input name="endDate" type="date" defaultValue={formatDate(trip.endDate)} required />
                 </Field>
               </div>
+              <FieldGroup label="Countries">
+                <CountriesPicker defaultValue={trip.countries} />
+              </FieldGroup>
               <Field label="Note">
                 <Textarea name="coverNote" defaultValue={trip.coverNote ?? ""} rows={3} />
               </Field>
@@ -142,24 +148,24 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
           ) : (
             <ul className="grid gap-2 text-sm">
               {destinations.map((destination) => (
-                <li key={destination.id} className="grid gap-1.5 rounded-lg bg-muted/60 px-3 py-2">
-                  <p>
-                    <span className="font-medium">{destination.name}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      · {formatDateRange(destination.startDate, destination.endDate)}
-                    </span>
-                  </p>
-                  <PlaceLinks
-                    place={{
-                      name: destination.name,
-                      address: destination.address,
-                      placeId: destination.placeId,
-                      lat: destination.lat,
-                      lng: destination.lng,
-                    }}
-                  />
-                </li>
+                <DestinationRow
+                  key={destination.id}
+                  tripId={tripId}
+                  dates={formatDateRange(destination.startDate, destination.endDate)}
+                  dateHint={dateHint}
+                  remove={deleteDestination.bind(null, tripId, destination.id)}
+                  destination={{
+                    id: destination.id,
+                    name: destination.name,
+                    address: destination.address,
+                    placeId: destination.placeId,
+                    lat: destination.lat,
+                    lng: destination.lng,
+                    startDate: formatDate(destination.startDate),
+                    endDate: formatDate(destination.endDate),
+                    notes: destination.notes,
+                  }}
+                />
               ))}
             </ul>
           )}

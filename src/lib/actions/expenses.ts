@@ -73,7 +73,7 @@ export async function markExpensePaid(tripId: string, expenseId: string) {
   const { user } = await requireTrip(tripId);
   const expense = await prisma.expense.findFirst({ where: { id: expenseId, tripId } });
   if (!expense) return { error: "Expense not found." };
-  if (expense.phase !== "PLANNED") return { error: "Only a planned cost can be marked paid." };
+  if (expense.category === "SETTLEMENT") return { error: "A payment cannot be marked paid." };
   if (!expense.paid) {
     await prisma.expense.update({ where: { id: expenseId }, data: { paid: true } });
     revalidatePath(`/trips/${tripId}`);

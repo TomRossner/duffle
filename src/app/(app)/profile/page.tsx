@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { countryName, formatPhone, genderLabel } from "@/lib/account-details";
 import { formatDate, formatDateRange, formatDateText } from "@/lib/dates";
-import { flagsForTrip } from "@/lib/flight-countries";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
 import { notFound } from "next/navigation";
@@ -49,8 +48,7 @@ export default async function ProfilePage() {
               name: true,
               startDate: true,
               endDate: true,
-              flights: { select: { toAirport: true, departAt: true }, orderBy: { departAt: "asc" } },
-              destinations: { select: { address: true, startDate: true }, orderBy: { startDate: "asc" } },
+              countries: true,
             },
           },
         },
@@ -143,11 +141,7 @@ export default async function ProfilePage() {
           ) : (
             <ul className="grid gap-2">
               {user.memberships.map((membership) => {
-                const countries = flagsForTrip({
-                  homeCountry: user.country,
-                  flights: membership.trip.flights,
-                  destinations: membership.trip.destinations,
-                });
+                const countries = membership.trip.countries;
                 return (
                   <li key={membership.id}>
                     <Link

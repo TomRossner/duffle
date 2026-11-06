@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { IdCard, Luggage, MapPinned } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { BackButton } from "@/components/back-button";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
+import { refreshUpcomingFlights } from "@/lib/flight-refresh";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
 
@@ -15,6 +17,10 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     select: { id: true, name: true, imageKey: true },
   });
   if (!user) return null;
+  // Once the page is sent, check the traveler's upcoming flights for airline changes (throttled inside).
+  after(() =>
+    refreshUpcomingFlights(user.id).catch((error) => console.error("[flight-refresh] Failed:", error)),
+  );
 
   return (
     <div className="min-h-full bg-background">
