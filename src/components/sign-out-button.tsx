@@ -11,7 +11,10 @@ export function SignOutButton({ className, label = "Sign out" }: { className?: s
         await signOut({ redirectTo: "/" });
       }}
     >
-      <Button type="submit" variant="outline" size="sm" className={cn("gap-2 hover:bg-destructive/10", className)}>
+      <Button type="submit" variant="outline" size="sm" className={cn(
+          "gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive dark:border-destructive/40",
+          className,
+        )}>
         <LogOut className="size-4" />
         {label}
       </Button>

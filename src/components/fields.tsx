@@ -42,7 +42,7 @@ export function Select({ className, children, ...props }: React.ComponentProps<"
   return (
     <select
       className={cn(
-        "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+        "h-11 w-full rounded-lg border border-input bg-transparent px-3 text-base outline-none sm:h-8 sm:px-2.5 sm:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
         className,
       )}
       {...props}

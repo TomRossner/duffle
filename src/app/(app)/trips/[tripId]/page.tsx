@@ -1,14 +1,22 @@
+import Link from "next/link";
+import { Pencil, UserPlus } from "lucide-react";
 import { ActionForm, InlineAction } from "@/components/action-form";
 import { BalanceSummary } from "@/components/balance-summary";
+import { FlagStack } from "@/components/country-flag";
 import { CountriesPicker } from "@/components/countries-picker";
 import { DestinationRow } from "@/components/destination-card";
 import { Field, FieldGroup } from "@/components/fields";
+import { FormDialog } from "@/components/form-dialog";
+import { MemberMenu } from "@/components/member-menu";
 import { MemberTag } from "@/components/member-tag";
+import { ShareJoinLinkButton } from "@/components/share-trip";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { countryName } from "@/lib/account-details";
 import { formatDate, formatDateLong, formatDateRange } from "@/lib/dates";
+import { tripJoinUrl } from "@/lib/join-url";
 import { netBalances } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { acceptedMembers, requireTrip } from "@/lib/trip-access";
@@ -57,10 +65,10 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
               : "People on this trip. Anyone with the join link can become a traveler."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          <ul className="grid gap-2">
+        <CardContent className="grid grid-cols-1 gap-4">
+          <ul className="grid grid-cols-1 gap-2">
             {members.map((member) => (
-              <li key={member.id} className="flex items-center justify-between gap-3 text-sm">
+              <li key={member.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
                 <span className="flex min-w-0 items-center gap-1.5">
                   <MemberTag
                     userId={member.userId}
@@ -73,22 +81,42 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
                 <span className="flex shrink-0 items-center gap-2">
                   <Badge variant="secondary">{member.role === "ADMIN" ? "Admin" : "Traveler"}</Badge>
                   {membership.role === "ADMIN" && member.role !== "ADMIN" ? (
-                    <>
-                      <InlineAction action={makeAdmin.bind(null, tripId, member.userId)} label="Make admin" />
-                      <InlineAction action={removeMember.bind(null, tripId, member.userId)} label="Remove" />
-                    </>
+                    <MemberMenu
+                      name={member.user.name ?? member.user.email}
+                      makeAdmin={makeAdmin.bind(null, tripId, member.userId)}
+                      remove={removeMember.bind(null, tripId, member.userId)}
+                    />
                   ) : null}
                 </span>
               </li>
             ))}
           </ul>
           {membership.role === "ADMIN" ? (
-            <ActionForm action={createInvite.bind(null, tripId)} submitLabel="Create invite link">
-              <Field label="Email">
-                <Input name="email" type="email" required />
-              </Field>
-            </ActionForm>
+            <FormDialog
+              title="Invite a specific person"
+              description="Get a personal link that only works for the email you enter here."
+              triggerLabel="Invite by email"
+              icon={<UserPlus />}
+              triggerVariant="outline"
+              triggerClassName="w-full"
+            >
+              <ActionForm
+                action={createInvite.bind(null, tripId)}
+                submitLabel="Get personal invite link"
+                submitIcon={<UserPlus />}
+              >
+                <Field label="Their email">
+                  <Input name="email" type="email" placeholder="name@example.com" required />
+                </Field>
+              </ActionForm>
+            </FormDialog>
           ) : null}
+          <div className="grid gap-2">
+            {membership.role === "ADMIN" ? (
+              <p className="text-sm text-muted-foreground">Or share the trip&apos;s join link with anyone.</p>
+            ) : null}
+            <ShareJoinLinkButton name={trip.name} url={tripJoinUrl(trip.joinToken)} label="Share join link" />
+          </div>
           {membership.role === "ADMIN" && invites.length > 0 ? (
             <div className="grid gap-1 text-sm text-muted-foreground">
               {invites.map((invite) => (
@@ -107,34 +135,59 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
           {trip.coverNote ? <CardDescription>{trip.coverNote}</CardDescription> : null}
         </CardHeader>
         <CardContent className="grid gap-4">
-          <ActionForm action={updateTrip.bind(null, tripId)} submitLabel="Save details">
-              <Field label="Name">
-                <Input name="name" defaultValue={trip.name} required />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Start">
-                  <Input name="startDate" type="date" defaultValue={formatDate(trip.startDate)} required />
-                </Field>
-                <Field label="End">
-                  <Input name="endDate" type="date" defaultValue={formatDate(trip.endDate)} required />
-                </Field>
+          <dl className="grid gap-3 text-sm">
+            <div className="grid gap-0.5">
+              <dt className="text-muted-foreground">Dates</dt>
+              <dd>{formatDateRange(trip.startDate, trip.endDate)}</dd>
+            </div>
+            {trip.countries.length > 0 ? (
+              <div className="grid gap-1">
+                <dt className="text-muted-foreground">Countries</dt>
+                <dd className="flex flex-wrap items-center gap-2">
+                  <FlagStack codes={trip.countries} label={trip.countries.map(countryName).join(", ")} />
+                  <span>{trip.countries.map(countryName).join(", ")}</span>
+                </dd>
               </div>
-              <FieldGroup label="Countries">
-                <CountriesPicker defaultValue={trip.countries} />
-              </FieldGroup>
-              <Field label="Note">
-                <Textarea name="coverNote" defaultValue={trip.coverNote ?? ""} rows={3} />
-              </Field>
-            </ActionForm>
-          {membership.role === "ADMIN" ? (
-            <InlineAction
-              action={deleteTrip.bind(null, tripId)}
-              label="Delete trip"
-              variant="destructive"
-              confirmMessage={`Are you sure you want to delete "${trip.name}"?`}
-              fullWidth
-            />
-          ) : null}
+            ) : null}
+          </dl>
+          <div className="grid gap-2">
+            <FormDialog
+              title="Edit trip details"
+              icon={<Pencil />}
+              triggerLabel="Edit details"
+              triggerVariant="outline"
+              triggerClassName="w-full"
+            >
+              <ActionForm action={updateTrip.bind(null, tripId)} submitLabel="Save details">
+                <Field label="Name">
+                  <Input name="name" defaultValue={trip.name} required />
+                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Start">
+                    <Input name="startDate" type="date" defaultValue={formatDate(trip.startDate)} required />
+                  </Field>
+                  <Field label="End">
+                    <Input name="endDate" type="date" defaultValue={formatDate(trip.endDate)} required />
+                  </Field>
+                </div>
+                <FieldGroup label="Countries">
+                  <CountriesPicker defaultValue={trip.countries} />
+                </FieldGroup>
+                <Field label="Note">
+                  <Textarea name="coverNote" defaultValue={trip.coverNote ?? ""} rows={3} />
+                </Field>
+              </ActionForm>
+            </FormDialog>
+            {membership.role === "ADMIN" ? (
+              <InlineAction
+                action={deleteTrip.bind(null, tripId)}
+                label="Delete trip"
+                variant="destructive"
+                confirmMessage={`Are you sure you want to delete "${trip.name}"?`}
+                fullWidth
+              />
+            ) : null}
+          </div>
         </CardContent>
       </Card>
 
@@ -144,7 +197,13 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
         </CardHeader>
         <CardContent>
           {destinations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">None yet. Add them on the map.</p>
+            <p className="text-sm text-muted-foreground">
+              None yet.{" "}
+              <Link href={`/trips/${tripId}/map`} className="font-medium text-primary underline-offset-4 hover:underline">
+                Add the first one on the map
+              </Link>
+              .
+            </p>
           ) : (
             <ul className="grid gap-2 text-sm">
               {destinations.map((destination) => (
@@ -178,7 +237,7 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
           <CardDescription>Who still needs to pay whom, in {trip.baseCurrency}.</CardDescription>
         </CardHeader>
         <CardContent>
-          <BalanceSummary currency={trip.baseCurrency} people={people} balances={balances} />
+          <BalanceSummary currency={trip.baseCurrency} people={people} balances={balances} viewerId={membership.userId} />
         </CardContent>
       </Card>
 

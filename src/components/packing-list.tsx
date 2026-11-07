@@ -10,6 +10,7 @@ import { DeleteDialog } from "@/components/delete-dialog";
 import { CheckBox } from "@/components/checkbox";
 import { CheckList, Field, Select } from "@/components/fields";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -92,7 +93,7 @@ export type SharedTraveler = {
 };
 
 const menuItemClass =
-  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent";
+  "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
 
 const PACKING_DRAG = "application/x-packing-item";
 
@@ -164,11 +165,10 @@ export function PackingBoard({
         <SuggestClothes tripId={tripId} bags={bags} />
       </div>
       {bags.length === 0 ? (
-        <Card>
-          <CardContent className="text-sm text-muted-foreground">
-            Add a pack, bag, trolley, or piece of luggage, then fill it from your closet or with anything else you need.
-          </CardContent>
-        </Card>
+        <EmptyState icon={Luggage} title="No bags yet">
+          Add a pack, bag, trolley or suitcase, then fill it from your closet or with anything else you need. Suggest
+          clothes picks pieces for the forecast and your plans.
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
           {optimisticBags.map((bag) => (
@@ -332,8 +332,8 @@ function SharedRow({
             }}
           />
           {isPackingCategory(item.category) ? (
-            <span className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-full", CATEGORY_COLORS[item.category])}>
-              <PackingCategoryIcon category={item.category} className="size-3.5" />
+            <span className={cn("inline-flex size-7 shrink-0 items-center justify-center rounded-full", CATEGORY_COLORS[item.category])}>
+              <PackingCategoryIcon category={item.category} className="size-4" />
             </span>
           ) : null}
           <span className={cn("min-w-0 break-words", optimistic && "text-muted-foreground line-through")}>{item.name}</span>
@@ -618,7 +618,7 @@ function BagCard({
           <span>{bag.name}</span>
         </CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
-          <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", kindColor(bag.kind))}>
+          <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-sm font-medium", kindColor(bag.kind))}>
             {luggageLabel(bag.kind)}
           </span>
           <span>
@@ -662,11 +662,11 @@ function BagCard({
               <h3 className="flex items-center gap-2 text-sm font-medium">
                 <span
                   className={cn(
-                    "inline-flex size-6 items-center justify-center rounded-full",
+                    "inline-flex size-7 items-center justify-center rounded-full",
                     CATEGORY_COLORS[category],
                   )}
                 >
-                  <PackingCategoryIcon category={category} className="size-3.5" />
+                  <PackingCategoryIcon category={category} className="size-4" />
                 </span>
                 {CATEGORY_LABELS[category]}
               </h3>
@@ -854,11 +854,11 @@ function PackedCheck({ tripId, item }: { tripId: string; item: PackingListItem }
         }}
       />
       {isPackingCategory(item.category) ? (
-        <span className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-full", CATEGORY_COLORS[item.category])}>
+        <span className={cn("inline-flex size-7 shrink-0 items-center justify-center rounded-full", CATEGORY_COLORS[item.category])}>
           {item.slot ? (
-            <ClothingSlotIcon slot={item.slot} className="size-3.5" />
+            <ClothingSlotIcon slot={item.slot} className="size-4" />
           ) : (
-            <PackingCategoryIcon category={item.category} className="size-3.5" />
+            <PackingCategoryIcon category={item.category} className="size-4" />
           )}
         </span>
       ) : null}
@@ -988,7 +988,7 @@ function ItemMenu({ label, children }: { label: string; children: React.ReactNod
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
-          <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+          <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
             {children}
           </Menu.Popup>
         </Menu.Positioner>

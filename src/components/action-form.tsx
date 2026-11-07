@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { DeleteDialog } from "@/components/delete-dialog";
+import { useCloseFormDialog } from "@/components/form-dialog";
 import { Button } from "@/components/ui/button";
 
 type ActionState = { error?: string; ok?: boolean; token?: string; message?: string; devLink?: string } | null | undefined;
@@ -28,9 +29,13 @@ export function ActionForm({
     null,
   );
 
+  const closeDialog = useCloseFormDialog();
   useEffect(() => {
-    if (state?.ok) onSaved?.();
-  }, [state, onSaved]);
+    if (!state?.ok) return;
+    onSaved?.();
+    // Keep the dialog open when the result has something to show (a message or a link).
+    if (!state.message && !state.devLink && !state.token) closeDialog?.();
+  }, [state, onSaved, closeDialog]);
 
   return (
     <form action={formAction} className={className ?? "grid gap-3"}>
@@ -98,7 +103,7 @@ export function InlineAction({
 }: {
   action: () => Promise<{ error?: string } | void>;
   label: string;
-  variant?: "ghost" | "destructive" | "outline" | "secondary";
+  variant?: "default" | "ghost" | "destructive" | "outline" | "secondary";
   confirmMessage?: string;
   fullWidthOnMobile?: boolean;
   fullWidth?: boolean;

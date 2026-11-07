@@ -497,6 +497,7 @@ model PersonalDocument {
   kind        String
   storageKey     String
   mimeType       String
+  fullName       String?
   documentNumber String?
   issuedOn       DateTime?                @db.Date
   expiresOn      DateTime?                @db.Date

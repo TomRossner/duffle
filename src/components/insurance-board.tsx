@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/empty-state";
 import { useState, type ComponentProps } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
@@ -19,7 +20,7 @@ import { INSURANCE_TYPES } from "@/lib/constants";
 import { formatMoney } from "@/lib/utils";
 
 const menuItemClass =
-  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent";
+  "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
 
 type Member = { id: string; name: string };
 
@@ -289,10 +290,10 @@ export function InsuranceBoard({
         defaults={{ userId: defaultTravelerId, startDate: defaultStart, endDate: defaultEnd }}
       />
       {policies.length === 0 ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Shield className="size-4" />
-          No policies yet.
-        </p>
+        <EmptyState icon={Shield} title="No policies yet">
+          Add each traveler&apos;s travel insurance. Upload the policy and Duffle fills in the insurer, dates and policy
+          number, and the cost is added as a planned expense.
+        </EmptyState>
       ) : (
         <div className="grid gap-4">
           {policies.map((policy) => (
@@ -342,7 +343,7 @@ function PolicyCard({
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
-                <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+                <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
                   <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
                     <Pencil className="size-3.5" />
                     Edit

@@ -1,28 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { FormDialog } from "@/components/form-dialog";
 
-export function ActivityComposer({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-
-  if (!open) {
-    return (
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-        Add activity
-      </Button>
-    );
-  }
-
+export function ActivityComposer({ destination, children }: { destination: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-3 rounded-xl bg-muted/60 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium">New activity</p>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
-          Close
-        </Button>
-      </div>
+    <FormDialog
+      title={`Add an activity in ${destination}`}
+      triggerLabel="Add activity"
+      triggerIcon={<Plus />}
+      triggerVariant="outline"
+      triggerClassName="w-full sm:w-fit"
+    >
       {children}
-    </div>
+    </FormDialog>
   );
 }

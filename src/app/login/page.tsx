@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
+import { AuthLink, AuthNotice, AuthShell } from "@/components/auth-shell";
 import { Field } from "@/components/fields";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { GoogleSignIn } from "@/components/google-sign-in";
 import { login } from "@/lib/actions/auth";
 
 function googleErrorMessage(error?: string) {
@@ -33,40 +32,41 @@ export default async function LoginPage({
   const notice = noticeMessage(params.notice);
 
   return (
-    <main className="mx-auto flex min-h-full w-full max-w-md flex-col items-center justify-center gap-6 px-4 pt-6 pb-16 sm:pt-10">
-      <img src="/duffle%20logo.webp" alt="Duffle" className="h-24 w-auto" />
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>Use Google, or the email and password for your Duffle account.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <GoogleSignIn callbackUrl={callbackUrl} />
-          {googleError ? <p className="mt-3 text-sm text-destructive">{googleError}</p> : null}
-          {notice ? <p className="mt-3 text-sm">{notice}</p> : null}
-          <p className="my-4 text-center text-xs text-muted-foreground">or</p>
-          <ActionForm action={login} submitLabel="Sign in">
-            <input type="hidden" name="callbackUrl" value={callbackUrl} />
-            <Field label="Email">
-              <Input name="email" type="email" autoComplete="email" required />
-            </Field>
-            <Field label="Password">
-              <Input name="password" type="password" autoComplete="current-password" required />
-            </Field>
-          </ActionForm>
-          <p className="mt-4 text-sm text-muted-foreground">
-            <Link href="/forgot-password" className="text-foreground underline">
-              Forgot password
-            </Link>
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            No account yet?{" "}
-            <Link href="/register" className="text-foreground underline">
-              Create one
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </main>
+    <AuthShell
+      title="Welcome back"
+      description="Sign in to plan, pack and split costs with your travel group."
+      callbackUrl={callbackUrl}
+      notices={
+        googleError || notice ? (
+          <div className="grid gap-2">
+            {googleError ? <AuthNotice tone="error">{googleError}</AuthNotice> : null}
+            {notice ? <AuthNotice>{notice}</AuthNotice> : null}
+          </div>
+        ) : null
+      }
+      footer={
+        <>
+          No account yet? <AuthLink href="/register">Create one</AuthLink>
+        </>
+      }
+    >
+      <ActionForm action={login} submitLabel="Sign in" className="grid gap-4">
+        <input type="hidden" name="callbackUrl" value={callbackUrl} />
+        <Field label="Email">
+          <Input name="email" type="email" autoComplete="email" placeholder="name@example.com" required />
+        </Field>
+        <div className="grid gap-2">
+          <Field label="Password">
+            <Input name="password" type="password" autoComplete="current-password" required />
+          </Field>
+          <Link
+            href="/forgot-password"
+            className="justify-self-end text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
+      </ActionForm>
+    </AuthShell>
   );
 }

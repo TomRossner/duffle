@@ -2,9 +2,10 @@
 
 import { Menu } from "@base-ui/react/menu";
 import { EllipsisVertical, Pencil, Trash2 } from "lucide-react";
-import { useActionState, useCallback, useEffect, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { Field } from "@/components/fields";
+import { FormDialog, useCloseFormDialog } from "@/components/form-dialog";
 import { PlaceSearch } from "@/components/place-search";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,7 @@ import { updateDestination } from "@/lib/actions/destinations";
 import type { PlaceResult } from "@/lib/places";
 
 const menuItemClass =
-  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent";
+  "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
 
 type DestinationDetails = {
   id: string;
@@ -49,7 +50,6 @@ export function DestinationCard({
   children: React.ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
-  const close = useCallback(() => setEditing(false), []);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -84,12 +84,15 @@ export function DestinationCard({
         />
       </CardHeader>
       <CardContent className="grid gap-4">
-        {editing ? (
-          <EditDestination tripId={tripId} destination={destination} dateHint={dateHint} onDone={close} />
-        ) : note ? (
-          <p className="text-sm text-muted-foreground">{note}</p>
-        ) : null}
+        {note ? <p className="text-sm text-muted-foreground">{note}</p> : null}
         {children}
+        <EditDestination
+          tripId={tripId}
+          destination={destination}
+          dateHint={dateHint}
+          open={editing}
+          onOpenChange={setEditing}
+        />
       </CardContent>
     </Card>
   );
@@ -110,7 +113,6 @@ export function DestinationRow({
   remove: () => Promise<{ error?: string } | void>;
 }) {
   const [editing, setEditing] = useState(false);
-  const close = useCallback(() => setEditing(false), []);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -132,9 +134,13 @@ export function DestinationRow({
           lng: destination.lng,
         }}
       />
-      {editing ? (
-        <EditDestination tripId={tripId} destination={destination} dateHint={dateHint} onDone={close} />
-      ) : null}
+      <EditDestination
+        tripId={tripId}
+        destination={destination}
+        dateHint={dateHint}
+        open={editing}
+        onOpenChange={setEditing}
+      />
     </li>
   );
 }
@@ -164,7 +170,7 @@ function DestinationMenu({
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
-            <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+            <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
               <Menu.Item className={menuItemClass} onClick={onEdit}>
                 <Pencil className="size-3.5" />
                 Edit
@@ -207,13 +213,32 @@ function EditDestination({
   tripId,
   destination,
   dateHint,
-  onDone,
+  open,
+  onOpenChange,
 }: {
   tripId: string;
   destination: DestinationDetails;
   dateHint: string;
-  onDone: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
+  return (
+    <FormDialog title={`Edit ${destination.name}`} open={open} onOpenChange={onOpenChange}>
+      <EditDestinationForm tripId={tripId} destination={destination} dateHint={dateHint} />
+    </FormDialog>
+  );
+}
+
+function EditDestinationForm({
+  tripId,
+  destination,
+  dateHint,
+}: {
+  tripId: string;
+  destination: DestinationDetails;
+  dateHint: string;
+}) {
+  const closeDialog = useCloseFormDialog();
   const [place, setPlace] = useState<PlaceResult | null>(null);
   const [state, formAction, pending] = useActionState(updateDestination.bind(null, tripId, destination.id), null);
   const address = place ? place.address : (destination.address ?? "");
@@ -221,11 +246,11 @@ function EditDestination({
   const placeDetail = place?.address || destination.address;
 
   useEffect(() => {
-    if (state?.ok) onDone();
-  }, [state, onDone]);
+    if (state?.ok) closeDialog?.();
+  }, [state, closeDialog]);
 
   return (
-    <form action={formAction} className="grid gap-3 rounded-xl bg-muted/60 p-3">
+    <form action={formAction} className="grid gap-3">
       <div className="grid gap-1.5">
         <span className="text-sm leading-none font-medium">Place</span>
         <PlaceSearch onPick={setPlace} />
@@ -254,14 +279,9 @@ function EditDestination({
         <Textarea name="notes" rows={2} defaultValue={destination.notes ?? ""} placeholder="Optional" />
       </Field>
       {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving..." : "Save"}
-        </Button>
-        <Button type="button" variant="outline" onClick={onDone}>
-          Cancel
-        </Button>
-      </div>
+      <Button type="submit" disabled={pending}>
+        {pending ? "Saving..." : "Save"}
+      </Button>
     </form>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { IdCard, LogIn, Luggage, MapPinned, Menu, UserPlus, UserRound, X } from "lucide-react";
+import { CircleHelp, IdCard, LogIn, Luggage, MapPinned, Menu, UserPlus, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,7 @@ const links = [
   { href: "/closet", label: "Closet", icon: Luggage },
   { href: "/documents", label: "Documents", icon: IdCard },
   { href: "/profile", label: "Profile", icon: UserRound },
+  { href: "/how-it-works", label: "How it works", icon: CircleHelp },
 ];
 
 const itemClass = "flex items-center gap-4 rounded-xl px-5 py-4 text-lg hover:bg-muted [&_svg]:size-6";

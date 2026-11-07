@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { CalendarDays } from "lucide-react";
 import { AirlineLogo } from "@/components/airline-logo";
+import { EmptyState } from "@/components/empty-state";
 import { PlaceLinks } from "@/components/place-links";
 import { ActivityEditor, PlanEditor, ScheduleItemMenu } from "@/components/day-editor";
 import { MemberTag } from "@/components/member-tag";
@@ -93,6 +94,13 @@ export default async function SchedulePage({ params }: { params: Promise<{ tripI
         tripDays={tripDays}
         flightLookup={flightLookup}
       />
+
+      {flights.length + stays.length + items.length + destinations.reduce((sum, destination) => sum + destination.activities.length, 0) === 0 ? (
+        <EmptyState icon={CalendarDays} title="Nothing on the schedule yet" compact>
+          Use Add a plan to put flights, tours, dinners and anything else on a day. Type a flight number to fill in
+          its details. Your stays, and destination activities with a date, show up here too.
+        </EmptyState>
+      ) : null}
 
       <ScheduleBoard
         initialLayout={initialLayout}

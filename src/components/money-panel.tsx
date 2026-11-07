@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { HandCoins, ReceiptText } from "lucide-react";
 import { ExpenseForm } from "@/components/expense-form";
+import { FormDialog } from "@/components/form-dialog";
 import { SettlementForm } from "@/components/settlement-form";
-import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Member = { id: string; name: string; imageKey?: string | null };
 
@@ -28,36 +27,10 @@ export function ExpenseFormToggle({
   currency: string;
   submitLabel: string;
 }) {
-  const [open, setOpen] = useState(false);
-  if (!open) {
-    return (
-      <Button type="button" className="sm:w-fit" onClick={() => setOpen(true)}>
-        {label}
-      </Button>
-    );
-  }
-
   return (
-    <Card className="col-span-2 w-full">
-      <CardHeader>
-        <CardTitle>{label}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-        <CardAction>
-          <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
-            Close
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <ExpenseForm
-          action={action}
-          members={members}
-          currency={currency}
-          submitLabel={submitLabel}
-          onSaved={() => setOpen(false)}
-        />
-      </CardContent>
-    </Card>
+    <FormDialog title={label} description={description} icon={<ReceiptText />} triggerClassName="w-full sm:w-fit" wide>
+      <ExpenseForm action={action} members={members} currency={currency} submitLabel={submitLabel} />
+    </FormDialog>
   );
 }
 
@@ -70,29 +43,15 @@ export function SettlementFormToggle({
   members: { id: string; name: string }[];
   currency: string;
 }) {
-  const [open, setOpen] = useState(false);
-  if (!open) {
-    return (
-      <Button type="button" className="sm:w-fit" onClick={() => setOpen(true)}>
-        Record a payment
-      </Button>
-    );
-  }
-
   return (
-    <Card className="col-span-2 w-full">
-      <CardHeader>
-        <CardTitle>Record a payment</CardTitle>
-        <CardDescription>Someone pays someone else to settle up.</CardDescription>
-        <CardAction>
-          <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
-            Close
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <SettlementForm tripId={tripId} members={members} currency={currency} onSaved={() => setOpen(false)} />
-      </CardContent>
-    </Card>
+    <FormDialog
+      title="Record a payment"
+      description="Someone pays someone else to settle up."
+      icon={<HandCoins />}
+      triggerVariant="secondary"
+      triggerClassName="w-full sm:w-fit"
+    >
+      <SettlementForm tripId={tripId} members={members} currency={currency} />
+    </FormDialog>
   );
 }

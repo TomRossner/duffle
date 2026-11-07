@@ -1,12 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { LinkIcon } from "lucide-react";
 import { InlineAction } from "@/components/action-form";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
+import { InviteShell, TripInviteCard } from "@/components/trip-invite-card";
 import { acceptJoin } from "@/lib/actions/trips";
-import { formatDateLong } from "@/lib/dates";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { acceptedMembers } from "@/lib/trip-access";
 
 export default async function JoinPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -15,17 +15,23 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     redirect(`/login?callbackUrl=/join/${token}`);
   }
 
-  const trip = await prisma.trip.findUnique({ where: { joinToken: token } });
+  const trip = await prisma.trip.findUnique({
+    where: { joinToken: token },
+    include: { owner: { select: { name: true } } },
+  });
   if (!trip) {
     return (
-      <main className="mx-auto flex min-h-full w-full max-w-lg items-center px-4 py-16">
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Link unavailable</CardTitle>
-            <CardDescription>This join link does not match a trip.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <InviteShell>
+        <CardContent className="grid justify-items-center gap-2 py-4 text-center">
+          <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <LinkIcon className="size-5" />
+          </span>
+          <h1 className="text-lg font-semibold">Link unavailable</h1>
+          <p className="text-sm text-muted-foreground">
+            This join link does not match a trip. Ask a traveler on the trip to share it again.
+          </p>
+        </CardContent>
+      </InviteShell>
     );
   }
 
@@ -34,25 +40,24 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   });
   if (membership?.status === "ACCEPTED") redirect(`/trips/${trip.id}`);
 
+  const members = await acceptedMembers(trip.id);
+
   return (
-    <main className="mx-auto flex min-h-full w-full max-w-lg items-center px-4 py-16">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>{trip.name}</CardTitle>
-          <CardDescription>
-            {formatDateLong(trip.startDate)} – {formatDateLong(trip.endDate)}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <p className="text-sm text-muted-foreground">Join as a traveler. You can edit the plan with everyone else.</p>
-          <div className="flex gap-2">
-            <InlineAction action={acceptJoin.bind(null, token)} label="Join trip" />
-            <Button nativeButton={false} variant="outline" render={<Link href="/trips" />}>
-              Not now
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </main>
+    <TripInviteCard
+      eyebrow={`${trip.owner.name} invited you to`}
+      trip={trip}
+      travelers={members.map((member) => ({
+        userId: member.userId,
+        name: member.user.name,
+        imageKey: member.user.imageKey,
+      }))}
+    >
+      <div className="grid gap-2">
+        <p className="text-center text-sm text-muted-foreground">
+          Join as a traveler to plan, pack and split costs with everyone.
+        </p>
+        <InlineAction action={acceptJoin.bind(null, token)} label="Join trip" variant="default" fullWidth />
+      </div>
+    </TripInviteCard>
   );
 }

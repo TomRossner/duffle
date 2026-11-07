@@ -25,7 +25,7 @@ import { PERSONAL_DOCUMENT_KINDS, personalDocumentLabel } from "@/lib/constants"
 import { formatDateShort, parseDate } from "@/lib/dates";
 
 const menuItemClass =
-  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent";
+  "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
 
 export type PersonalDocumentItem = {
   id: string;
@@ -33,6 +33,7 @@ export type PersonalDocumentItem = {
   kind: string;
   storageKey: string;
   mimeType: string;
+  fullName: string | null;
   documentNumber: string | null;
   issuedOn: string | null;
   expiresOn: string | null;
@@ -40,6 +41,7 @@ export type PersonalDocumentItem = {
 };
 
 type DocumentFacts = {
+  fullName: string | null;
   documentNumber: string | null;
   issuedOn: string | null;
   expiresOn: string | null;
@@ -129,12 +131,14 @@ async function downloadDocument(src: string, filename: string) {
 function DocumentFields({
   title = "",
   kind = "PASSPORT",
+  fullName = "",
   documentNumber = "",
   issuedOn = "",
   expiresOn = "",
 }: {
   title?: string;
   kind?: string;
+  fullName?: string;
   documentNumber?: string;
   issuedOn?: string;
   expiresOn?: string;
@@ -152,6 +156,9 @@ function DocumentFields({
             </option>
           ))}
         </Select>
+      </Field>
+      <Field label="Full name">
+        <Input name="fullName" defaultValue={fullName} maxLength={120} autoComplete="off" placeholder="As printed on the document" />
       </Field>
       <Field label="Number">
         <Input name="documentNumber" defaultValue={documentNumber} maxLength={40} autoComplete="off" />
@@ -173,7 +180,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   return (
     <button
       type="button"
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="inline-flex size-9 shrink-0 items-center sm:size-6 justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
       aria-label={copied ? "Copied" : label}
       onClick={() => {
         void navigator.clipboard.writeText(value).then(() => {
@@ -191,6 +198,7 @@ function DocumentDetails({ document }: { document: DocumentFacts }) {
   const issued = document.issuedOn ? parseDate(document.issuedOn) : null;
   const expires = document.expiresOn ? parseDate(document.expiresOn) : null;
   const rows = [
+    document.fullName ? { label: "Name", value: document.fullName, copy: document.fullName } : null,
     document.documentNumber
       ? { label: "Number", value: document.documentNumber, copy: document.documentNumber }
       : null,
@@ -231,7 +239,7 @@ export function PersonalDocumentAddButton() {
                 <div>
                   <Dialog.Title className="text-lg font-medium">Add a document</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    A passport, ID, license, or visa. Number and dates are optional, and stay private until you attach
+                    A passport, ID, license, or visa. Name, number and dates are optional, and stay private until you attach
                     this document to a trip.
                   </Dialog.Description>
                 </div>
@@ -291,7 +299,7 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
-                <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+                <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
                   <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
                     <Pencil className="size-3.5" />
                     Edit
@@ -351,6 +359,7 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
                 <DocumentFields
                   title={document.title}
                   kind={document.kind}
+                  fullName={document.fullName ?? ""}
                   documentNumber={document.documentNumber ?? ""}
                   issuedOn={document.issuedOn ?? ""}
                   expiresOn={document.expiresOn ?? ""}
@@ -389,6 +398,7 @@ export function AttachedPersonalDocumentCard({
     kind: string;
     storageKey: string;
     mimeType: string;
+    fullName: string | null;
     documentNumber: string | null;
     issuedOn: string | null;
     expiresOn: string | null;
@@ -434,7 +444,7 @@ export function AttachedPersonalDocumentCard({
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
-                <Menu.Popup className="min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+                <Menu.Popup className="min-w-52 sm:min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
                   <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer className="size-3.5" />
                     Print

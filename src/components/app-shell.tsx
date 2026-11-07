@@ -37,7 +37,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           />
           <Link href="/trips" aria-label="Duffle" className="inline-flex shrink-0 items-center gap-2">
             <img src="/duffle-bag.webp" alt="" className="h-8 w-auto -translate-y-0.5 sm:h-10 sm:translate-y-0" />
-            <span className="text-xl font-bold tracking-tight text-[#234570] sm:hidden">Duffle</span>
+            <span className="text-xl font-bold tracking-tight text-[#234570] sm:hidden md:inline lg:text-2xl">Duffle</span>
           </Link>
           <nav className="hidden items-center gap-4 text-sm sm:flex">
             <Link href="/trips" className="inline-flex items-center gap-1.5 hover:text-primary">
@@ -56,8 +56,13 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <NotificationBell />
             <Link href="/profile" className="inline-flex min-w-0 items-center gap-2 text-sm hover:text-primary">
-              <Avatar name={user.name} userId={user.id} imageKey={user.imageKey} />
-              <span className="hidden max-w-40 truncate sm:inline">{user.name}</span>
+              <Avatar
+                name={user.name}
+                userId={user.id}
+                imageKey={user.imageKey}
+                className="size-11 text-sm ring-1 ring-foreground/10 sm:size-9 sm:text-xs"
+              />
+              <span className="hidden max-w-40 truncate sm:inline md:max-w-28 lg:max-w-40">{user.name}</span>
             </Link>
             <div className="hidden sm:block">
               <SignOutButton />

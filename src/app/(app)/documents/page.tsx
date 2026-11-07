@@ -39,6 +39,7 @@ export default async function DocumentsPage() {
                 kind: document.kind,
                 storageKey: document.storageKey,
                 mimeType: document.mimeType,
+                fullName: document.fullName,
                 documentNumber: document.documentNumber,
                 issuedOn: document.issuedOn ? formatDate(document.issuedOn) : null,
                 expiresOn: document.expiresOn ? formatDate(document.expiresOn) : null,

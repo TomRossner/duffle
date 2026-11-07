@@ -35,7 +35,7 @@ export function CurrencyPicker({
     <Select.Root name={name} defaultValue={defaultValue}>
       <Select.Trigger
         className={cn(
-          "flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-2 text-sm outline-none",
+          "flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-base outline-none sm:h-8 sm:px-2 sm:text-sm",
           "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           "data-popup-open:border-ring data-popup-open:ring-3 data-popup-open:ring-ring/50",
         )}
@@ -54,7 +54,7 @@ export function CurrencyPicker({
                   key={code}
                   value={code}
                   label={`${code} ${CURRENCY_NAMES[code]}`}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent data-selected:bg-muted"
+                  className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm outline-none data-highlighted:bg-accent data-selected:bg-muted"
                 >
                   <CurrencyRow code={code} showName />
                   <Select.ItemIndicator className="ml-auto text-foreground">

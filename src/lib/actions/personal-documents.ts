@@ -20,10 +20,12 @@ function readOptionalDate(value: FormDataEntryValue | null, label: string) {
 function readDetails(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "OTHER");
+  const fullName = String(formData.get("fullName") ?? "").replace(/\s+/g, " ").trim();
   const documentNumber = String(formData.get("documentNumber") ?? "").trim();
   if (!title) return { error: "Name the document." } as const;
   if (title.length > 80) return { error: "Name must be 80 characters or fewer." } as const;
   if (!isPersonalDocumentKind(kind)) return { error: "Choose a document type." } as const;
+  if (fullName.length > 120) return { error: "Full name must be 120 characters or fewer." } as const;
   if (documentNumber.length > 40) return { error: "Document number must be 40 characters or fewer." } as const;
   const issued = readOptionalDate(formData.get("issuedOn"), "Issue date");
   if (issued.error) return { error: issued.error } as const;
@@ -35,13 +37,14 @@ function readDetails(formData: FormData) {
   return {
     title,
     kind,
+    fullName: fullName || null,
     documentNumber: documentNumber || null,
     issuedOn: issued.date,
     expiresOn: expires.date,
   } as const;
 }
 
-/** Read the number and dates from an uploaded document so the form can be filled in before saving. */
+/** Read the holder's name, number and dates from an uploaded document so the form can be filled in before saving. */
 export async function scanPersonalDocument(
   formData: FormData,
 ): Promise<{ status: "read"; facts: DocumentFacts } | { status: "unavailable" } | { status: "error"; error: string }> {
@@ -70,6 +73,7 @@ export async function createPersonalDocument(_: unknown, formData: FormData) {
       userId: user.id,
       title: details.title,
       kind: details.kind,
+      fullName: details.fullName,
       documentNumber: details.documentNumber,
       issuedOn: details.issuedOn,
       expiresOn: details.expiresOn,
@@ -101,6 +105,7 @@ export async function updatePersonalDocument(documentId: string, _: unknown, for
     data: {
       title: details.title,
       kind: details.kind,
+      fullName: details.fullName,
       documentNumber: details.documentNumber,
       issuedOn: details.issuedOn,
       expiresOn: details.expiresOn,

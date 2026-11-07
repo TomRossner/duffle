@@ -1,21 +1,22 @@
 "use client";
 
 import { Menu } from "@base-ui/react/menu";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { BedDouble, EllipsisVertical, Pencil, Trash2 } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import { CostFields, Field, Select } from "@/components/fields";
 import { PlaceLinks } from "@/components/place-links";
 import { DateAndTime, StayEditor, type StayDraft } from "@/components/plan-form";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createStay } from "@/lib/actions/schedule";
 
 const menuItemClass =
-  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent";
+  "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
 
 export function StayCard({
   tripId,
@@ -33,7 +34,6 @@ export function StayCard({
   remove: () => Promise<{ error?: string } | void>;
 }) {
   const [editing, setEditing] = useState(false);
-  const close = useCallback(() => setEditing(false), []);
   const [confirming, setConfirming] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function StayCard({
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
-                <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+                <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
                   <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
                     <Pencil className="size-3.5" />
                     Edit
@@ -98,20 +98,12 @@ export function StayCard({
         {error ? <p className="col-span-full text-sm text-destructive">{error}</p> : null}
       </CardHeader>
       <CardContent className="grid gap-2 text-sm">
-        {editing ? (
-          <>
-            <StayEditor tripId={tripId} stay={stay} destinations={destinations} onSaved={close} />
-            <Button type="button" variant="outline" className="w-full sm:w-fit" onClick={close}>
-              Cancel
-            </Button>
-          </>
-        ) : (
-          <>
-            {stay.address ? <p>{stay.address}</p> : null}
-            <PlaceLinks place={{ name: stay.name, address: stay.address, lat: details.lat, lng: details.lng }} />
-            {stay.notes ? <p className="text-muted-foreground">{stay.notes}</p> : null}
-          </>
-        )}
+        {stay.address ? <p>{stay.address}</p> : null}
+        <PlaceLinks place={{ name: stay.name, address: stay.address, lat: details.lat, lng: details.lng }} />
+        {stay.notes ? <p className="text-muted-foreground">{stay.notes}</p> : null}
+        <FormDialog title={`Edit ${stay.name}`} icon={<BedDouble />} open={editing} onOpenChange={setEditing} wide>
+          <StayEditor tripId={tripId} stay={stay} destinations={destinations} />
+        </FormDialog>
       </CardContent>
     </Card>
   );
@@ -126,34 +118,15 @@ export function StayFormToggle({
   destinations: { id: string; name: string }[];
   currency: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
-
-  if (!open) {
-    return (
-      <Button type="button" className="w-full sm:w-fit" onClick={() => setOpen(true)}>
-        <BedDouble />
-        Add a stay
-      </Button>
-    );
-  }
-
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BedDouble className="size-5" />
-          Add a stay
-        </CardTitle>
-        <CardDescription>Hotels and other places you will sleep. Check-in and check-out also show on the schedule.</CardDescription>
-        <CardAction>
-          <Button type="button" variant="outline" size="sm" onClick={close}>
-            Close
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <ActionForm action={createStay.bind(null, tripId)} submitLabel="Add stay" onSaved={close}>
+    <FormDialog
+      title="Add a stay"
+      description="Hotels and other places you will sleep. Check-in and check-out also show on the schedule."
+      icon={<BedDouble />}
+      triggerClassName="w-full sm:w-fit"
+      wide
+    >
+        <ActionForm action={createStay.bind(null, tripId)} submitLabel="Add stay">
           <Field label="Name">
             <Input name="name" required />
           </Field>
@@ -186,7 +159,6 @@ export function StayFormToggle({
           </Field>
           <CostFields currency={currency} />
         </ActionForm>
-      </CardContent>
-    </Card>
+    </FormDialog>
   );
 }

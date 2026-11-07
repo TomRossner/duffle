@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { MapPinned, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { PendingInvites } from "@/components/pending-invites";
+import { ScanQrButton } from "@/components/scan-qr-button";
+import { WelcomeCard } from "@/components/welcome-card";
 import { FlagStack } from "@/components/country-flag";
 import { Badge } from "@/components/ui/badge";
 import { memberColor } from "@/lib/member-color";
@@ -30,24 +32,24 @@ export default async function TripsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Trips</h1>
-          <p className="text-sm text-muted-foreground">Trips you created or joined.</p>
+          <p className="text-sm text-muted-foreground">
+            Trips you created or joined.{" "}
+            <Link href="/how-it-works" className="font-medium text-primary underline-offset-4 hover:underline">
+              How Duffle works
+            </Link>
+          </p>
         </div>
-        <Button nativeButton={false} render={<Link href="/trips/new" />}>
-          <Plus className="size-4" />
-          New trip
-        </Button>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <ScanQrButton />
+          <Button nativeButton={false} render={<Link href="/trips/new" />}>
+            <Plus className="size-4" />
+            New trip
+          </Button>
+        </div>
       </div>
       <PendingInvites userId={user.id} />
       {memberships.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPinned className="size-5" />
-              No trips yet
-            </CardTitle>
-            <CardDescription>Create one and invite the people who are going.</CardDescription>
-          </CardHeader>
-        </Card>
+        <WelcomeCard name={user.name} />
       ) : (
         <div className="grid gap-3">
           {memberships.map((membership) => {
@@ -68,7 +70,8 @@ export default async function TripsPage() {
                   </CardTitle>
                   <CardDescription>
                     {formatDateRange(membership.trip.startDate, membership.trip.endDate)} ·{" "}
-                    {membership.trip._count.members} travelers · {membership.trip.baseCurrency}
+                    {membership.trip._count.members} {membership.trip._count.members === 1 ? "traveler" : "travelers"} ·{" "}
+                    {membership.trip.baseCurrency}
                   </CardDescription>
                 </CardHeader>
                 {membership.trip.coverNote ? (

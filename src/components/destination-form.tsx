@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { PlaceSearch } from "@/components/place-search";
 import { Field } from "@/components/fields";
+import { useCloseFormDialog } from "@/components/form-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +36,10 @@ export function DestinationForm({
     return result;
   }, null);
   const usingPlace = place !== null && !manual;
+  const closeDialog = useCloseFormDialog();
+  useEffect(() => {
+    if (state?.ok) closeDialog?.();
+  }, [state, closeDialog]);
 
   return (
     <form action={formAction} className="grid gap-3">

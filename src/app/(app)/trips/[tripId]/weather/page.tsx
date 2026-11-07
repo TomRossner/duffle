@@ -1,7 +1,9 @@
-import { CloudRain, CloudSun, Wind } from "lucide-react";
+import Link from "next/link";
+import { CloudRain, CloudSun, MapPin, Wind } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { RefreshWeather } from "@/components/refresh-weather";
 import { weatherLook } from "@/components/weather-mark";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { formatDateLong, formatDateRange } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
@@ -26,15 +28,19 @@ export default async function WeatherPage({ params }: { params: Promise<{ tripId
         <RefreshWeather tripId={tripId} />
       </div>
       {destinations.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CloudSun className="size-5" />
-              No destinations
-            </CardTitle>
-            <CardDescription>Add a place on the map, then load the forecast.</CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          icon={CloudSun}
+          title="No forecast yet"
+          action={
+            <Button nativeButton={false} render={<Link href={`/trips/${tripId}/map`} />}>
+              <MapPin />
+              Add a destination
+            </Button>
+          }
+        >
+          The forecast follows your destinations. Add the places you&apos;re going on the map, with their dates, and
+          their daily weather shows up here.
+        </EmptyState>
       ) : (
         destinations.map((destination) => {
           const first = destination.weatherDays[0];
@@ -48,7 +54,9 @@ export default async function WeatherPage({ params }: { params: Promise<{ tripId
                 </p>
               </div>
               {destination.weatherDays.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No forecast stored yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  No forecast loaded yet. Use the refresh button above. Forecasts reach about two weeks ahead.
+                </p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {destination.weatherDays.map((day) => {

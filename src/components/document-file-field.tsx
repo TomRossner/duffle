@@ -31,12 +31,13 @@ export type FileReader = {
 export const personalDocumentReader: FileReader = {
   read: scanPersonalDocument,
   fields: [
+    { name: "fullName", label: "name" },
     { name: "documentNumber", label: "number" },
     { name: "issuedOn", label: "issue date" },
     { name: "expiresOn", label: "expiry date" },
   ],
-  hint: "The number and dates are filled in for you.",
-  nothingFound: "Couldn't find a number or dates on this document. Fill them in yourself.",
+  hint: "The name, number and dates are filled in for you.",
+  nothingFound: "Couldn't find a name, number or dates on this document. Fill them in yourself.",
 };
 
 type FillTarget = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;

@@ -86,12 +86,12 @@ export function ExpenseCategoryTag({ category, className }: { category: string; 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-medium",
         group?.className ?? "bg-slate-200 text-slate-900",
         className,
       )}
     >
-      <Icon className="size-3.5" aria-hidden />
+      <Icon className="size-4" aria-hidden />
       {label}
     </span>
   );
@@ -121,7 +121,7 @@ export function ExpenseCategoryPicker({ defaultValue = "OTHER" }: { defaultValue
             key={item.id}
             type="button"
             className={cn(
-              "cursor-pointer rounded-full px-2.5 py-1 text-xs font-medium",
+              "cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium",
               item.id === groupId ? item.className : "bg-muted text-muted-foreground",
             )}
             onClick={() => chooseGroup(item.id)}

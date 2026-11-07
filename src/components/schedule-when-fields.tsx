@@ -113,7 +113,7 @@ export function ScheduleWhenFields({
             <span className="flex gap-1">
               <button
                 type="button"
-                className="rounded-md px-2 py-0.5 text-xs text-primary hover:bg-background"
+                className="rounded-md px-3 py-1.5 text-sm text-primary sm:px-2 sm:py-0.5 sm:text-xs hover:bg-background"
                 onClick={() => setRepeat(new Set(otherDays))}
               >
                 Every day
@@ -121,7 +121,7 @@ export function ScheduleWhenFields({
               {selected.length > 0 ? (
                 <button
                   type="button"
-                  className="rounded-md px-2 py-0.5 text-xs text-muted-foreground hover:bg-background"
+                  className="rounded-md px-3 py-1.5 text-sm text-muted-foreground sm:px-2 sm:py-0.5 sm:text-xs hover:bg-background"
                   onClick={() => setRepeat(new Set())}
                 >
                   Clear

@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { CircleHelp } from "lucide-react";
 import { AccountMenu } from "@/components/account-menu";
 import { Avatar } from "@/components/avatar";
 import { CountryFlag, FlagStack } from "@/components/country-flag";
 import { PendingInvites } from "@/components/pending-invites";
 import { ProfileEditor } from "@/components/profile-editor";
+import { SignOutButton } from "@/components/sign-out-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { countryName, formatPhone, genderLabel } from "@/lib/account-details";
 import { formatDate, formatDateRange, formatDateText } from "@/lib/dates";
@@ -168,6 +171,19 @@ export default async function ProfilePage() {
           )}
         </CardContent>
       </Card>
+
+      <div className="grid gap-2 sm:flex sm:items-center">
+        <Button
+          nativeButton={false}
+          variant="outline"
+          className="h-11 w-full gap-2 px-4 text-base sm:h-9 sm:w-auto sm:text-sm"
+          render={<Link href="/how-it-works" />}
+        >
+          <CircleHelp />
+          How Duffle works
+        </Button>
+        <SignOutButton label="Log out" className="h-11 w-full px-4 text-base sm:h-9 sm:w-auto sm:text-sm" />
+      </div>
     </div>
   );
 }

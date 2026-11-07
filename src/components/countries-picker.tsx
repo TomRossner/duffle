@@ -32,7 +32,7 @@ export function CountriesPicker({ name = "countries", defaultValue = [] }: { nam
       ))}
       <Combobox.InputGroup
         className={cn(
-          "flex min-h-8 w-full cursor-text flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent px-1.5 py-1 text-sm",
+          "flex min-h-11 w-full cursor-text flex-wrap items-center gap-1 rounded-lg border border-input bg-transparent px-1.5 py-1 text-base sm:min-h-8 sm:text-sm",
           "focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
         )}
       >
@@ -77,7 +77,7 @@ export function CountriesPicker({ name = "countries", defaultValue = [] }: { nam
                 <Combobox.Item
                   key={country.value}
                   value={country}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none select-none data-highlighted:bg-accent data-selected:font-medium"
+                  className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm outline-none select-none data-highlighted:bg-accent data-selected:font-medium"
                 >
                   <CountryFlag code={country.value} />
                   <span className="min-w-0 flex-1 truncate">{country.label}</span>

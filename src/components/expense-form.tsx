@@ -3,8 +3,10 @@
 import { useActionState, useEffect, useState } from "react";
 import { CheckBox } from "@/components/checkbox";
 import { ExpenseCategoryPicker } from "@/components/expense-category";
-import { CurrencySelect, Field, Select } from "@/components/fields";
+import { CurrencySelect, Field, FieldGroup, Select } from "@/components/fields";
+import { useCloseFormDialog } from "@/components/form-dialog";
 import { MemberTag } from "@/components/member-tag";
+import { SplitTypePicker } from "@/components/split-type";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,9 +55,12 @@ export function ExpenseForm({
   const [selected, setSelected] = useState<string[]>(defaults?.participantIds ?? members.map((member) => member.id));
   const [state, formAction, pending] = useActionState(action, null);
 
+  const closeDialog = useCloseFormDialog();
   useEffect(() => {
-    if (state?.ok) onSaved?.();
-  }, [state, onSaved]);
+    if (!state?.ok) return;
+    onSaved?.();
+    closeDialog?.();
+  }, [state, onSaved, closeDialog]);
 
   function toggle(id: string) {
     setSelected((current) =>
@@ -102,13 +107,9 @@ export function ExpenseForm({
             ))}
           </Select>
         </Field>
-        <Field label="Split">
-          <Select name="splitType" value={splitType} onChange={(event) => setSplitType(event.target.value)}>
-            <option value="EQUAL">Equal</option>
-            <option value="EXACT">Exact amounts</option>
-            <option value="PERCENT">Percent</option>
-          </Select>
-        </Field>
+        <FieldGroup label="Split">
+          <SplitTypePicker name="splitType" value={splitType} onValueChange={setSplitType} />
+        </FieldGroup>
       </div>
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">Travelers</legend>

@@ -3,6 +3,7 @@
 import { LoaderCircle, Pencil, Plane, Plus, Search } from "lucide-react";
 import { Fragment, useState, useTransition } from "react";
 import { ActionForm } from "@/components/action-form";
+import { FormDialog } from "@/components/form-dialog";
 import { AirlineLogo } from "@/components/airline-logo";
 import { Button } from "@/components/ui/button";
 import { CheckList, CostFields, Field, FieldGroup, Select } from "@/components/fields";
@@ -48,8 +49,8 @@ export type FlightDraft = {
 export function PlanTag({ kind }: { kind: string }) {
   const color = kind in PLAN_COLORS ? PLAN_COLORS[kind as PlanKindId] : "bg-muted text-foreground";
   return (
-    <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs in-data-[layout=calendar]:px-1", color)}>
-      <KindIcon kind={kind} className="size-3.5" />
+    <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-sm in-data-[layout=calendar]:gap-1 in-data-[layout=calendar]:px-1 in-data-[layout=calendar]:py-0.5 in-data-[layout=calendar]:text-xs", color)}>
+      <KindIcon kind={kind} className="size-4 in-data-[layout=calendar]:size-3.5" />
       <span className="in-data-[layout=calendar]:sr-only">{planLabel(kind)}</span>
     </span>
   );
@@ -186,34 +187,20 @@ export function PlanForm({
   /** Whether the flight form can look flights up by number. */
   flightLookup?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<PlanKindId>("FLIGHT");
   const preset = defaultDate ? `${defaultDate}T` : "";
   const submitLabel = kind === "FLIGHT" ? "Add flight" : kind === "STAY" ? "Add stay" : "Add to schedule";
 
-  if (!open) {
-    return compact ? (
-      <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
-        <Plus />
-        Add a plan
-      </Button>
-    ) : (
-      <Button type="button" className="w-full sm:w-fit" onClick={() => setOpen(true)}>
-        <Plus />
-        Add a plan
-      </Button>
-    );
-  }
-
   return (
-    <div className="grid gap-3 rounded-xl bg-muted/60 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium">Add a plan</p>
-        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
-          Close
-        </Button>
-      </div>
-      <ActionForm action={createPlan.bind(null, tripId)} submitLabel={submitLabel} onSaved={() => setOpen(false)}>
+    <FormDialog
+      title="Add a plan"
+      triggerIcon={<Plus />}
+      triggerVariant={compact ? "outline" : "default"}
+      triggerSize={compact ? "sm" : "default"}
+      triggerClassName={compact ? "w-full" : "w-full sm:w-fit"}
+      wide
+    >
+      <ActionForm action={createPlan.bind(null, tripId)} submitLabel={submitLabel}>
         <FieldGroup label="Kind">
           <KindTags value={kind} onValueChange={(next) => setKind(next as PlanKindId)} kinds={PLAN_KINDS} />
         </FieldGroup>
@@ -234,7 +221,7 @@ export function PlanForm({
         ) : null}
         {kind !== "FLIGHT" && kind !== "STAY" ? <ScheduleFields startAt={preset} tripDays={tripDays} /> : null}
       </ActionForm>
-    </div>
+    </FormDialog>
   );
 }
 

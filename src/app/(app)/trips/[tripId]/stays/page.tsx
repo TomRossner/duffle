@@ -1,6 +1,6 @@
 import { BedDouble } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { StayCard, StayFormToggle } from "@/components/stay-form";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { deleteStay } from "@/lib/actions/schedule";
 import { formatDateTimeRange } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -19,15 +19,10 @@ export default async function StaysPage({ params }: { params: Promise<{ tripId: 
     <div className="grid gap-4">
       <StayFormToggle tripId={tripId} destinations={destinationOptions} currency={trip.baseCurrency} />
       {stays.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BedDouble className="size-5" />
-              No stays yet
-            </CardTitle>
-            <CardDescription>Add the place you will sleep, with check-in and check-out.</CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState icon={BedDouble} title="No stays yet">
+          Add each hotel or rental with check-in and check-out times, the address and the confirmation number. Stays
+          show up on the schedule on the days you arrive and leave.
+        </EmptyState>
       ) : null}
       {stays.map((stay) => (
         <StayCard

@@ -4,14 +4,12 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
 import { QRCodeSVG } from "qrcode.react";
-import { Check, Copy, Share2, X } from "lucide-react";
+import { Check, Copy, Link2, Share2, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 
 export function ShareTrip({ tripId, name, url }: { tripId: string; name: string; url: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`Join ${name} on Duffle: ${url}`)}`;
 
   if (pathname !== `/trips/${tripId}`) return null;
 
@@ -21,62 +19,96 @@ export function ShareTrip({ tripId, name, url }: { tripId: string; name: string;
         <Share2 />
         Share
       </Button>
-      <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Portal>
-          <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-            <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <Dialog.Title className="text-lg font-medium">Share this trip</Dialog.Title>
-                  <Dialog.Description className="text-sm text-muted-foreground">
-                    Anyone with a Duffle account can join from this link.
-                  </Dialog.Description>
-                </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
-                  <X />
-                </Dialog.Close>
-              </div>
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="mx-auto rounded-xl bg-white p-3 sm:mx-0">
-                  <QRCodeSVG value={url} size={200} className="size-50 sm:size-37" />
-                </div>
-                <div className="grid w-full min-w-0 flex-1 basis-full gap-3 sm:basis-60">
-                  <input
-                    readOnly
-                    value={url}
-                    className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-sm"
-                    onFocus={(event) => event.currentTarget.select()}
-                  />
-                  <div className="grid gap-2 sm:flex sm:flex-wrap">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(url).then(() => {
-                          setCopied(true);
-                          window.setTimeout(() => setCopied(false), 2000);
-                        });
-                      }}
-                    >
-                      {copied ? <Check /> : <Copy />}
-                      {copied ? "Copied" : "Copy link"}
-                    </Button>
-                    <Button
-                      nativeButton={false}
-                      variant="outline"
-                      render={<a href={whatsapp} target="_blank" rel="noreferrer" />}
-                    >
-                      <img src="/whatsapp.png" alt="" className="size-5 rounded-full" />
-                      WhatsApp
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </Dialog.Popup>
-          </Dialog.Viewport>
-        </Dialog.Portal>
-      </Dialog.Root>
+      <ShareTripDialog open={open} onOpenChange={setOpen} name={name} url={url} />
     </>
+  );
+}
+
+/** Opens the same dialog as the header's Share button, from anywhere on the page. */
+export function ShareJoinLinkButton({ name, url, label }: { name: string; url: string; label: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        <Link2 />
+        {label}
+      </Button>
+      <ShareTripDialog open={open} onOpenChange={setOpen} name={name} url={url} />
+    </>
+  );
+}
+
+function ShareTripDialog({
+  open,
+  onOpenChange,
+  name,
+  url,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  name: string;
+  url: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`Join ${name} on Duffle: ${url}`)}`;
+
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="dialog-backdrop fixed inset-0 z-50 bg-black/40" />
+        <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+          <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <Dialog.Title className="text-lg font-medium">Share this trip</Dialog.Title>
+                <Dialog.Description className="text-sm text-muted-foreground">
+                  Anyone with a Duffle account can join from this link.
+                </Dialog.Description>
+              </div>
+              <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <X />
+              </Dialog.Close>
+            </div>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="mx-auto rounded-xl bg-white p-3 sm:mx-0">
+                <QRCodeSVG value={url} size={200} className="size-50 sm:size-37" />
+              </div>
+              <div className="grid w-full min-w-0 flex-1 basis-full gap-3 sm:basis-60">
+                <input
+                  readOnly
+                  value={url}
+                  className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-sm"
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+                <div className="grid gap-2 sm:flex sm:flex-wrap">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(url).then(() => {
+                        setCopied(true);
+                        window.setTimeout(() => setCopied(false), 2000);
+                      });
+                    }}
+                  >
+                    {copied ? <Check /> : <Copy />}
+                    {copied ? "Copied" : "Copy link"}
+                  </Button>
+                  <Button
+                    nativeButton={false}
+                    variant="outline"
+                    render={<a href={whatsapp} target="_blank" rel="noreferrer" />}
+                  >
+                    <img src="/whatsapp.png" alt="" className="size-5 rounded-full" />
+                    WhatsApp
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Popover } from "@base-ui/react/popover";
+import { Bell, BellOff, BellRing, Check, Smartphone, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Notice = {
@@ -92,56 +93,163 @@ export function NotificationBell() {
     setPushState("ready");
   }
 
+  const [freshIds, setFreshIds] = useState<Set<string>>(() => new Set());
+
+  function onOpenChange(next: boolean) {
+    setOpen(next);
+    if (next) {
+      // Keep this visit's unread items marked as new until the panel closes.
+      setFreshIds(new Set(items.filter((item) => !item.readAt).map((item) => item.id)));
+      if (unread > 0) void markRead();
+    }
+  }
+
+  const fresh = items.filter((item) => freshIds.has(item.id));
+  const earlier = items.filter((item) => !freshIds.has(item.id));
+
   return (
-    <div className="relative">
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        aria-label="Notifications"
-        onClick={() => {
-          const next = !open;
-          setOpen(next);
-          if (next && unread > 0) void markRead();
-        }}
+    <Popover.Root open={open} onOpenChange={onOpenChange}>
+      <Popover.Trigger
+        className={cn(buttonVariants({ variant: "outline", size: "icon" }), "relative")}
+        aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
       >
         <Bell />
         {unread > 0 ? (
-          <span className="absolute -top-1 -right-1 grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
-            {unread}
+          <span className="absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[11px] leading-none font-semibold text-white ring-2 ring-card">
+            {unread > 9 ? "9+" : unread}
           </span>
         ) : null}
-      </Button>
-      {open ? (
-        <div className="fixed inset-x-4 z-30 mt-2 max-h-[70dvh] overflow-y-auto rounded-xl bg-card p-3 shadow-lg ring-1 ring-foreground/10 sm:absolute sm:inset-x-auto sm:right-0 sm:w-80">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">Notifications</p>
-            <Button type="button" variant="ghost" size="sm" onClick={() => void enablePush()}>
-              {pushState === "ready" ? "Alerts on" : "Enable alerts"}
-            </Button>
-          </div>
-          {pushState === "unsupported" ? (
-            <p className="mb-2 text-xs text-muted-foreground">Browser alerts need notification permission and push keys.</p>
-          ) : null}
-          {pushState === "denied" ? (
-            <p className="mb-2 text-xs text-muted-foreground">Notifications are blocked in this browser.</p>
-          ) : null}
-          {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing new.</p>
-          ) : (
-            <ul className="grid max-h-80 gap-2 overflow-y-auto">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <a href={item.href} className={cn("block rounded-lg px-2 py-1.5 hover:bg-muted", !item.readAt && "bg-muted/60")}>
-                    <span className="block text-sm font-medium">{item.title}</span>
-                    <span className="block text-xs text-muted-foreground">{item.body}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner className="z-50 outline-none" side="bottom" align="end" sideOffset={8} collisionPadding={16}>
+          <Popover.Popup className="flex max-h-[min(32rem,calc(100dvh-6rem))] w-[min(24rem,calc(100vw-2rem))] origin-[var(--transform-origin)] flex-col overflow-hidden rounded-2xl bg-popover text-popover-foreground shadow-xl ring-1 ring-foreground/10 outline-none transition-[opacity,transform] duration-150 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0">
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+              <Popover.Title className="flex items-center gap-2 text-base font-semibold">
+                Notifications
+                {fresh.length > 0 ? (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {fresh.length} new
+                  </span>
+                ) : null}
+              </Popover.Title>
+              <Popover.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close notifications">
+                <X />
+              </Popover.Close>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {items.length === 0 ? (
+                <div className="grid justify-items-center gap-2 px-6 py-10 text-center">
+                  <span className="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <BellOff className="size-5" />
+                  </span>
+                  <p className="font-medium">You&apos;re all caught up</p>
+                  <p className="text-sm text-muted-foreground">Trip invites, changes and reminders will show up here.</p>
+                </div>
+              ) : (
+                <>
+                  <NoticeGroup label="New" items={fresh} fresh onPick={() => setOpen(false)} />
+                  <NoticeGroup label={fresh.length > 0 ? "Earlier" : null} items={earlier} onPick={() => setOpen(false)} />
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 border-t bg-muted/40 px-4 py-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-background text-muted-foreground ring-1 ring-foreground/10">
+                {pushState === "ready" ? <BellRing className="size-4 text-primary" /> : <Smartphone className="size-4" />}
+              </span>
+              <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                {pushState === "ready"
+                  ? "Alerts are on for this device."
+                  : pushState === "denied"
+                    ? "Notifications are blocked in this browser's settings."
+                    : pushState === "unsupported"
+                      ? "This browser can't show alerts."
+                      : "Get alerts on this device, even when Duffle is closed."}
+              </p>
+              {pushState === "ready" ? (
+                <Check className="size-4 shrink-0 text-primary" aria-hidden />
+              ) : pushState === "unknown" ? (
+                <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={() => void enablePush()}>
+                  Turn on
+                </Button>
+              ) : null}
+            </div>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
+
+function timeAgo(iso: string) {
+  const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
+  const steps: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["year", 31536000],
+    ["month", 2592000],
+    ["week", 604800],
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
+  for (const [unit, size] of steps) {
+    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
+  }
+  return "just now";
+}
+
+function NoticeGroup({
+  label,
+  items,
+  fresh = false,
+  onPick,
+}: {
+  label: string | null;
+  items: Notice[];
+  fresh?: boolean;
+  onPick: () => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="py-2">
+      {label ? (
+        <p className="px-4 pt-1 pb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
       ) : null}
-    </div>
+      <ul className="grid gap-0.5 px-2">
+        {items.map((item) => (
+          <li key={item.id}>
+            <a
+              href={item.href}
+              onClick={onPick}
+              className={cn(
+                "flex gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
+                fresh && "bg-primary/5",
+              )}
+            >
+              <span
+                className={cn(
+                  "grid size-9 shrink-0 place-items-center rounded-full",
+                  fresh ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                )}
+              >
+                <Bell className="size-4" />
+              </span>
+              <span className="grid min-w-0 flex-1 gap-0.5">
+                <span className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-medium">{item.title}</span>
+                  <time dateTime={item.createdAt} className="shrink-0 pt-0.5 text-xs text-muted-foreground">
+                    {timeAgo(item.createdAt)}
+                  </time>
+                </span>
+                <span className="line-clamp-2 text-sm text-muted-foreground">{item.body}</span>
+              </span>
+              {fresh ? <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-label="New" /> : null}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

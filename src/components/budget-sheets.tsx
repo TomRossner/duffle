@@ -1,14 +1,16 @@
 "use client";
 
 import { Menu } from "@base-ui/react/menu";
-import { EllipsisVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { EllipsisVertical, Pencil, Plus, Sheet, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
+import { FormDialog } from "@/components/form-dialog";
 import { CurrencySelect, Field, Select } from "@/components/fields";
 import { MemberTag } from "@/components/member-tag";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -43,7 +45,7 @@ type BudgetTableView = {
 };
 
 const menuItemClass =
-  "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none data-highlighted:bg-accent";
+  "flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 text-left outline-none data-highlighted:bg-accent";
 
 function rowWhen(row: BudgetRowView) {
   if (!row.startDate) return null;
@@ -60,7 +62,7 @@ function ActionMenu({ label, children }: { label: string; children: React.ReactN
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner className="z-50 outline-none" sideOffset={4} align="end">
-          <Menu.Popup className="min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+          <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
             {children}
           </Menu.Popup>
         </Menu.Positioner>
@@ -166,10 +168,8 @@ export function BudgetSheets({
   members: Person[];
   tables: BudgetTableView[];
 }) {
-  const [adding, setAdding] = useState(false);
   const [editingTable, setEditingTable] = useState<string | null>(null);
   const [editingRow, setEditingRow] = useState<string | null>(null);
-  const [addingRowTo, setAddingRowTo] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<null | { message: string; run: () => void }>(null);
 
   return (
@@ -181,36 +181,23 @@ export function BudgetSheets({
         </p>
       </div>
       <div className="grid grid-cols-2 items-start gap-2 sm:flex sm:flex-wrap">
-        <Button type="button" onClick={() => setAdding((open) => !open)}>
-          Add a table
-        </Button>
+        <FormDialog title="Add a table" description="Give it a name and a currency.">
+          <ActionForm action={createBudgetTable.bind(null, tripId)} submitLabel="Add table">
+            <Field label="Name">
+              <Input name="title" placeholder="Flights" />
+            </Field>
+            <Field label="Currency">
+              <CurrencySelect name="currency" defaultValue={currency} withSymbols />
+            </Field>
+          </ActionForm>
+        </FormDialog>
         <ImportExcelButton tripId={tripId} />
       </div>
-      {adding ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Add a table</CardTitle>
-            <CardDescription>Give it a name and a currency.</CardDescription>
-            <CardAction>
-              <Button type="button" variant="outline" size="sm" onClick={() => setAdding(false)}>
-                Close
-              </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <ActionForm action={createBudgetTable.bind(null, tripId)} submitLabel="Add table" onSaved={() => setAdding(false)}>
-              <Field label="Name">
-                <Input name="title" placeholder="Flights" />
-              </Field>
-              <Field label="Currency">
-                <CurrencySelect name="currency" defaultValue={currency} withSymbols />
-              </Field>
-            </ActionForm>
-          </CardContent>
-        </Card>
-      ) : null}
       {tables.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No sheets yet.</p>
+        <EmptyState icon={Sheet} title="No budget sheets yet" compact>
+          Plan costs before you go, such as flights, lodging or a rental car, each in its own table. Add a table or
+          import an Excel file, and mark rows as paid to turn them into expenses.
+        </EmptyState>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {tables.map((table) => {
@@ -241,39 +228,33 @@ export function BudgetSheets({
                   </CardAction>
                 </CardHeader>
                 <CardContent className="grid gap-3">
-                  {editingTable === table.id ? (
-                    <ActionForm
-                      action={updateBudgetTable.bind(null, tripId, table.id)}
-                      submitLabel="Save"
-                      onSaved={() => setEditingTable(null)}
-                    >
+                  <FormDialog
+                    title={`Edit ${table.title}`}
+                    open={editingTable === table.id}
+                    onOpenChange={(open) => setEditingTable(open ? table.id : null)}
+                  >
+                    <ActionForm action={updateBudgetTable.bind(null, tripId, table.id)} submitLabel="Save">
                       <Field label="Name">
                         <Input name="title" defaultValue={table.title} />
                       </Field>
                       <Field label="Currency">
                         <CurrencySelect name="currency" defaultValue={table.currency} withSymbols />
                       </Field>
-                      <Button type="button" variant="outline" onClick={() => setEditingTable(null)}>
-                        Cancel
-                      </Button>
                     </ActionForm>
-                  ) : null}
+                  </FormDialog>
                   {table.rows.length === 0 ? <p className="text-sm text-muted-foreground">No rows yet.</p> : null}
                   <ul className="grid">
                     {table.rows.map((row) => (
                       <li key={row.id} className="grid gap-2 border-t py-2 first:border-t-0">
-                        {editingRow === row.id ? (
-                          <ActionForm
-                            action={updateBudgetRow.bind(null, tripId, row.id)}
-                            submitLabel="Save"
-                            onSaved={() => setEditingRow(null)}
-                          >
+                        <FormDialog
+                          title={`Edit ${row.label}`}
+                          open={editingRow === row.id}
+                          onOpenChange={(open) => setEditingRow(open ? row.id : null)}
+                        >
+                          <ActionForm action={updateBudgetRow.bind(null, tripId, row.id)} submitLabel="Save">
                             <RowFields row={row} members={members} />
-                            <Button type="button" variant="outline" onClick={() => setEditingRow(null)}>
-                              Cancel
-                            </Button>
                           </ActionForm>
-                        ) : (
+                        </FormDialog>
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="font-medium">{row.label}</p>
@@ -308,7 +289,6 @@ export function BudgetSheets({
                               </ActionMenu>
                             </div>
                           </div>
-                        )}
                       </li>
                     ))}
                   </ul>
@@ -316,28 +296,17 @@ export function BudgetSheets({
                     <span>Total</span>
                     <span>{formatMoney(total, table.currency)}</span>
                   </div>
-                  {addingRowTo === table.id ? (
-                    <ActionForm
-                      action={addBudgetRow.bind(null, tripId, table.id)}
-                      submitLabel="Add row"
-                      onSaved={() => setAddingRowTo(null)}
-                    >
+                  <FormDialog
+                    title={`Add a row to ${table.title}`}
+                    triggerLabel="Add row"
+                    triggerIcon={<Plus />}
+                    triggerVariant="outline"
+                    triggerClassName="w-full sm:w-auto sm:justify-self-start"
+                  >
+                    <ActionForm action={addBudgetRow.bind(null, tripId, table.id)} submitLabel="Add row">
                       <RowFields members={members} />
-                      <Button type="button" variant="outline" onClick={() => setAddingRowTo(null)}>
-                        Cancel
-                      </Button>
                     </ActionForm>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full sm:w-auto sm:justify-self-start"
-                      onClick={() => setAddingRowTo(table.id)}
-                    >
-                      <Plus />
-                      Add row
-                    </Button>
-                  )}
+                  </FormDialog>
                 </CardContent>
               </Card>
             );

@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { CurrencySelect, Field, Select } from "@/components/fields";
+import { useCloseFormDialog } from "@/components/form-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createSettlement } from "@/lib/actions/expenses";
@@ -19,9 +20,12 @@ export function SettlementForm({
 }) {
   const [state, formAction, pending] = useActionState(createSettlement.bind(null, tripId), null);
 
+  const closeDialog = useCloseFormDialog();
   useEffect(() => {
-    if (state && "ok" in state && state.ok) onSaved?.();
-  }, [state, onSaved]);
+    if (!(state && "ok" in state && state.ok)) return;
+    onSaved?.();
+    closeDialog?.();
+  }, [state, onSaved, closeDialog]);
 
   return (
     <form action={formAction} className="grid gap-3">

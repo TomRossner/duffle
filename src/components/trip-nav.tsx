@@ -85,14 +85,14 @@ export function TripNav({ tripId }: { tripId: string }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative inline-flex shrink-0 snap-start items-center gap-1.5 px-3 py-2.5 text-sm whitespace-nowrap transition-colors",
+                  "relative inline-flex shrink-0 snap-start items-center gap-2 px-3 py-3 text-base whitespace-nowrap transition-colors sm:gap-1.5 sm:py-2.5 sm:text-sm",
                   "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:transition-colors",
                   active
                     ? "font-medium text-primary after:bg-primary"
                     : "text-muted-foreground after:bg-transparent hover:text-foreground hover:after:bg-border",
                 )}
               >
-                <Icon className="size-4" />
+                <Icon className="size-5 sm:size-4" />
                 {link.label}
               </Link>
             );
@@ -105,7 +105,7 @@ export function TripNav({ tripId }: { tripId: string }) {
               type="button"
               aria-label="Scroll tabs left"
               onClick={() => scrollBy(-1)}
-              className="pointer-events-auto grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="pointer-events-auto grid size-9 place-items-center sm:size-7 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -117,7 +117,7 @@ export function TripNav({ tripId }: { tripId: string }) {
               type="button"
               aria-label="Scroll tabs right"
               onClick={() => scrollBy(1)}
-              className="pointer-events-auto grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="pointer-events-auto grid size-9 place-items-center sm:size-7 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <ChevronRight className="size-4" />
             </button>

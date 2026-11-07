@@ -1,5 +1,6 @@
 import { FlagStack } from "@/components/country-flag";
 import { ShareTrip } from "@/components/share-trip";
+import { tripJoinUrl } from "@/lib/join-url";
 import { TripNav } from "@/components/trip-nav";
 import { countryName } from "@/lib/account-details";
 import { formatDateRange } from "@/lib/dates";
@@ -34,7 +35,7 @@ export default async function TripLayout({
         <ShareTrip
           tripId={tripId}
           name={trip.name}
-          url={`${(process.env.AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")}/join/${trip.joinToken}`}
+          url={tripJoinUrl(trip.joinToken)}
         />
       </div>
       <TripNav tripId={tripId} />

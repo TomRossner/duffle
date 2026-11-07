@@ -140,7 +140,7 @@ function SuggestInput<T>({
     >
       <div className="relative">
         <Autocomplete.Input
-          render={<Input className={end ? "pr-10" : undefined} />}
+          render={<Input className={end ? "pr-10 sm:pr-10" : undefined} />}
           placeholder={placeholder}
           autoComplete="off"
           title={end ? value : undefined}
@@ -161,7 +161,7 @@ function SuggestInput<T>({
                 <Autocomplete.Item
                   key={itemKey(item)}
                   value={item}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none select-none data-highlighted:bg-accent"
+                  className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm outline-none select-none data-highlighted:bg-accent"
                 >
                   {renderItem(item)}
                 </Autocomplete.Item>

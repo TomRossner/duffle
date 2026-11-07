@@ -38,7 +38,7 @@ export function CountryPicker({
     >
       <Select.Trigger
         className={cn(
-          "flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-2 text-sm outline-none",
+          "flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-base outline-none sm:h-8 sm:px-2 sm:text-sm",
           "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           "data-popup-open:border-ring data-popup-open:ring-3 data-popup-open:ring-ring/50",
         )}
@@ -69,7 +69,7 @@ export function CountryPicker({
                 onKeyDown={(event) => event.stopPropagation()}
                 placeholder="Search countries"
                 aria-label="Search countries"
-                className="h-8 w-full rounded-md bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground"
+                className="h-11 w-full rounded-md bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground sm:h-8 sm:px-2 sm:text-sm"
               />
             </div>
             <Select.List className="max-h-64 overflow-y-auto p-1">
@@ -81,7 +81,7 @@ export function CountryPicker({
                     key={country.code}
                     value={country.code}
                     label={country.name}
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 outline-none data-highlighted:bg-accent data-selected:bg-muted"
+                    className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm outline-none data-highlighted:bg-accent data-selected:bg-muted"
                   >
                     <CountryFlag code={country.code} />
                     <span className="min-w-0 flex-1 truncate">{country.name}</span>

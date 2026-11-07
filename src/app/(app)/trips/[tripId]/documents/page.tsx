@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check, ChevronDown, FileImage, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { DocumentCard } from "@/components/document-card";
+import { EmptyState } from "@/components/empty-state";
 import { DocumentFormToggle } from "@/components/document-form";
 import { AttachedPersonalDocumentCard, BringDocuments } from "@/components/personal-documents";
 import { buttonVariants } from "@/components/ui/button";
@@ -159,10 +160,10 @@ export default async function DocumentsPage({
         </nav>
       ) : null}
       {groups.length === 0 ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <FileImage className="size-4" />
-          No documents yet.
-        </p>
+        <EmptyState icon={FileImage} title="No documents yet">
+          Keep tickets, bookings and confirmations here for the whole group. Your passport or ID stays private until
+          you attach it to this trip.
+        </EmptyState>
       ) : null}
       {groups.map((group) => (
         <details key={group.id} open className="group rounded-xl border bg-muted/40">
@@ -191,6 +192,7 @@ export default async function DocumentsPage({
                   kind: attachment.personalDocument.kind,
                   storageKey: attachment.personalDocument.storageKey,
                   mimeType: attachment.personalDocument.mimeType,
+                  fullName: attachment.personalDocument.fullName,
                   documentNumber: attachment.personalDocument.documentNumber,
                   issuedOn: attachment.personalDocument.issuedOn ? formatDate(attachment.personalDocument.issuedOn) : null,
                   expiresOn: attachment.personalDocument.expiresOn ? formatDate(attachment.personalDocument.expiresOn) : null,
