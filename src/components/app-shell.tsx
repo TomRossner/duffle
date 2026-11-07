@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { after } from "next/server";
-import { IdCard, Luggage, MapPinned } from "lucide-react";
+import { CircleHelp, IdCard, Luggage, MapPinned } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { BackButton } from "@/components/back-button";
 import { MobileNav } from "@/components/mobile-nav";
@@ -51,6 +51,10 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/documents" className="inline-flex items-center gap-1.5 hover:text-primary">
               <IdCard className="size-4" />
               Documents
+            </Link>
+            <Link href="/how-it-works" className="hidden items-center gap-1.5 hover:text-primary lg:inline-flex">
+              <CircleHelp className="size-4" />
+              How it works
             </Link>
           </nav>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
