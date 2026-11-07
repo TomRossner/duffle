@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
-import { ScanLine, X } from "lucide-react";
+import { Camera, RotateCcw, ScanLine, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -55,11 +55,50 @@ export function ScanQrButton({ className }: { className?: string }) {
   );
 }
 
+/** Reads a QR code from a photo. Works without camera permission, through the phone's own camera app. */
+async function readPhoto(file: File) {
+  const { default: jsQR } = await import("jsqr");
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  return jsQR(image.data, image.width, image.height, { inversionAttempts: "attemptBoth" })?.data ?? null;
+}
+
 function Scanner({ onDone }: { onDone: () => void }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<"starting" | "scanning" | "opening">("starting");
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [cameraFailed, setCameraFailed] = useState(false);
+
+  async function scanPhoto(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    try {
+      const text = await readPhoto(file);
+      const path = text ? tripPath(text) : null;
+      if (path) {
+        setStatus("opening");
+        onDone();
+        router.push(path);
+        return;
+      }
+      setError(text ? "That QR code is not a Duffle trip link." : "No QR code found in that photo. Try again closer up.");
+    } catch {
+      setError("Couldn't read that photo. Try again.");
+    } finally {
+      if (photoRef.current) photoRef.current.value = "";
+    }
+  }
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -70,7 +109,8 @@ function Scanner({ onDone }: { onDone: () => void }) {
 
     async function start() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError("This browser cannot use the camera. Open the link from the QR code with your camera app instead.");
+        setCameraFailed(true);
+        setError("This browser can't show the camera here. Take a photo of the code instead.");
         return;
       }
       try {
@@ -112,13 +152,15 @@ function Scanner({ onDone }: { onDone: () => void }) {
         };
         frame = requestAnimationFrame(tick);
       } catch (cause) {
+        if (stopped) return;
         const name = cause instanceof DOMException ? cause.name : "";
+        setCameraFailed(true);
         setError(
           name === "NotAllowedError"
-            ? "Camera access was blocked. Allow it in your browser settings and try again."
+            ? "Duffle can't use the camera. Take a photo of the code instead, or allow camera access for this site and try again."
             : name === "NotFoundError"
               ? "No camera was found on this device."
-              : "The camera could not start. Try again.",
+              : "The camera couldn't start. It may be in use by another app.",
         );
       }
     }
@@ -129,7 +171,7 @@ function Scanner({ onDone }: { onDone: () => void }) {
       cancelAnimationFrame(frame);
       stream?.getTracks().forEach((track) => track.stop());
     };
-  }, [onDone, router]);
+  }, [onDone, router, attempt]);
 
   return (
     <div className="grid gap-3">
@@ -139,11 +181,47 @@ function Scanner({ onDone }: { onDone: () => void }) {
           <div className="pointer-events-none absolute inset-[15%] rounded-xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
         ) : (
           <p className="absolute inset-0 flex items-center justify-center text-sm text-white/80">
-            {status === "opening" ? "Opening trip..." : error ? "" : "Starting camera..."}
+            {status === "opening" ? "Opening trip..." : cameraFailed ? "Camera unavailable" : "Starting camera..."}
           </p>
         )}
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm text-muted-foreground">{error}</p> : null}
+      <input
+        ref={photoRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(event) => void scanPhoto(event.target.files?.[0])}
+      />
+      <div className="grid gap-2">
+        <Button
+          type="button"
+          variant={cameraFailed ? "default" : "outline"}
+          disabled={status === "opening"}
+          onClick={() => photoRef.current?.click()}
+        >
+          <Camera />
+          {cameraFailed ? "Take a photo of the code" : "Scan a photo instead"}
+        </Button>
+        {cameraFailed ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setError(null);
+              setCameraFailed(false);
+              setStatus("starting");
+              setAttempt((current) => current + 1);
+            }}
+          >
+            <RotateCcw />
+            Try the camera again
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
