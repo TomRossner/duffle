@@ -158,7 +158,7 @@ function DocumentFields({
         </Select>
       </Field>
       <Field label="Full name">
-        <Input name="fullName" defaultValue={fullName} maxLength={120} autoComplete="off" placeholder="As printed on the document" />
+        <Input name="fullName" defaultValue={fullName} maxLength={120} autoComplete="off" dir="auto" placeholder="As printed on the document" />
       </Field>
       <Field label="Number">
         <Input name="documentNumber" defaultValue={documentNumber} maxLength={40} autoComplete="off" />
@@ -212,7 +212,7 @@ function DocumentDetails({ document }: { document: DocumentFacts }) {
         <div key={row.label} className="flex items-center justify-between gap-2">
           <dt className="text-muted-foreground">{row.label}</dt>
           <dd className="flex min-w-0 items-center gap-1 font-medium">
-            <span className="truncate">{row.value}</span>
+            <span className="truncate" dir="auto">{row.value}</span>
             <CopyButton value={row.copy} label={`Copy ${row.label.toLowerCase()}`} />
           </dd>
         </div>

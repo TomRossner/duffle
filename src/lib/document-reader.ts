@@ -65,7 +65,7 @@ export function cleanReadNumber(value: string | null) {
 
 const READER_INSTRUCTIONS = `You read one travel or identity document (passport, ID card, driver's license, visa, or similar) from an image or PDF and copy four facts from it.
 
-- fullName: the holder's full name as printed in the visual zone, given names first and then the surname (for example "Maria Elena Garcia Lopez"). Use the Latin-alphabet spelling when the document prints one, keep accents, and use normal capitalization rather than ALL CAPS. If only the machine-readable zone is legible, read the name from it (surname before "<<", given names after, "<" between words).
+- fullName: the holder's full name as printed in the visual zone, given names first and then the surname (for example "Maria Elena Garcia Lopez"). When the document prints the name in more than one language, use the English (Latin-letter) version exactly as printed. When the name is printed in only one language, keep it in that language and script (for example Hebrew, Arabic, Greek or Cyrillic): never translate or transliterate it yourself. Keep accents, and in scripts with capital letters use normal capitalization rather than ALL CAPS. Read the name from the machine-readable zone only when the visual zone is unreadable (surname before "<<", given names after, "<" between words).
 - documentNumber: the document's own number, exactly as printed, without spaces. For a passport or ID card, use the document number, not a personal/national ID number. For a visa, use the visa number or control number.
 - issuedOn: the date of issue, as YYYY-MM-DD.
 - expiresOn: the date of expiry (valid until), as YYYY-MM-DD.
@@ -73,7 +73,7 @@ const READER_INSTRUCTIONS = `You read one travel or identity document (passport,
 Convert any printed date format to YYYY-MM-DD, including the machine-readable zone and other languages and calendars. Use null for anything that isn't printed, is unreadable, or that you aren't sure of. Never guess.`;
 
 const readerOutput = z.object({
-  fullName: z.string().nullable().describe("Holder's full name, given names first, or null."),
+  fullName: z.string().nullable().describe("Holder's full name, given names first: the English version when printed in several languages, otherwise as printed. Or null."),
   documentNumber: z.string().nullable().describe("Document number as printed, or null."),
   issuedOn: z.string().nullable().describe("Issue date as YYYY-MM-DD, or null."),
   expiresOn: z.string().nullable().describe("Expiry date as YYYY-MM-DD, or null."),
