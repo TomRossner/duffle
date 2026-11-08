@@ -58,14 +58,16 @@ export default async function TripsPage() {
               <Card className="transition-colors hover:bg-muted/40">
                 <CardHeader>
                   <CardTitle className="flex flex-wrap items-center gap-2">
-                    {countries.length > 0 ? (
-                      <FlagStack codes={countries} label={countries.map(countryName).join(", ")} />
-                    ) : null}
                     {membership.trip.name}
                     <Badge variant="secondary">
                       {membership.role === "ADMIN" ? "Admin" : "Traveler"}
                     </Badge>
                   </CardTitle>
+                  {countries.length > 0 ? (
+                    <div className="flex">
+                      <FlagStack codes={countries} label={countries.map(countryName).join(", ")} size="sm" />
+                    </div>
+                  ) : null}
                   <CardDescription>
                     {formatDateRange(membership.trip.startDate, membership.trip.endDate)} ·{" "}
                     {membership.trip._count.members} {membership.trip._count.members === 1 ? "traveler" : "travelers"} ·{" "}

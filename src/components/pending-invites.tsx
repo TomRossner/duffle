@@ -55,12 +55,12 @@ export async function PendingInvites({ userId }: { userId: string }) {
             return (
               <li key={invite.id} className="grid gap-3 rounded-lg bg-muted/60 p-3">
                 <div className="grid min-w-0 gap-1">
-                  <p className="flex flex-wrap items-center gap-2 text-base font-medium">
-                    {trip.countries.length > 0 ? (
-                      <FlagStack codes={trip.countries} label={trip.countries.map(countryName).join(", ")} />
-                    ) : null}
-                    <span className="min-w-0 break-words">{trip.name}</span>
-                  </p>
+                  <p className="text-base font-medium break-words">{trip.name}</p>
+                  {trip.countries.length > 0 ? (
+                    <div className="flex">
+                      <FlagStack codes={trip.countries} label={trip.countries.map(countryName).join(", ")} size="sm" />
+                    </div>
+                  ) : null}
                   <p className="text-sm text-muted-foreground">
                     {formatDateRange(trip.startDate, trip.endDate)} · {days} {days === 1 ? "day" : "days"} ·{" "}
                     {travelers} {travelers === 1 ? "traveler" : "travelers"}

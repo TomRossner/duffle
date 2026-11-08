@@ -151,11 +151,11 @@ export default async function ProfilePage() {
                       href={`/trips/${membership.trip.id}`}
                       className="flex flex-col gap-1.5 rounded-lg bg-muted/60 px-3 py-2 hover:bg-muted sm:flex-row sm:items-center sm:justify-between sm:gap-2"
                     >
-                      <span className="flex min-w-0 items-start gap-2 font-medium">
+                      <span className="grid min-w-0 justify-items-start gap-0.5">
+                        <span className="break-words font-medium">{membership.trip.name}</span>
                         {countries.length > 0 ? (
-                          <FlagStack codes={countries} label={countries.map(countryName).join(", ")} />
+                          <FlagStack codes={countries} label={countries.map(countryName).join(", ")} size="sm" />
                         ) : null}
-                        <span className="min-w-0 break-words">{membership.trip.name}</span>
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
                         <span className="whitespace-nowrap text-sm text-muted-foreground">
