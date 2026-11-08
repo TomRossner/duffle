@@ -4,6 +4,7 @@ import { LoaderCircle, Sparkles, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Field } from "@/components/fields";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/i18n/client";
 import { scanClosetItem } from "@/lib/actions/closet";
 import type { ClosetFacts } from "@/lib/closet-reader";
 import { compressImage, formatFileSize, setInputFile } from "@/lib/image-compress";
@@ -75,6 +76,7 @@ export function ClosetImageField({
   keepImage?: boolean;
   scan?: boolean;
 }) {
+  const t = useT("closet");
   const inputRef = useRef<HTMLInputElement>(null);
   const scanId = useRef(0);
   const [dragging, setDragging] = useState(false);
@@ -93,7 +95,7 @@ export function ClosetImageField({
     if (!acceptedTypes.has(picked.type)) {
       input.value = "";
       setFile(null);
-      setStatus({ kind: "error", text: "Use a JPEG, PNG, WebP, or GIF." });
+      setStatus({ kind: "error", text: t("image.badType") });
       return;
     }
 
@@ -108,7 +110,7 @@ export function ClosetImageField({
     setFile({ name: picked.name, size: upload.size, preview: URL.createObjectURL(upload) });
 
     if (upload.size > serverLimit) {
-      setStatus({ kind: "error", text: "This image is over 5MB. Choose a smaller file." });
+      setStatus({ kind: "error", text: t("image.tooBig") });
       return;
     }
     if (!scan) {
@@ -123,7 +125,7 @@ export function ClosetImageField({
     try {
       result = await scanClosetItem(body);
     } catch {
-      result = { status: "error", error: "Couldn't read the photo. Fill in the details yourself." };
+      result = { status: "error", error: t("errors.readFailed") };
     }
     if (id !== scanId.current) return;
 
@@ -138,16 +140,16 @@ export function ClosetImageField({
 
     const form = input.form;
     if (form && fillForm(form, result.facts)) {
-      setStatus({ kind: "filled", text: "Filled in the details from the photo. Check them before saving." });
+      setStatus({ kind: "filled", text: t("image.filled") });
     } else {
-      setStatus({ kind: "note", text: "Kept the details you entered." });
+      setStatus({ kind: "note", text: t("image.kept") });
     }
   }
 
   return (
     <div className="grid gap-3">
       <div className="grid gap-1.5">
-        <span className="text-sm leading-none font-medium">Photo</span>
+        <span className="text-sm leading-none font-medium">{t("image.photo")}</span>
         <label
           className={cn(
             "flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-input p-3 transition-colors hover:bg-muted/50",
@@ -187,7 +189,7 @@ export function ClosetImageField({
               <span className="grid min-w-0 gap-0.5">
                 <span className="truncate text-sm font-medium">{file.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  Image · {formatFileSize(file.size)} · Click or drop to replace
+                  {t("image.fileMeta", { size: formatFileSize(file.size) })}
                 </span>
               </span>
             </>
@@ -198,10 +200,11 @@ export function ClosetImageField({
               </span>
               <span className="grid min-w-0 gap-0.5">
                 <span className="text-sm font-medium">
-                  <span className="text-primary">Upload an image</span> or drop it here
+                  {t.rich("image.prompt", { em: (chunks) => <span className="text-primary">{chunks}</span> })}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  JPEG, PNG, WebP, or GIF, up to 5MB.{scan ? " The details are filled in for you." : ""}
+                  {t("image.formats")}
+                  {scan ? ` ${t("image.autoFill")}` : ""}
                 </span>
               </span>
             </>
@@ -210,7 +213,7 @@ export function ClosetImageField({
         {status.kind === "reading" ? (
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
             <LoaderCircle className="size-3.5 animate-spin" />
-            Looking at the photo…
+            {t("image.reading")}
           </p>
         ) : status.kind === "filled" ? (
           <p className="flex items-start gap-1.5 text-xs text-primary" aria-live="polite">
@@ -227,10 +230,10 @@ export function ClosetImageField({
           </p>
         ) : null}
       </div>
-      <Field label="Or paste an image URL">
+      <Field label={t("image.pasteUrl")}>
         <Input name="imageUrl" type="url" placeholder="https://" defaultValue={imageUrl} />
       </Field>
-      {keepImage ? <p className="text-sm text-muted-foreground">Leave both image fields blank to keep the current photo.</p> : null}
+      {keepImage ? <p className="text-sm text-muted-foreground">{t("image.keepCurrent")}</p> : null}
     </div>
   );
 }

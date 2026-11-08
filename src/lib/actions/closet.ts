@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
 import type { ClothingSlot } from "@prisma/client";
 import { CLOSET_ACTIVITY_TAGS, CLOTHING_SLOTS, CONDITION_TAGS } from "@/lib/constants";
 import { readQuantity } from "@/lib/packing-list";
@@ -9,7 +11,7 @@ import { requireUser } from "@/lib/trip-access";
 import { closetReaderConfigured, readClosetItem, type ClosetFacts } from "@/lib/closet-reader";
 import { checkUpload, storeImage, uploadErrorText } from "@/lib/uploads";
 
-function readClosetInput(formData: FormData) {
+function readClosetInput(formData: FormData, t: Translator<"closet">) {
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
   const imageUrl = String(formData.get("imageUrl") ?? "").trim() || null;
@@ -28,22 +30,22 @@ function readClosetInput(formData: FormData) {
     .map(String)
     .filter((tag) => (CLOSET_ACTIVITY_TAGS as readonly string[]).includes(tag));
 
-  if (!name) return { error: "Name the item." };
+  if (!name) return { error: t("errors.name") };
   if (!CLOTHING_SLOTS.includes(slot as (typeof CLOTHING_SLOTS)[number])) {
-    return { error: "Choose what kind of clothing this is." };
+    return { error: t("errors.slot") };
   }
-  if (quantity == null) return { error: "Quantity must be a whole number from 1 to 99." };
+  if (quantity == null) return { error: t("errors.quantity") };
   if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
-    return { error: "Image URL must start with http:// or https://." };
+    return { error: t("errors.imageUrl") };
   }
 
   const tempMin = tempMinRaw ? Number(tempMinRaw) : null;
   const tempMax = tempMaxRaw ? Number(tempMaxRaw) : null;
   if ((tempMinRaw && !Number.isFinite(tempMin)) || (tempMaxRaw && !Number.isFinite(tempMax))) {
-    return { error: "Temperature range must be numbers." };
+    return { error: t("errors.tempNumbers") };
   }
   if (tempMin != null && tempMax != null && tempMax < tempMin) {
-    return { error: "The warm end of the range must be at least the cool end." };
+    return { error: t("errors.tempOrder") };
   }
 
   return {
@@ -66,22 +68,24 @@ export async function scanClosetItem(
   formData: FormData,
 ): Promise<{ status: "read"; facts: ClosetFacts } | { status: "unavailable" } | { status: "error"; error: string }> {
   await requireUser();
+  const t = await getT("closet");
   const checked = checkUpload(formData.get("file"));
-  if (checked.status === "empty") return { status: "error", error: "Choose an image." };
+  if (checked.status === "empty") return { status: "error", error: t("errors.chooseImage") };
   if (checked.status === "invalid") return { status: "error", error: await uploadErrorText(checked.error) };
   if (!closetReaderConfigured()) return { status: "unavailable" };
 
   const facts = await readClosetItem(new Uint8Array(await checked.file.arrayBuffer()), checked.file.type);
   if (facts === "not-clothing") {
-    return { status: "error", error: "This doesn't look like clothing. Fill in the details yourself." };
+    return { status: "error", error: t("errors.notClothing") };
   }
-  if (!facts) return { status: "error", error: "Couldn't read the photo. Fill in the details yourself." };
+  if (!facts) return { status: "error", error: t("errors.readFailed") };
   return { status: "read", facts };
 }
 
 export async function createClosetItem(_: unknown, formData: FormData) {
   const user = await requireUser();
-  const parsed = readClosetInput(formData);
+  const t = await getT("closet");
+  const parsed = readClosetInput(formData, t);
   if ("error" in parsed) return parsed;
 
   const stored = await storeImage(formData.get("file"), `closet/${user.id}`);
@@ -111,9 +115,10 @@ export async function createClosetItem(_: unknown, formData: FormData) {
 
 export async function updateClosetItem(itemId: string, _: unknown, formData: FormData) {
   const user = await requireUser();
+  const t = await getT("closet");
   const item = await prisma.closetItem.findFirst({ where: { id: itemId, userId: user.id } });
-  if (!item) return { error: "Item not found." };
-  const parsed = readClosetInput(formData);
+  if (!item) return { error: t("errors.notFound") };
+  const parsed = readClosetInput(formData, t);
   if ("error" in parsed) return parsed;
 
   const stored = await storeImage(formData.get("file"), `closet/${user.id}`);
@@ -146,8 +151,9 @@ export async function updateClosetItem(itemId: string, _: unknown, formData: For
 
 export async function deleteClosetItem(itemId: string) {
   const user = await requireUser();
+  const t = await getT("closet");
   const item = await prisma.closetItem.findFirst({ where: { id: itemId, userId: user.id } });
-  if (!item) return { error: "Item not found." };
+  if (!item) return { error: t("errors.notFound") };
   await prisma.closetItem.delete({ where: { id: itemId } });
   revalidatePath("/closet");
   return { ok: true };

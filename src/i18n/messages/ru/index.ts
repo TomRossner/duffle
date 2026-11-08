@@ -2,6 +2,7 @@ import type { Messages } from "@/i18n/messages/en";
 import type { Translation } from "@/i18n/translate";
 import account from "./account";
 import auth from "./auth";
+import closet from "./closet";
 import common from "./common";
 import documents from "./documents";
 import insurance from "./insurance";
@@ -21,6 +22,7 @@ import weather from "./weather";
 export const messages: Translation<Messages> = {
   account,
   auth,
+  closet,
   common,
   documents,
   insurance,

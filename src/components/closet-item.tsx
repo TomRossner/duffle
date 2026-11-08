@@ -13,8 +13,9 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DeleteDialog } from "@/components/delete-dialog";
+import { useT } from "@/i18n/client";
 import { createClosetItem, deleteClosetItem, updateClosetItem } from "@/lib/actions/closet";
-import { CLOSET_ACTIVITY_TAGS, CLOTHING_SLOT_GROUPS, CLOTHING_SLOT_LABELS, CONDITION_TAGS, slotLabel } from "@/lib/constants";
+import { CLOSET_ACTIVITY_TAGS, CLOTHING_SLOT_GROUPS, CONDITION_TAGS, slotLabel } from "@/lib/constants";
 import {
   ACTIVITY_COLORS,
   ActivityTagLabel,
@@ -25,6 +26,15 @@ import {
   slotColor,
 } from "@/lib/tag-meta";
 import { cn } from "@/lib/utils";
+
+/** Clothing type and type-group names in the reader's language. */
+export function useSlotLabels() {
+  const tLabels = useT("labels");
+  return {
+    slot: (slot: string) => tLabels.dynamic(`slots.${slot}`, undefined, slotLabel(slot)),
+    group: (group: string) => tLabels.dynamic(`slotGroups.${group}`, undefined, group),
+  };
+}
 
 export type ClosetDraft = {
   id: string;
@@ -72,40 +82,42 @@ export function ClosetFields({
   keepImage?: boolean;
   scan?: boolean;
 }) {
+  const t = useT("closet");
+  const labels = useSlotLabels();
   return (
     <>
       <ClosetImageField imageUrl={imageUrl} keepImage={keepImage} scan={scan} />
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Name" className="sm:col-span-2">
+        <Field label={t("fields.name")} className="sm:col-span-2">
           <Input name="name" defaultValue={name} required />
         </Field>
-        <Field label="Type">
+        <Field label={t("fields.type")}>
           <Select name="slot" defaultValue={slot}>
             {CLOTHING_SLOT_GROUPS.map((group) => (
-              <optgroup key={group.label} label={group.label}>
+              <optgroup key={group.label} label={labels.group(group.label)}>
                 {group.slots.map((option) => (
                   <option key={option} value={option}>
-                    {CLOTHING_SLOT_LABELS[option]}
+                    {labels.slot(option)}
                   </option>
                 ))}
               </optgroup>
             ))}
           </Select>
         </Field>
-        <Field label="Quantity">
+        <Field label={t("fields.quantity")}>
           <Input name="quantity" type="number" min={1} max={99} step={1} defaultValue={quantity} required />
         </Field>
-        <Field label="Coolest °C">
+        <Field label={t("fields.coolest")}>
           <Input name="tempMin" type="number" step="1" defaultValue={tempMin} />
         </Field>
-        <Field label="Warmest °C">
+        <Field label={t("fields.warmest")}>
           <Input name="tempMax" type="number" step="1" defaultValue={tempMax} />
         </Field>
       </div>
-      <Field label="Description">
+      <Field label={t("fields.description")}>
         <Textarea name="description" rows={2} defaultValue={description} />
       </Field>
-      <FieldGroup label="Weather">
+      <FieldGroup label={t("fields.weather")}>
         <CheckList
           name="conditions"
           defaultChecked={false}
@@ -117,7 +129,7 @@ export function ClosetFields({
           }))}
         />
       </FieldGroup>
-      <FieldGroup label="Activities">
+      <FieldGroup label={t("fields.activities")}>
         <CheckList
           name="activities"
           defaultChecked={false}
@@ -129,7 +141,7 @@ export function ClosetFields({
           }))}
         />
       </FieldGroup>
-      <FieldGroup label="Features">
+      <FieldGroup label={t("fields.features")}>
         <div className="flex flex-wrap gap-2">
           <CheckList
             name="goreTex"
@@ -172,6 +184,9 @@ export function ClosetFields({
 }
 
 export function ClosetCard({ item }: { item: ClosetDraft }) {
+  const t = useT("closet");
+  const tCommon = useT("common");
+  const labels = useSlotLabels();
   const [editing, setEditing] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -194,7 +209,7 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
               slotColor(item.slot),
             )}
           >
-            {slotLabel(item.slot)}
+            {labels.slot(item.slot)}
           </span>
           {item.quantity > 1 ? <span>× {item.quantity}</span> : null}
           {item.tempMin && item.tempMax ? (
@@ -207,7 +222,7 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
           <Menu.Root>
             <Menu.Trigger
               className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-              aria-label={`Actions for ${item.name}`}
+              aria-label={tCommon("actionsFor", { name: item.name })}
             >
               <EllipsisVertical />
             </Menu.Trigger>
@@ -219,7 +234,7 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
                     onClick={() => setEditing(true)}
                   >
                     <Pencil className="size-3.5" />
-                    Edit
+                    {tCommon("edit")}
                   </Menu.Item>
                   <Menu.Item
                     className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base text-destructive outline-none data-highlighted:bg-accent sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5"
@@ -227,7 +242,7 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
                     onClick={() => setConfirmingDelete(true)}
                   >
                     <Trash2 className="size-3.5" />
-                    {deleting ? "Deleting..." : "Delete"}
+                    {deleting ? tCommon("deleting") : tCommon("delete")}
                   </Menu.Item>
                 </Menu.Popup>
               </Menu.Positioner>
@@ -238,7 +253,7 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
       <CardContent className="grid gap-2">
         {item.description ? <p className="text-sm">{item.description}</p> : null}
         {item.conditions.length + item.activities.length === 0 && !item.goreTex && !item.driFit ? (
-          <p className="text-sm text-muted-foreground">No tags</p>
+          <p className="text-sm text-muted-foreground">{t("card.noTags")}</p>
         ) : (
           <div className="grid gap-1.5">
             {item.conditions.some(isConditionTag) ? (
@@ -292,18 +307,18 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
             <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <Dialog.Title className="text-lg font-medium">Edit {item.name}</Dialog.Title>
+                  <Dialog.Title className="text-lg font-medium">{t("card.editTitle", { name: item.name })}</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    Change the type, weather, or activities.
+                    {t("card.editDescription")}
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
               <ActionForm
                 action={updateClosetItem.bind(null, item.id)}
-                submitLabel="Save"
+                submitLabel={tCommon("save")}
                 onSaved={() => setEditing(false)}
               >
                 <ClosetFields
@@ -329,7 +344,7 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
       <DeleteDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
-        message={`Are you sure you want to delete "${item.name}"?`}
+        message={t("card.confirmDelete", { name: item.name })}
         pending={deleting}
         onConfirm={() => {
           setConfirmingDelete(false);
@@ -348,13 +363,15 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
 }
 
 export function ClosetAddButton() {
+  const t = useT("closet");
+  const tCommon = useT("common");
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button type="button" className="w-full shrink-0 sm:w-fit" onClick={() => setOpen(true)}>
         <Plus />
-        Add an item
+        {t("add.button")}
       </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
@@ -363,16 +380,16 @@ export function ClosetAddButton() {
             <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <Dialog.Title className="text-lg font-medium">Add an item</Dialog.Title>
+                  <Dialog.Title className="text-lg font-medium">{t("add.button")}</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    Drop in a photo and the details are filled in for you. Check them, then save.
+                    {t("add.description")}
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
-              <ActionForm action={createClosetItem} submitLabel="Add to closet" onSaved={() => setOpen(false)}>
+              <ActionForm action={createClosetItem} submitLabel={t("add.submit")} onSaved={() => setOpen(false)}>
                 <ClosetFields />
               </ActionForm>
             </Dialog.Popup>
