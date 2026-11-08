@@ -4,6 +4,7 @@ import { HandCoins, ReceiptText } from "lucide-react";
 import { ExpenseForm } from "@/components/expense-form";
 import { FormDialog } from "@/components/form-dialog";
 import { SettlementForm } from "@/components/settlement-form";
+import { useT } from "@/i18n/client";
 
 type Member = { id: string; name: string; imageKey?: string | null };
 
@@ -43,10 +44,11 @@ export function SettlementFormToggle({
   members: { id: string; name: string }[];
   currency: string;
 }) {
+  const t = useT("money");
   return (
     <FormDialog
-      title="Record a payment"
-      description="Someone pays someone else to settle up."
+      title={t("panel.recordTitle")}
+      description={t("panel.recordDescription")}
       icon={<HandCoins />}
       triggerVariant="secondary"
       triggerClassName="w-full sm:w-fit"

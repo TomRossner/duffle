@@ -13,6 +13,8 @@ import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createExpense, deleteExpense, markExpensePaid, markExpenseUnpaid, updateExpense } from "@/lib/actions/expenses";
+import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
 import { formatDate, formatDateLong } from "@/lib/dates";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expense-categories";
 import { netBalances } from "@/lib/money";
@@ -24,9 +26,24 @@ function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name;
 }
 
+/** "You paid Sam", "Sam paid you" or "Sam paid Alex". */
+function paymentTitle(
+  t: Translator<"money">,
+  payer: { id: string; name: string },
+  recipient: { id: string; name: string },
+  viewerId: string,
+) {
+  if (payer.id === viewerId) return t("list.youPaid", { recipient: firstName(recipient.name) });
+  if (recipient.id === viewerId) return t("list.paidYou", { payer: firstName(payer.name) });
+  return t("list.payment", { payer: firstName(payer.name), recipient: firstName(recipient.name) });
+}
+
 export default async function MoneyPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const { trip, user } = await requireTrip(tripId);
+  const t = await getT("money");
+  const tCommon = await getT("common");
+  const tLabels = await getT("labels");
   const [members, expenses, budgetTables] = await Promise.all([
     acceptedMembers(tripId),
     prisma.expense.findMany({
@@ -73,21 +90,23 @@ export default async function MoneyPage({ params }: { params: Promise<{ tripId: 
       0,
     ),
   );
-  const viewerName = (person: { id: string; name: string }) => (person.id === user.id ? "You" : firstName(person.name));
+  const viewerName = (person: { id: string; name: string }) =>
+    person.id === user.id ? tCommon("you") : firstName(person.name);
   const searchEntries = ledger.map((expense) => {
     const recipient = expense.category === "SETTLEMENT" ? expense.shares[0]?.user : null;
     return {
       id: expense.id,
-      title: recipient
-        ? `${viewerName(expense.paidBy)} paid ${recipient.id === user.id ? "you" : firstName(recipient.name)}`
-        : expense.title,
+      title: recipient ? paymentTitle(t, expense.paidBy, recipient, user.id) : expense.title,
       category: expense.category,
-      categoryLabel:
+      categoryLabel: tLabels.dynamic(
+        `expenseCategories.${expense.category}`,
+        undefined,
         EXPENSE_CATEGORY_LABELS[expense.category as keyof typeof EXPENSE_CATEGORY_LABELS] ?? expense.category,
-      dateLabel: formatDateLong(expense.date),
+      ),
+      dateLabel: formatDateLong(expense.date, t.locale),
       amount: Number(expense.amountInBase),
       original:
-        expense.currency === trip.baseCurrency ? null : formatMoney(Number(expense.amount), expense.currency),
+        expense.currency === trip.baseCurrency ? null : formatMoney(Number(expense.amount), expense.currency, t.locale),
       paidBy: viewerName(expense.paidBy),
       people: expense.shares.map((share) => firstName(share.user.name)),
       notes: expense.notes,
@@ -98,8 +117,8 @@ export default async function MoneyPage({ params }: { params: Promise<{ tripId: 
   return (
     <Tabs defaultValue="planned">
       <TabsList>
-        <TabsTrigger value="planned">Planned</TabsTrigger>
-        <TabsTrigger value="actual">Mid-trip</TabsTrigger>
+        <TabsTrigger value="planned">{t("tabs.planned")}</TabsTrigger>
+        <TabsTrigger value="actual">{t("tabs.actual")}</TabsTrigger>
       </TabsList>
       <TabsContent value="planned" className="grid gap-6 pt-4">
         <BudgetSheets
@@ -128,51 +147,46 @@ export default async function MoneyPage({ params }: { params: Promise<{ tripId: 
         <DisplayCurrencyProvider tripId={tripId} base={trip.baseCurrency}>
           <div className="grid gap-6">
             <div className="grid gap-3 sm:grid-cols-3">
-              <Stat
-                label="Group spending"
-                hint={`${spending.length} ${spending.length === 1 ? "expense" : "expenses"} so far`}
-              >
+              <Stat label={t("stats.groupSpending")} hint={t("stats.expensesSoFar", { count: spending.length })}>
                 <Money amount={groupTotal} />
               </Stat>
-              <Stat label="Your share" hint="Your part of everything spent">
+              <Stat label={t("stats.yourShare")} hint={t("stats.yourShareHint")}>
                 <Money amount={yourShare} />
               </Stat>
               <Stat
-                label={yourNet > 0.009 ? "You get back" : yourNet < -0.009 ? "You owe" : "Your balance"}
+                label={yourNet > 0.009 ? t("stats.getBack") : yourNet < -0.009 ? t("stats.owe") : t("stats.balance")}
                 hint={
                   yourNet > 0.009
-                    ? "You paid more than your share"
+                    ? t("stats.getBackHint")
                     : yourNet < -0.009
-                      ? "Others covered part of your share"
-                      : "You're all square"
+                      ? t("stats.oweHint")
+                      : t("stats.balanceHint")
                 }
                 tone={yourNet > 0.009 ? "good" : yourNet < -0.009 ? "bad" : undefined}
               >
-                {Math.abs(yourNet) > 0.009 ? <Money amount={Math.abs(yourNet)} /> : "Settled"}
+                {Math.abs(yourNet) > 0.009 ? <Money amount={Math.abs(yourNet)} /> : t("stats.settled")}
               </Stat>
             </div>
 
             <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-start">
               <ExpenseFormToggle
-                label="Add a shared expense"
-                description={`Amounts in other currencies are converted into ${trip.baseCurrency}.`}
+                label={t("add.title")}
+                description={t("add.description", { currency: trip.baseCurrency })}
                 action={createExpense.bind(null, tripId, "ACTUAL")}
                 members={people}
                 currency={trip.baseCurrency}
-                submitLabel="Add expense"
+                submitLabel={t("add.submit")}
               />
               <SettlementFormToggle tripId={tripId} members={people} currency={trip.baseCurrency} />
-              <div className="sm:ml-auto">
+              <div className="sm:ms-auto">
                 <ConvertCurrencyButton />
               </div>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Settle up</CardTitle>
-                <CardDescription>
-                  The fewest payments that make everyone even. When one happens, use “Record a payment”.
-                </CardDescription>
+                <CardTitle>{t("settle.title")}</CardTitle>
+                <CardDescription>{t("settle.description")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <BalanceSummary currency={trip.baseCurrency} people={people} balances={balances} viewerId={user.id} />
@@ -180,7 +194,7 @@ export default async function MoneyPage({ params }: { params: Promise<{ tripId: 
             </Card>
 
             <section className="grid gap-3">
-              <h2 className="font-heading text-base font-medium">Expenses &amp; payments</h2>
+              <h2 className="font-heading text-base font-medium">{t("list.heading")}</h2>
               {ledger.length > 0 ? <ExpenseSearch entries={searchEntries} /> : null}
               <ExpenseList
                 tripId={tripId}
@@ -248,7 +262,7 @@ type LedgerRow = {
   }[];
 };
 
-function ExpenseList({
+async function ExpenseList({
   tripId,
   currency,
   members,
@@ -261,11 +275,11 @@ function ExpenseList({
   viewerId: string;
   rows: LedgerRow[];
 }) {
+  const t = await getT("money");
   if (rows.length === 0) {
     return (
-      <EmptyState icon={Wallet} title="No expenses yet">
-        Add what the group spends as you go, like dinner, taxis or tickets. Choose who paid and how to split it, and
-        Duffle works out who owes whom.
+      <EmptyState icon={Wallet} title={t("list.emptyTitle")}>
+        {t("list.emptyBody")}
       </EmptyState>
     );
   }
@@ -288,12 +302,8 @@ function ExpenseList({
         return (
           <div key={formatDate(dayRows[0].date)} className="grid gap-2">
             <div className="flex items-baseline justify-between gap-3 px-1 text-xs font-medium text-muted-foreground">
-              <span>{formatDateLong(dayRows[0].date)}</span>
-              {dayTotal > 0 ? (
-                <span>
-                  Spent <Money amount={dayTotal} />
-                </span>
-              ) : null}
+              <span>{formatDateLong(dayRows[0].date, t.locale)}</span>
+              {dayTotal > 0 ? <span>{t.rich("list.spent", { amount: <Money amount={dayTotal} /> })}</span> : null}
             </div>
             <ul className="divide-y rounded-xl bg-card ring-1 ring-foreground/10">
               {dayRows.map((row) => (
@@ -314,7 +324,7 @@ function ExpenseList({
   );
 }
 
-function ExpenseItem({
+async function ExpenseItem({
   tripId,
   currency,
   members,
@@ -327,8 +337,11 @@ function ExpenseItem({
   viewerId: string;
   row: LedgerRow;
 }) {
+  const t = await getT("money");
+  const tCommon = await getT("common");
   const settlement = row.category === "SETTLEMENT";
-  const name = (person: { id: string; name: string }) => (person.id === viewerId ? "You" : firstName(person.name));
+  const name = (person: { id: string; name: string }) =>
+    person.id === viewerId ? tCommon("you") : firstName(person.name);
   const fxRate = Number(row.fxRate);
   const recipient = settlement ? row.shares[0]?.user : null;
 
@@ -340,31 +353,31 @@ function ExpenseItem({
       <div className="grid min-w-0 flex-1 gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">
-            {settlement && recipient
-              ? `${name(row.paidBy)} paid ${recipient.id === viewerId ? "you" : firstName(recipient.name)}`
-              : row.title}
+            {settlement && recipient ? paymentTitle(t, row.paidBy, recipient, viewerId) : row.title}
           </span>
           <ExpenseCategoryTag category={row.category} className="whitespace-nowrap" />
-          {row.phase === "PLANNED" ? <Badge variant="outline">From the plan</Badge> : null}
+          {row.phase === "PLANNED" ? <Badge variant="outline">{t("list.fromPlan")}</Badge> : null}
           {row.phase === "ACTUAL" && row.paid && !settlement ? (
             <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 [&_svg]:text-emerald-600 dark:[&_svg]:text-emerald-400">
               <Check aria-hidden />
-              Paid
+              {t("list.paid")}
             </Badge>
           ) : null}
-          {row.manualRate ? <span className="text-xs text-muted-foreground">Custom exchange rate</span> : null}
+          {row.manualRate ? <span className="text-xs text-muted-foreground">{t("list.customRate")}</span> : null}
         </div>
         {settlement ? null : (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <Avatar name={row.paidBy.name} userId={row.paidBy.id} imageKey={row.paidBy.imageKey} />
               <span>
-                <span className="font-medium text-foreground">{name(row.paidBy)}</span> paid
+                {t.rich("list.whoPaid", {
+                  name: <span className="font-medium text-foreground">{name(row.paidBy)}</span>,
+                })}
               </span>
             </span>
             <span className="inline-flex flex-wrap items-center gap-x-1">
               <SplitTypeIcon splitType={row.splitType} />
-              Split{" "}
+              {t("list.split")}{" "}
               {row.shares.map((share, index) => (
                 <span key={share.user.id}>
                   {index > 0 ? " · " : ""}

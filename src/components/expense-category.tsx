@@ -41,6 +41,7 @@ import {
   EXPENSE_GROUPS,
   expenseGroupFor,
 } from "@/lib/expense-categories";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -80,9 +81,13 @@ const ICONS: Record<string, LucideIcon> = {
 
 export function ExpenseCategoryTag({ category, className }: { category: string; className?: string }) {
   const group = expenseGroupFor(category);
+  const tLabels = useT("labels");
   const Icon = ICONS[category] ?? Circle;
-  const label =
-    EXPENSE_CATEGORY_LABELS[category as keyof typeof EXPENSE_CATEGORY_LABELS] ?? category;
+  const label = tLabels.dynamic(
+    `expenseCategories.${category}`,
+    undefined,
+    EXPENSE_CATEGORY_LABELS[category as keyof typeof EXPENSE_CATEGORY_LABELS] ?? category,
+  );
   return (
     <span
       className={cn(
@@ -115,6 +120,8 @@ export function ExpenseCategoryIcon({ category, className }: { category: string;
 }
 
 export function ExpenseCategoryPicker({ defaultValue = "OTHER" }: { defaultValue?: string }) {
+  const t = useT("money");
+  const tLabels = useT("labels");
   const initialGroup = expenseGroupFor(defaultValue)?.id ?? "GENERAL";
   const [groupId, setGroupId] = useState<string>(initialGroup);
   const [category, setCategory] = useState(defaultValue);
@@ -130,7 +137,7 @@ export function ExpenseCategoryPicker({ defaultValue = "OTHER" }: { defaultValue
 
   return (
     <div className="grid gap-2 sm:col-span-2">
-      <span className="text-sm leading-none font-medium">Category</span>
+      <span className="text-sm leading-none font-medium">{t("form.category")}</span>
       <input type="hidden" name="category" value={category} />
       <div className="flex flex-wrap gap-1.5">
         {EXPENSE_GROUPS.map((item) => (
@@ -143,7 +150,7 @@ export function ExpenseCategoryPicker({ defaultValue = "OTHER" }: { defaultValue
             )}
             onClick={() => chooseGroup(item.id)}
           >
-            {item.label}
+            {tLabels.dynamic(`expenseGroups.${item.id}`, undefined, item.label)}
           </button>
         ))}
       </div>

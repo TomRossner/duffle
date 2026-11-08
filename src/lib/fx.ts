@@ -1,3 +1,4 @@
+import { getT } from "@/i18n/server";
 import { roundMoney } from "@/lib/utils";
 
 type RateResult =
@@ -26,15 +27,14 @@ export async function convertToBase(
     };
   }
 
+  const t = await getT("money");
   try {
     const response = await fetch(
       `https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
       { cache: "no-store" },
     );
     if (!response.ok) {
-      return {
-        error: `No exchange rate for ${from} to ${to}. Enter a manual rate.`,
-      };
+      return { error: t("errors.noRate", { from, to }) };
     }
     const data = (await response.json()) as {
       date?: string;
@@ -42,9 +42,7 @@ export async function convertToBase(
     };
     const rate = data.rates?.[to];
     if (!rate || !data.date) {
-      return {
-        error: `No exchange rate for ${from} to ${to}. Enter a manual rate.`,
-      };
+      return { error: t("errors.noRate", { from, to }) };
     }
     return {
       rate,
@@ -53,7 +51,7 @@ export async function convertToBase(
     };
   } catch {
     return {
-      error: "Currency service is unavailable. Enter a manual rate.",
+      error: t("errors.rateUnavailable"),
     };
   }
 }

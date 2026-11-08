@@ -1,4 +1,6 @@
 import type { ExpenseCategory, ExpensePhase, Prisma, SplitType } from "@prisma/client";
+import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
 import { parseDate } from "@/lib/dates";
 import { convertToBase } from "@/lib/fx";
 import { buildShares, type ShareInput } from "@/lib/money";
@@ -22,7 +24,7 @@ export type ExpenseDraft = {
   memberIds: string[];
 };
 
-export function readExpenseForm(formData: FormData, tripId: string, phase: ExpensePhase) {
+export function readExpenseForm(formData: FormData, tripId: string, phase: ExpensePhase, t: Translator<"money">) {
   const title = String(formData.get("title") ?? "").trim();
   const amount = Number(formData.get("amount"));
   const currency = String(formData.get("currency") ?? "").toUpperCase();
@@ -40,17 +42,17 @@ export function readExpenseForm(formData: FormData, tripId: string, phase: Expen
     percent: Number(formData.get(`sharePercent:${userId}`) || 0),
   }));
 
-  if (!title) return { error: "Add a title." } as const;
-  if (!Number.isFinite(amount) || amount <= 0) return { error: "Amount must be greater than zero." } as const;
+  if (!title) return { error: t("errors.addTitle") } as const;
+  if (!Number.isFinite(amount) || amount <= 0) return { error: t("errors.amountPositive") } as const;
   if (!CURRENCIES.includes(currency as (typeof CURRENCIES)[number])) {
-    return { error: "Choose a currency." } as const;
+    return { error: t("errors.chooseCurrency") } as const;
   }
-  if (!date) return { error: "Choose a date." } as const;
+  if (!date) return { error: t("errors.chooseDate") } as const;
   if (!EXPENSE_CATEGORIES.includes(category as (typeof EXPENSE_CATEGORIES)[number]) && category !== "SETTLEMENT") {
-    return { error: "Choose a category." } as const;
+    return { error: t("errors.chooseCategory") } as const;
   }
   if (splitType !== "EQUAL" && splitType !== "EXACT" && splitType !== "PERCENT") {
-    return { error: "Choose how to split this expense." } as const;
+    return { error: t("errors.chooseSplit") } as const;
   }
 
   return {
@@ -76,15 +78,16 @@ export function readExpenseForm(formData: FormData, tripId: string, phase: Expen
 export async function createExpenseRecord(
   draft: ExpenseDraft,
 ): Promise<{ error: string } | { expense: { id: string } }> {
+  const t = await getT("money");
   if (!draft.memberIds.includes(draft.paidById)) {
-    return { error: "The payer must be a traveler on this trip." } as const;
+    return { error: t("errors.payerNotMember") } as const;
   }
   if (draft.participantIds.some((id) => !draft.memberIds.includes(id))) {
-    return { error: "Every share must belong to a traveler on this trip." } as const;
+    return { error: t("errors.shareNotMember") } as const;
   }
 
   const trip = await prisma.trip.findUnique({ where: { id: draft.tripId } });
-  if (!trip) return { error: "Trip not found." } as const;
+  if (!trip) return { error: t("errors.tripNotFound") } as const;
 
   const converted = await convertToBase(
     draft.amount,
@@ -95,7 +98,7 @@ export async function createExpenseRecord(
   if ("error" in converted) return converted;
 
   const shares = buildShares(draft.splitType, draft.amount, draft.participantIds, draft.inputs);
-  if ("error" in shares) return { error: shares.error ?? "Could not split this expense." };
+  if ("error" in shares) return { error: t(`errors.${shares.error ?? "splitFailed"}`) };
 
   const expense = await prisma.expense.create({
     data: {
@@ -133,22 +136,23 @@ export async function updateExpenseRecord(
   const existing = await prisma.expense.findFirst({
     where: { id: expenseId, tripId: draft.tripId },
   });
-  if (!existing) return { error: "Expense not found." };
+  const t = await getT("money");
+  if (!existing) return { error: t("errors.expenseNotFound") };
   if (!draft.memberIds.includes(draft.paidById)) {
-    return { error: "The payer must be a traveler on this trip." };
+    return { error: t("errors.payerNotMember") };
   }
   if (draft.participantIds.some((id) => !draft.memberIds.includes(id))) {
-    return { error: "Every share must belong to a traveler on this trip." };
+    return { error: t("errors.shareNotMember") };
   }
 
   const trip = await prisma.trip.findUnique({ where: { id: draft.tripId } });
-  if (!trip) return { error: "Trip not found." };
+  if (!trip) return { error: t("errors.tripNotFound") };
 
   const converted = await convertToBase(draft.amount, draft.currency, trip.baseCurrency, draft.manualRate);
   if ("error" in converted) return converted;
 
   const shares = buildShares(draft.splitType, draft.amount, draft.participantIds, draft.inputs);
-  if ("error" in shares) return { error: shares.error ?? "Could not split this expense." };
+  if ("error" in shares) return { error: t(`errors.${shares.error ?? "splitFailed"}`) };
 
   await prisma.$transaction([
     prisma.expenseShare.deleteMany({ where: { expenseId } }),
@@ -193,11 +197,12 @@ export async function createSimplePlannedExpense(input: {
   manualRate: number | null;
   notes?: string | null;
 }) {
+  const t = await getT("money");
   if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    return { error: "Cost must be greater than zero." };
+    return { error: t("errors.costPositive") };
   }
   if (!CURRENCIES.includes(input.currency as (typeof CURRENCIES)[number])) {
-    return { error: "Choose a currency." };
+    return { error: t("errors.chooseCurrency") };
   }
   return createExpenseRecord({
     tripId: input.tripId,

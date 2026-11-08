@@ -25,7 +25,7 @@ export function buildShares(
   inputs: ShareInput[],
 ) {
   if (participantIds.length === 0) {
-    return { error: "Choose at least one person to split with." } as const;
+    return { error: "splitPeople" } as const;
   }
 
   if (splitType === "EQUAL") {
@@ -51,7 +51,7 @@ export function buildShares(
     });
     const sum = roundMoney(shares.reduce((total, share) => total + share.amount, 0));
     if (sum !== roundMoney(amount)) {
-      return { error: "Exact shares must add up to the expense amount." } as const;
+      return { error: "exactSum" } as const;
     }
     return { shares } as const;
   }
@@ -67,7 +67,7 @@ export function buildShares(
   });
   const percentSum = roundMoney(shares.reduce((total, share) => total + (share.percent ?? 0), 0));
   if (percentSum !== 100) {
-    return { error: "Percents must add up to 100." } as const;
+    return { error: "percentSum" } as const;
   }
   const drift = roundMoney(amount - shares.reduce((total, share) => total + share.amount, 0));
   if (shares.length > 0 && drift !== 0) {

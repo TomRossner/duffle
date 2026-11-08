@@ -7,6 +7,7 @@ import { useState } from "react";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { ExpenseForm, type ExpenseFormDefaults } from "@/components/expense-form";
 import { buttonVariants } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 
 type Member = { id: string; name: string; imageKey?: string | null };
 
@@ -37,6 +38,8 @@ export function ExpenseRowMenu({
   markPaid?: { paid: boolean; action: RunAction };
   remove: RunAction;
 }) {
+  const t = useT("money");
+  const tCommon = useT("common");
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +56,7 @@ export function ExpenseRowMenu({
       <Menu.Root>
         <Menu.Trigger
           className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-          aria-label={`Actions for ${title}`}
+          aria-label={tCommon("actionsFor", { name: title })}
         >
           <EllipsisVertical />
         </Menu.Trigger>
@@ -62,17 +65,17 @@ export function ExpenseRowMenu({
             <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
               <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
                 <Pencil className="size-3.5" />
-                Edit
+                {tCommon("edit")}
               </Menu.Item>
               {markPaid ? (
                 <Menu.Item className={menuItemClass} onClick={() => void run(markPaid.action)}>
                   {markPaid.paid ? <Undo2 className="size-3.5" /> : <Check className="size-3.5" />}
-                  {markPaid.paid ? "Mark unpaid" : "Mark paid"}
+                  {markPaid.paid ? t("editor.markUnpaid") : t("editor.markPaid")}
                 </Menu.Item>
               ) : null}
               <Menu.Item className={`${menuItemClass} text-destructive`} onClick={() => setConfirming(true)}>
                 <Trash2 className="size-3.5" />
-                Delete
+                {tCommon("delete")}
               </Menu.Item>
             </Menu.Popup>
           </Menu.Positioner>
@@ -86,12 +89,12 @@ export function ExpenseRowMenu({
             <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <Dialog.Title className="text-lg font-medium">Edit expense</Dialog.Title>
+                  <Dialog.Title className="text-lg font-medium">{t("editor.editTitle")}</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    Change the amount, who paid, or how it is split.
+                    {t("editor.editDescription")}
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
@@ -99,7 +102,7 @@ export function ExpenseRowMenu({
                 action={action}
                 members={members}
                 currency={currency}
-                submitLabel="Save"
+                submitLabel={tCommon("save")}
                 includeCategory={!settlement}
                 defaultCategory={defaults.category}
                 defaults={defaults}
@@ -112,7 +115,7 @@ export function ExpenseRowMenu({
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}
-        message={`Are you sure you want to delete "${title}"?`}
+        message={t("editor.confirmDelete", { title })}
         onConfirm={() => {
           setConfirming(false);
           void run(remove);

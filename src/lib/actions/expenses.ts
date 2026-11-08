@@ -1,6 +1,6 @@
 "use server";
 
-import { translatorFor } from "@/i18n/server";
+import { getT, translatorFor } from "@/i18n/server";
 import { revalidatePath } from "next/cache";
 import { parseDate } from "@/lib/dates";
 import { createExpenseRecord, readExpenseForm, updateExpenseRecord } from "@/lib/expenses";
@@ -17,7 +17,7 @@ async function memberIdsFor(tripId: string) {
 
 export async function createExpense(tripId: string, phase: "PLANNED" | "ACTUAL", _: unknown, formData: FormData) {
   const { user } = await requireTrip(tripId);
-  const parsed = readExpenseForm(formData, tripId, phase);
+  const parsed = readExpenseForm(formData, tripId, phase, await getT("money"));
   if ("error" in parsed) return parsed;
   const created = await createExpenseRecord({
     ...parsed.draft,
@@ -35,10 +35,11 @@ export async function createExpense(tripId: string, phase: "PLANNED" | "ACTUAL",
 }
 
 export async function updateExpense(tripId: string, expenseId: string, _: unknown, formData: FormData) {
+  const t = await getT("money");
   const { user } = await requireTrip(tripId);
   const existing = await prisma.expense.findFirst({ where: { id: expenseId, tripId } });
-  if (!existing) return { error: "Expense not found." };
-  const parsed = readExpenseForm(formData, tripId, existing.phase);
+  if (!existing) return { error: t("errors.expenseNotFound") };
+  const parsed = readExpenseForm(formData, tripId, existing.phase, t);
   if ("error" in parsed) return parsed;
   const updated = await updateExpenseRecord(expenseId, {
     ...parsed.draft,
@@ -56,9 +57,10 @@ export async function updateExpense(tripId: string, expenseId: string, _: unknow
 }
 
 export async function deleteExpense(tripId: string, expenseId: string) {
+  const t = await getT("money");
   const { user } = await requireTrip(tripId);
   const expense = await prisma.expense.findFirst({ where: { id: expenseId, tripId } });
-  if (!expense) return { error: "Expense not found." };
+  if (!expense) return { error: t("errors.expenseNotFound") };
   await prisma.expense.delete({ where: { id: expenseId } });
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
@@ -71,10 +73,11 @@ export async function deleteExpense(tripId: string, expenseId: string) {
 }
 
 export async function markExpensePaid(tripId: string, expenseId: string) {
+  const t = await getT("money");
   const { user } = await requireTrip(tripId);
   const expense = await prisma.expense.findFirst({ where: { id: expenseId, tripId } });
-  if (!expense) return { error: "Expense not found." };
-  if (expense.category === "SETTLEMENT") return { error: "A payment cannot be marked paid." };
+  if (!expense) return { error: t("errors.expenseNotFound") };
+  if (expense.category === "SETTLEMENT") return { error: t("errors.paymentNotPaid") };
   if (!expense.paid) {
     await prisma.expense.update({ where: { id: expenseId }, data: { paid: true } });
     revalidatePath(`/trips/${tripId}`);
@@ -89,9 +92,10 @@ export async function markExpensePaid(tripId: string, expenseId: string) {
 }
 
 export async function markExpenseUnpaid(tripId: string, expenseId: string) {
+  const t = await getT("money");
   const { user } = await requireTrip(tripId);
   const expense = await prisma.expense.findFirst({ where: { id: expenseId, tripId } });
-  if (!expense) return { error: "Expense not found." };
+  if (!expense) return { error: t("errors.expenseNotFound") };
   if (expense.paid) {
     await prisma.expense.update({ where: { id: expenseId }, data: { paid: false } });
     revalidatePath(`/trips/${tripId}`);
@@ -106,6 +110,7 @@ export async function markExpenseUnpaid(tripId: string, expenseId: string) {
 }
 
 export async function createSettlement(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("money");
   const { user } = await requireTrip(tripId);
   const fromUserId = String(formData.get("fromUserId") ?? "");
   const toUserId = String(formData.get("toUserId") ?? "");
@@ -117,15 +122,15 @@ export async function createSettlement(tripId: string, _: unknown, formData: For
   const memberIds = await memberIdsFor(tripId);
 
   if (!memberIds.includes(fromUserId) || !memberIds.includes(toUserId)) {
-    return { error: "Choose two travelers on this trip." };
+    return { error: t("errors.twoTravelers") };
   }
-  if (fromUserId === toUserId) return { error: "A settlement needs two different people." };
-  if (!Number.isFinite(amount) || amount <= 0) return { error: "Amount must be greater than zero." };
-  if (!CURRENCIES.includes(currency as (typeof CURRENCIES)[number])) return { error: "Choose a currency." };
-  if (!date) return { error: "Choose a date." };
+  if (fromUserId === toUserId) return { error: t("errors.twoDifferent") };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: t("errors.amountPositive") };
+  if (!CURRENCIES.includes(currency as (typeof CURRENCIES)[number])) return { error: t("errors.chooseCurrency") };
+  if (!date) return { error: t("errors.chooseDate") };
 
   const trip = await prisma.trip.findUnique({ where: { id: tripId } });
-  if (!trip) return { error: "Trip not found." };
+  if (!trip) return { error: t("errors.tripNotFound") };
   const converted = await convertToBase(amount, currency, trip.baseCurrency, manualRate);
   if ("error" in converted) return converted;
 

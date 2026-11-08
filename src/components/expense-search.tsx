@@ -5,6 +5,7 @@ import { Search, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { ExpenseCategoryIcon } from "@/components/expense-category";
 import { Money } from "@/components/money-view";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 export type ExpenseSearchEntry = {
@@ -81,6 +82,7 @@ function revealExpense(id: string) {
 }
 
 export function ExpenseSearch({ entries }: { entries: ExpenseSearchEntry[] }) {
+  const t = useT("money");
   const [query, setQuery] = useState("");
   const results = useMemo(() => search(entries, query), [entries, query]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -112,18 +114,18 @@ export function ExpenseSearch({ entries }: { entries: ExpenseSearchEntry[] }) {
           "focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
         )}
       >
-        <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
+        <Search className="pointer-events-none absolute start-3 size-4 text-muted-foreground" aria-hidden />
         <Combobox.Input
           ref={inputRef}
-          aria-label="Search expenses"
-          placeholder="Search expenses by name, category, person or amount"
+          aria-label={t("search.label")}
+          placeholder={t("search.placeholder")}
           autoComplete="off"
-          className="h-full w-full min-w-0 bg-transparent pr-9 pl-9 outline-none placeholder:text-muted-foreground"
+          className="h-full w-full min-w-0 bg-transparent pe-9 ps-9 outline-none placeholder:text-muted-foreground"
         />
         {query ? (
           <Combobox.Clear
-            aria-label="Clear search"
-            className="absolute right-1.5 flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={t("search.clear")}
+            className="absolute end-1.5 flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <X className="size-4" />
           </Combobox.Clear>
@@ -139,7 +141,7 @@ export function ExpenseSearch({ entries }: { entries: ExpenseSearchEntry[] }) {
             )}
           >
             <Combobox.Empty>
-              <p className="px-3 py-2.5 text-muted-foreground">No expenses match “{query.trim()}”.</p>
+              <p className="px-3 py-2.5 text-muted-foreground">{t("search.noMatch", { query: query.trim() })}</p>
             </Combobox.Empty>
             <Combobox.List>
               {(entry: ExpenseSearchEntry) => (

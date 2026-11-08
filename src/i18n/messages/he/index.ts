@@ -5,6 +5,7 @@ import auth from "./auth";
 import common from "./common";
 import labels from "./labels";
 import mail from "./mail";
+import money from "./money";
 import nav from "./nav";
 import notifications from "./notifications";
 import profile from "./profile";
@@ -18,6 +19,7 @@ export const messages: Translation<Messages> = {
   common,
   labels,
   mail,
+  money,
   nav,
   notifications,
   profile,

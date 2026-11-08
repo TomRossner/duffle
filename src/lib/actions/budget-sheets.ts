@@ -1,5 +1,6 @@
 "use server";
 
+import { getT } from "@/i18n/server";
 import { revalidatePath } from "next/cache";
 import {
   BUDGET_TABLE_CATEGORY,
@@ -29,11 +30,12 @@ async function nextTableOrder(tripId: string) {
 }
 
 export async function createBudgetTable(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("money");
   await requireTrip(tripId);
   const trip = await prisma.trip.findUnique({ where: { id: tripId }, select: { baseCurrency: true } });
-  if (!trip) return { error: "Trip not found." };
+  if (!trip) return { error: t("errors.tripNotFound") };
   const currency = String(formData.get("currency") ?? trip.baseCurrency).toUpperCase();
-  if (!isCurrency(currency)) return { error: "Choose a currency." };
+  if (!isCurrency(currency)) return { error: t("errors.chooseCurrency") };
   const typedTitle = String(formData.get("title") ?? "").trim();
   const title = (typedTitle || "Budget table").slice(0, 80);
 
@@ -51,27 +53,29 @@ export async function createBudgetTable(tripId: string, _: unknown, formData: Fo
 }
 
 export async function deleteBudgetTable(tripId: string, tableId: string) {
+  const t = await getT("money");
   await requireTrip(tripId);
   const table = await prisma.budgetTable.findFirst({ where: { id: tableId, tripId }, select: { id: true } });
-  if (!table) return { error: "Table not found." };
+  if (!table) return { error: t("errors.tableNotFound") };
   await prisma.budgetTable.delete({ where: { id: tableId } });
   revalidatePath(`/trips/${tripId}/money`);
   return { ok: true };
 }
 
 async function rowFields(tripId: string, formData: FormData) {
+  const t = await getT("money");
   const label = String(formData.get("label") ?? "").trim();
   const amount = Number(formData.get("amount"));
   const startDate = parseDate(String(formData.get("startDate") ?? ""));
   const endDate = parseDate(String(formData.get("endDate") ?? ""));
   const note = String(formData.get("note") ?? "").trim();
   const paidById = String(formData.get("paidById") ?? "");
-  if (!label) return { error: "Name this row." as const };
-  if (!Number.isFinite(amount) || amount <= 0) return { error: "Amount must be greater than zero." as const };
-  if (startDate && endDate && endDate < startDate) return { error: "The end date is before the start date." as const };
+  if (!label) return { error: t("errors.nameRow") };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: t("errors.amountPositive") };
+  if (startDate && endDate && endDate < startDate) return { error: t("errors.endBeforeStart") };
   if (paidById) {
     const members = await acceptedMembers(tripId);
-    if (!members.some((member) => member.userId === paidById)) return { error: "Choose who paid." as const };
+    if (!members.some((member) => member.userId === paidById)) return { error: t("errors.choosePayer") };
   }
   return {
     data: {
@@ -86,9 +90,10 @@ async function rowFields(tripId: string, formData: FormData) {
 }
 
 export async function addBudgetRow(tripId: string, tableId: string, _: unknown, formData: FormData) {
+  const t = await getT("money");
   await requireTrip(tripId);
   const table = await prisma.budgetTable.findFirst({ where: { id: tableId, tripId }, select: { id: true } });
-  if (!table) return { error: "Table not found." };
+  if (!table) return { error: t("errors.tableNotFound") };
   const fields = await rowFields(tripId, formData);
   if ("error" in fields) return fields;
 
@@ -109,12 +114,13 @@ export async function addBudgetRow(tripId: string, tableId: string, _: unknown, 
 }
 
 export async function updateBudgetRow(tripId: string, rowId: string, _: unknown, formData: FormData) {
+  const t = await getT("money");
   await requireTrip(tripId);
   const row = await prisma.budgetRow.findFirst({
     where: { id: rowId, table: { tripId } },
     select: { id: true },
   });
-  if (!row) return { error: "Row not found." };
+  if (!row) return { error: t("errors.rowNotFound") };
   const fields = await rowFields(tripId, formData);
   if ("error" in fields) return fields;
   await prisma.budgetRow.update({ where: { id: rowId }, data: fields.data });
@@ -123,13 +129,14 @@ export async function updateBudgetRow(tripId: string, rowId: string, _: unknown,
 }
 
 export async function updateBudgetTable(tripId: string, tableId: string, _: unknown, formData: FormData) {
+  const t = await getT("money");
   await requireTrip(tripId);
   const table = await prisma.budgetTable.findFirst({ where: { id: tableId, tripId }, select: { id: true } });
-  if (!table) return { error: "Table not found." };
+  if (!table) return { error: t("errors.tableNotFound") };
   const trip = await prisma.trip.findUnique({ where: { id: tripId }, select: { baseCurrency: true } });
-  if (!trip) return { error: "Trip not found." };
+  if (!trip) return { error: t("errors.tripNotFound") };
   const currency = String(formData.get("currency") ?? trip.baseCurrency).toUpperCase();
-  if (!isCurrency(currency)) return { error: "Choose a currency." };
+  if (!isCurrency(currency)) return { error: t("errors.chooseCurrency") };
   const typedTitle = String(formData.get("title") ?? "").trim();
   const title = (typedTitle || "Budget table").slice(0, 80);
   await prisma.budgetTable.update({
@@ -141,33 +148,35 @@ export async function updateBudgetTable(tripId: string, tableId: string, _: unkn
 }
 
 export async function deleteBudgetRow(tripId: string, rowId: string) {
+  const t = await getT("money");
   await requireTrip(tripId);
   const row = await prisma.budgetRow.findFirst({
     where: { id: rowId, table: { tripId } },
     select: { id: true },
   });
-  if (!row) return { error: "Row not found." };
+  if (!row) return { error: t("errors.rowNotFound") };
   await prisma.budgetRow.delete({ where: { id: rowId } });
   revalidatePath(`/trips/${tripId}/money`);
   return { ok: true };
 }
 
 export async function addBudgetRowToPlan(tripId: string, rowId: string) {
+  const t = await getT("money");
   const { user } = await requireTrip(tripId);
   const row = await prisma.budgetRow.findFirst({
     where: { id: rowId, table: { tripId } },
     include: { table: true },
   });
-  if (!row) return { error: "Row not found." };
-  if (row.expenseId) return { error: "This row is already a planned cost." };
+  if (!row) return { error: t("errors.rowNotFound") };
+  if (row.expenseId) return { error: t("errors.alreadyPlanned") };
   const amount = Number(row.amount);
-  if (!Number.isFinite(amount) || amount <= 0) return { error: "Amount must be greater than zero." };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: t("errors.amountPositive") };
 
   const [trip, members] = await Promise.all([
     prisma.trip.findUnique({ where: { id: tripId }, select: { startDate: true } }),
     acceptedMembers(tripId),
   ]);
-  if (!trip) return { error: "Trip not found." };
+  if (!trip) return { error: t("errors.tripNotFound") };
   const memberIds = members.map((member) => member.userId);
   const created = await createExpenseRecord({
     tripId,
@@ -193,7 +202,7 @@ export async function addBudgetRowToPlan(tripId: string, rowId: string) {
   });
   if (linked.count === 0) {
     await prisma.expense.delete({ where: { id: created.expense.id } });
-    return { error: "This row is already a planned cost." };
+    return { error: t("errors.alreadyPlanned") };
   }
 
   revalidatePath(`/trips/${tripId}`);
@@ -207,23 +216,24 @@ export async function addBudgetRowToPlan(tripId: string, rowId: string) {
 }
 
 export async function importBudgetWorkbook(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("money");
   const { user } = await requireTrip(tripId);
   const trip = await prisma.trip.findUnique({
     where: { id: tripId },
     select: { baseCurrency: true, startDate: true, endDate: true },
   });
-  if (!trip) return { error: "Trip not found." };
+  if (!trip) return { error: t("errors.tripNotFound") };
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose an Excel file." };
-  if (file.size > 2_000_000) return { error: "That file is larger than 2MB." };
+  if (!(file instanceof File) || file.size === 0) return { error: t("errors.chooseFile") };
+  if (file.size > 2_000_000) return { error: t("errors.fileTooLarge") };
   const name = file.name.toLowerCase();
-  if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) return { error: "Upload an .xlsx or .xls file." };
+  if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) return { error: t("errors.fileType") };
 
   let matrices: ImportSheet[];
   try {
     matrices = readWorkbook(new Uint8Array(await file.arrayBuffer()));
   } catch {
-    return { error: "That file could not be read as a spreadsheet." };
+    return { error: t("errors.fileUnreadable") };
   }
 
   // The agent reads the workbook first; the box reader covers a gateway that is off or fails.
@@ -248,7 +258,7 @@ export async function importBudgetWorkbook(tripId: string, _: unknown, formData:
         };
       }),
     );
-  if (imported.length === 0) return { error: "No amount tables were found in that file." };
+  if (imported.length === 0) return { error: t("errors.noTables") };
 
   let sortOrder = await nextTableOrder(tripId);
   await prisma.$transaction(
