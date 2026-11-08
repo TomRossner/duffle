@@ -5,7 +5,6 @@ import { ScanQrButton } from "@/components/scan-qr-button";
 import { WelcomeCard } from "@/components/welcome-card";
 import { FlagStack } from "@/components/country-flag";
 import { Badge } from "@/components/ui/badge";
-import { memberColor } from "@/lib/member-color";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { countryName } from "@/lib/account-details";
@@ -63,8 +62,7 @@ export default async function TripsPage() {
                       <FlagStack codes={countries} label={countries.map(countryName).join(", ")} />
                     ) : null}
                     {membership.trip.name}
-                    <Badge variant="secondary" className="gap-1.5">
-                      <span className={`size-2 rounded-full ${memberColor(membership.userId)}`} />
+                    <Badge variant="secondary">
                       {membership.role === "ADMIN" ? "Admin" : "Traveler"}
                     </Badge>
                   </CardTitle>
