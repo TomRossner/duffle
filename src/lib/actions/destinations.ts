@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
 import { ACTIVITY_TAGS } from "@/lib/constants";
 import { parseDate } from "@/lib/dates";
 import { createSimplePlannedExpense, deleteExpenseById } from "@/lib/expenses";
@@ -12,13 +13,14 @@ import { planSeries, readScheduleWhen, repeatTimes } from "@/lib/schedule-when";
 import { acceptedMembers, currentUser, requireTrip } from "@/lib/trip-access";
 
 export async function searchPlacesAction(query: string) {
+  const t = await getT("map");
   const user = await currentUser();
-  if (!user) return { error: "Sign in to search places.", results: [] };
+  if (!user) return { error: t("errors.signIn"), results: [] };
   if (!query.trim()) return { results: [] };
   return searchPlaces(query.trim());
 }
 
-function readDestination(trip: { startDate: Date; endDate: Date }, formData: FormData) {
+function readDestination(trip: { startDate: Date; endDate: Date }, formData: FormData, t: Translator<"map">) {
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim() || null;
   const placeId = String(formData.get("placeId") ?? "").trim() || null;
@@ -28,22 +30,23 @@ function readDestination(trip: { startDate: Date; endDate: Date }, formData: For
   const endDate = parseDate(String(formData.get("endDate") ?? ""));
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  if (!name) return { error: "Name the destination." };
+  if (!name) return { error: t("errors.nameDestination") };
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-    return { error: "Choose a place from search, or enter its location." };
+    return { error: t("errors.choosePlace") };
   }
-  if (!startDate || !endDate) return { error: "Choose the dates you will be there." };
-  if (endDate < startDate) return { error: "The last day must be on or after the first day." };
+  if (!startDate || !endDate) return { error: t("errors.chooseDates") };
+  if (endDate < startDate) return { error: t("errors.lastAfterFirst") };
   if (startDate < trip.startDate || endDate > trip.endDate) {
-    return { error: "Destination dates must fall inside the trip." };
+    return { error: t("errors.insideTrip") };
   }
 
   return { data: { name, address, placeId, lat, lng, startDate, endDate, notes } };
 }
 
 export async function createDestination(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("map");
   const { trip } = await requireTrip(tripId);
-  const parsed = readDestination(trip, formData);
+  const parsed = readDestination(trip, formData, t);
   if (parsed.error !== undefined) return { error: parsed.error };
 
   const last = await prisma.destination.findFirst({
@@ -65,10 +68,11 @@ export async function createDestination(tripId: string, _: unknown, formData: Fo
 }
 
 export async function updateDestination(tripId: string, destinationId: string, _: unknown, formData: FormData) {
+  const t = await getT("map");
   const { trip } = await requireTrip(tripId);
   const existing = await prisma.destination.findFirst({ where: { id: destinationId, tripId } });
-  if (!existing) return { error: "Destination not found." };
-  const parsed = readDestination(trip, formData);
+  if (!existing) return { error: t("errors.destinationNotFound") };
+  const parsed = readDestination(trip, formData, t);
   if (parsed.error !== undefined) return { error: parsed.error };
 
   await prisma.destination.update({
@@ -82,12 +86,13 @@ export async function updateDestination(tripId: string, destinationId: string, _
 }
 
 export async function deleteDestination(tripId: string, destinationId: string) {
+  const t = await getT("map");
   await requireTrip(tripId);
   const destination = await prisma.destination.findFirst({
     where: { id: destinationId, tripId },
     include: { activities: true },
   });
-  if (!destination) return { error: "Destination not found." };
+  if (!destination) return { error: t("errors.destinationNotFound") };
   for (const activity of destination.activities) {
     await deleteExpenseById(activity.expenseId);
   }
@@ -98,9 +103,10 @@ export async function deleteDestination(tripId: string, destinationId: string) {
 }
 
 export async function createActivity(tripId: string, destinationId: string, _: unknown, formData: FormData) {
+  const t = await getT("map");
   const { user, trip } = await requireTrip(tripId);
   const destination = await prisma.destination.findFirst({ where: { id: destinationId, tripId } });
-  if (!destination) return { error: "Destination not found." };
+  if (!destination) return { error: t("errors.destinationNotFound") };
 
   const title = String(formData.get("title") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
@@ -109,7 +115,7 @@ export async function createActivity(tripId: string, destinationId: string, _: u
     .map(String)
     .filter((tag) => ACTIVITY_TAGS.includes(tag as (typeof ACTIVITY_TAGS)[number]));
 
-  if (!title) return { error: "Name the activity." };
+  if (!title) return { error: t("errors.nameActivity") };
   // An activity may be left unscheduled; then there's nothing to repeat.
   const when = readScheduleWhen(formData, trip, { requireStart: false });
   if ("error" in when) {
@@ -165,15 +171,16 @@ export async function createActivity(tripId: string, destinationId: string, _: u
 }
 
 export async function updateActivity(tripId: string, activityId: string, _: unknown, formData: FormData) {
+  const t = await getT("map");
   const { trip } = await requireTrip(tripId);
   const activity = await prisma.activity.findFirst({
     where: { id: activityId, destination: { tripId } },
   });
-  if (!activity) return { error: "Activity not found." };
+  if (!activity) return { error: t("errors.activityNotFound") };
 
   const title = String(formData.get("title") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim() || null;
-  if (!title) return { error: "Name the activity." };
+  if (!title) return { error: t("errors.nameActivity") };
   // Only forms that show the tag picker send this marker; others leave tags as they are.
   const tags = formData.has("editTags")
     ? formData
@@ -242,11 +249,12 @@ export async function updateActivity(tripId: string, activityId: string, _: unkn
 }
 
 export async function deleteActivity(tripId: string, activityId: string) {
+  const t = await getT("map");
   await requireTrip(tripId);
   const activity = await prisma.activity.findFirst({
     where: { id: activityId, destination: { tripId } },
   });
-  if (!activity) return { error: "Activity not found." };
+  if (!activity) return { error: t("errors.activityNotFound") };
   await prisma.activity.delete({ where: { id: activityId } });
   await deleteExpenseById(activity.expenseId);
   revalidatePath(`/trips/${tripId}`);

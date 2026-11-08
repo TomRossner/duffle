@@ -1,3 +1,4 @@
+import { getT } from "@/i18n/server";
 export type PlaceResult = {
   placeId: string;
   name: string;
@@ -23,10 +24,7 @@ export async function searchPlaces(query: string): Promise<
 > {
   const key = serverKey();
   if (!key) {
-    return {
-      error: "Add GOOGLE_MAPS_API_KEY to search places. You can still enter a name and coordinates.",
-      results: [],
-    };
+    return { error: (await getT("map"))("errors.noKey"), results: [] };
   }
 
   const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -42,7 +40,7 @@ export async function searchPlaces(query: string): Promise<
 
   if (!response.ok) {
     await logGoogleError("Places searchText", response);
-    return { error: "Place search failed. Check the Google Maps key and enabled APIs.", results: [] };
+    return { error: (await getT("map"))("errors.searchFailed"), results: [] };
   }
 
   const data = (await response.json()) as {

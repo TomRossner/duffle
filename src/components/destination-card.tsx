@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DirectionsButton } from "@/components/place-links";
 import { updateDestination } from "@/lib/actions/destinations";
+import { useT } from "@/i18n/client";
 import type { PlaceResult } from "@/lib/places";
 
 const menuItemClass =
@@ -150,6 +151,8 @@ function DestinationMenu({
   remove: () => Promise<{ error?: string } | void>;
   onError: (error: string | null) => void;
 }) {
+  const t = useT("map");
+  const tCommon = useT("common");
   const [confirming, setConfirming] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -158,7 +161,7 @@ function DestinationMenu({
       <Menu.Root>
         <Menu.Trigger
           className={`${buttonVariants({ variant: "ghost", size: "icon-sm" })} shrink-0`}
-          aria-label={`Actions for ${name}`}
+          aria-label={tCommon("actionsFor", { name })}
         >
           <EllipsisVertical />
         </Menu.Trigger>
@@ -167,7 +170,7 @@ function DestinationMenu({
             <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
               <Menu.Item className={menuItemClass} onClick={onEdit}>
                 <Pencil className="size-3.5" />
-                Edit
+                {tCommon("edit")}
               </Menu.Item>
               <Menu.Item
                 className={`${menuItemClass} text-destructive`}
@@ -175,7 +178,7 @@ function DestinationMenu({
                 onClick={() => setConfirming(true)}
               >
                 <Trash2 className="size-3.5" />
-                {removing ? "Removing..." : "Remove"}
+                {removing ? tCommon("removing") : tCommon("remove")}
               </Menu.Item>
             </Menu.Popup>
           </Menu.Positioner>
@@ -184,8 +187,8 @@ function DestinationMenu({
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}
-        message={`Are you sure you want to remove ${name} and its activities?`}
-        confirmLabel="Remove"
+        message={t("card.confirmRemove", { name })}
+        confirmLabel={tCommon("remove")}
         pending={removing}
         onConfirm={() => {
           setConfirming(false);
@@ -216,8 +219,9 @@ function EditDestination({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useT("map");
   return (
-    <FormDialog title={`Edit ${destination.name}`} open={open} onOpenChange={onOpenChange}>
+    <FormDialog title={t("card.editTitle", { name: destination.name })} open={open} onOpenChange={onOpenChange}>
       <EditDestinationForm tripId={tripId} destination={destination} dateHint={dateHint} />
     </FormDialog>
   );
@@ -232,6 +236,8 @@ function EditDestinationForm({
   destination: DestinationDetails;
   dateHint: string;
 }) {
+  const t = useT("map");
+  const tCommon = useT("common");
   const closeDialog = useCloseFormDialog();
   const [place, setPlace] = useState<PlaceResult | null>(null);
   const [state, formAction, pending] = useActionState(updateDestination.bind(null, tripId, destination.id), null);
@@ -246,7 +252,7 @@ function EditDestinationForm({
   return (
     <form action={formAction} className="grid gap-3">
       <div className="grid gap-1.5">
-        <span className="text-sm leading-none font-medium">Place</span>
+        <span className="text-sm leading-none font-medium">{t("form.place")}</span>
         <PlaceSearch onPick={setPlace} />
       </div>
       <p className="text-sm text-muted-foreground">
@@ -257,24 +263,24 @@ function EditDestinationForm({
       <input type="hidden" name="lng" value={String(place?.lng ?? destination.lng)} />
       <input type="hidden" name="address" value={address} />
       <input type="hidden" name="placeId" value={place?.placeId ?? destination.placeId ?? ""} />
-      <Field label="Name">
+      <Field label={t("form.name")}>
         <Input name="name" key={place?.placeId ?? destination.id} defaultValue={place?.name ?? destination.name} required />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="First day">
+        <Field label={t("form.firstDay")}>
           <Input name="startDate" type="date" defaultValue={destination.startDate} required />
         </Field>
-        <Field label="Last day">
+        <Field label={t("form.lastDay")}>
           <Input name="endDate" type="date" defaultValue={destination.endDate} required />
         </Field>
       </div>
       <p className="text-xs text-muted-foreground">{dateHint}</p>
-      <Field label="Note">
-        <Textarea name="notes" rows={2} defaultValue={destination.notes ?? ""} placeholder="Optional" />
+      <Field label={t("form.note")}>
+        <Textarea name="notes" rows={2} defaultValue={destination.notes ?? ""} placeholder={t("form.optional")} />
       </Field>
       {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
       <Button type="submit" disabled={pending}>
-        {pending ? "Saving..." : "Save"}
+        {pending ? tCommon("saving") : tCommon("save")}
       </Button>
     </form>
   );

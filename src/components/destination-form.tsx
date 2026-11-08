@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createDestination } from "@/lib/actions/destinations";
+import { useT } from "@/i18n/client";
 import type { PlaceResult } from "@/lib/places";
 
 export function DestinationForm({
@@ -21,6 +22,8 @@ export function DestinationForm({
   endDate: string;
   dateHint: string;
 }) {
+  const t = useT("map");
+  const tCommon = useT("common");
   const [place, setPlace] = useState<PlaceResult | null>(null);
   const [manual, setManual] = useState(false);
   const [rename, setRename] = useState(false);
@@ -45,7 +48,7 @@ export function DestinationForm({
     <form action={formAction} className="grid gap-3">
       <div key={formKey} className="grid gap-3">
       <div className="grid gap-1.5">
-        <span className="text-sm leading-none font-medium">Place</span>
+        <span className="text-sm leading-none font-medium">{t("form.place")}</span>
         <PlaceSearch
           onPick={(picked) => {
             setPlace(picked);
@@ -68,7 +71,7 @@ export function DestinationForm({
           <input type="hidden" name="lat" value={String(place.lat)} />
           <input type="hidden" name="lng" value={String(place.lng)} />
           {rename ? (
-            <Field label="Name">
+            <Field label={t("form.name")}>
               <Input name="name" defaultValue={place.name} required />
             </Field>
           ) : (
@@ -77,7 +80,7 @@ export function DestinationForm({
           <div className="flex gap-2">
             {rename ? null : (
               <Button type="button" variant="ghost" size="sm" onClick={() => setRename(true)}>
-                Rename
+                {t("form.rename")}
               </Button>
             )}
             <Button
@@ -89,57 +92,57 @@ export function DestinationForm({
                 setRename(false);
               }}
             >
-              Clear
+              {t("form.clear")}
             </Button>
           </div>
         </div>
       ) : manual ? (
         <>
-          <Field label="Name">
+          <Field label={t("form.name")}>
             <Input name="name" defaultValue={place?.name ?? ""} required />
           </Field>
-          <Field label="Address">
+          <Field label={t("form.address")}>
             <Input name="address" defaultValue={place?.address ?? ""} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Latitude">
+            <Field label={t("form.latitude")}>
               <Input name="lat" defaultValue={place ? String(place.lat) : ""} required />
             </Field>
-            <Field label="Longitude">
+            <Field label={t("form.longitude")}>
               <Input name="lng" defaultValue={place ? String(place.lng) : ""} required />
             </Field>
           </div>
           {place ? (
             <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={() => setManual(false)}>
-              Use {place.name}
+              {t("form.usePlace", { name: place.name })}
             </Button>
           ) : null}
         </>
       ) : (
         <div className="grid gap-2">
-          <p className="text-sm text-muted-foreground">Search, then choose a result. That sets the pin.</p>
+          <p className="text-sm text-muted-foreground">{t("form.searchHint")}</p>
           <Button type="button" variant="outline" className="justify-self-start" onClick={() => setManual(true)}>
-            Enter a location yourself
+            {t("form.enterYourself")}
           </Button>
         </div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="First day">
+        <Field label={t("form.firstDay")}>
           <Input name="startDate" type="date" defaultValue={startDate} required />
         </Field>
-        <Field label="Last day">
+        <Field label={t("form.lastDay")}>
           <Input name="endDate" type="date" defaultValue={endDate} required />
         </Field>
       </div>
       <p className="text-xs text-muted-foreground">{dateHint}</p>
-      <Field label="Note">
-        <Textarea name="notes" rows={2} placeholder="Optional" />
+      <Field label={t("form.note")}>
+        <Textarea name="notes" rows={2} placeholder={t("form.optional")} />
       </Field>
       </div>
       {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
       <Button type="submit" disabled={pending}>
-        {pending ? "Saving..." : "Add destination"}
+        {pending ? tCommon("saving") : t("form.addDestination")}
       </Button>
     </form>
   );

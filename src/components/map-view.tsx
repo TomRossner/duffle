@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLocale, useT } from "@/i18n/client";
 
 export type MapMarker = {
   id: string;
@@ -52,7 +53,7 @@ let mapsLoader: Promise<GoogleNamespace["maps"]> | null = null;
  * Loads the Maps script once and resolves when Google calls back, i.e. once `importLibrary` is usable.
  * Waiting for `window.google.maps` alone is not enough: on a cold load it exists before the API is ready.
  */
-function loadGoogleMaps(apiKey: string) {
+function loadGoogleMaps(apiKey: string, language: string) {
   if (window.google?.maps && typeof window.google.maps.importLibrary === "function") {
     return Promise.resolve(window.google.maps);
   }
@@ -65,7 +66,7 @@ function loadGoogleMaps(apiKey: string) {
     document.getElementById("google-maps-js")?.remove();
     const script = document.createElement("script");
     script.id = "google-maps-js";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async&callback=__duffleMapsReady`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&language=${encodeURIComponent(language)}&loading=async&callback=__duffleMapsReady`;
     script.async = true;
     script.onerror = () => {
       script.remove();
@@ -92,6 +93,7 @@ export function MapView({
   mapId?: string;
   markers: MapMarker[];
 }) {
+  const locale = useLocale();
   const ref = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(!apiKey);
 
@@ -109,7 +111,7 @@ export function MapView({
     };
 
     const draw = async () => {
-      const bootstrap = await loadGoogleMaps(apiKey);
+      const bootstrap = await loadGoogleMaps(apiKey, locale);
       if (!ref.current || cancelled) return;
       const load = async (name: string) =>
         typeof bootstrap.importLibrary === "function" ? bootstrap.importLibrary(name) : bootstrap;
@@ -160,7 +162,7 @@ export function MapView({
     };
     // markerKey tracks pin changes without restarting the map on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, mapId, markerKey]);
+  }, [apiKey, mapId, markerKey, locale]);
 
   if (!apiKey || failed) {
     return <FallbackPlot markers={markers} missingKey={!apiKey} />;
@@ -170,12 +172,11 @@ export function MapView({
 }
 
 function FallbackPlot({ markers, missingKey }: { markers: MapMarker[]; missingKey: boolean }) {
+  const t = useT("map");
   if (markers.length === 0) {
     return (
       <div className="grid h-64 place-items-center rounded-xl bg-muted px-4 text-center text-sm text-muted-foreground sm:h-[320px]">
-        {missingKey
-          ? "Add GOOGLE_MAPS_API_KEY to show Google Maps. Destinations you add will still be listed."
-          : "Add a destination to see it on the map."}
+        {missingKey ? t("view.noKey") : t("view.addOne")}
       </div>
     );
   }
@@ -208,9 +209,7 @@ function FallbackPlot({ markers, missingKey }: { markers: MapMarker[]; missingKe
         })}
       </div>
       <p className="text-sm text-muted-foreground">
-        {missingKey
-          ? "This sketch uses the coordinates you saved. Google Maps loads when GOOGLE_MAPS_API_KEY is set."
-          : "Google Maps did not load for this key. Destinations still show on this coordinate sketch."}
+        {missingKey ? t("view.sketchNoKey") : t("view.sketchFailed")}
       </p>
     </div>
   );

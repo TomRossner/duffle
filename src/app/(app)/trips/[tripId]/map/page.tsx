@@ -14,14 +14,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createActivity, deleteActivity, deleteDestination } from "@/lib/actions/destinations";
 import { ACTIVITY_TAGS } from "@/lib/constants";
-import { eachDate, formatDate, formatDateLong, formatTime } from "@/lib/dates";
+import type { Locale } from "@/i18n/config";
+import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
+import { eachDate, formatDate, formatDateLong, formatDateRange, formatTime } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { ACTIVITY_COLORS, ActivityTagLabel, isActivityTag } from "@/lib/tag-meta";
 import { requireTrip } from "@/lib/trip-access";
 import { cn } from "@/lib/utils";
 
-function stayLabel(start: Date, end: Date) {
-  if (formatDate(start) === formatDate(end)) return formatDateLong(start);
+function stayLabel(start: Date, end: Date, locale: Locale) {
+  if (formatDate(start) === formatDate(end)) return formatDateLong(start, locale);
+  if (locale !== "en") return formatDateRange(start, end, locale);
   const first = new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
@@ -36,18 +40,23 @@ function stayLabel(start: Date, end: Date) {
   return `${first} – ${last}`;
 }
 
-function activityWhen(start: Date, end: Date | null, allDay = false) {
-  const day = formatDateLong(start);
-  if (allDay) return `${day} · All day`;
+function activityWhen(start: Date, end: Date | null, allDay: boolean, locale: Locale, tSchedule: Translator<"schedule">) {
+  const day = formatDateLong(start, locale);
+  if (allDay) return `${day} · ${tSchedule("page.allDay")}`;
   const startTime = formatTime(start);
   if (!end || end.getTime() === start.getTime()) return `${day} · ${startTime}`;
   if (formatDate(start) === formatDate(end)) return `${day} · ${startTime}–${formatTime(end)}`;
-  return `${day} · ${startTime} – ${formatDateLong(end)} · ${formatTime(end)}`;
+  return `${day} · ${startTime} – ${formatDateLong(end, locale)} · ${formatTime(end)}`;
 }
 
 export default async function MapPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const { trip } = await requireTrip(tripId);
+  const t = await getT("map");
+  const tTrips = await getT("trips");
+  const tSchedule = await getT("schedule");
+  const tCommon = await getT("common");
+  const locale = t.locale;
   const destinations = await prisma.destination.findMany({
     where: { tripId },
     include: { activities: { orderBy: { startAt: "asc" } } },
@@ -60,7 +69,10 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
     lng: destination.lng,
     label: destination.name,
   }));
-  const dateHint = `During the trip, ${formatDateLong(trip.startDate)} – ${formatDateLong(trip.endDate)}.`;
+  const dateHint = tTrips("overview.dateHint", {
+    start: formatDateLong(trip.startDate, locale),
+    end: formatDateLong(trip.endDate, locale),
+  });
   const tripDays = eachDate(trip.startDate, trip.endDate).map(formatDate);
 
   // Days each repeating activity is on, so its edit form can show (and manage) all of them.
@@ -88,13 +100,13 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
           <div>
             <h2 className="flex items-center gap-2 text-base font-medium">
               <MapPin className="size-4" />
-              Destinations
+              {t("page.heading")}
             </h2>
-            <p className="text-sm text-muted-foreground">Each stop is a place and the days you are there.</p>
+            <p className="text-sm text-muted-foreground">{t("page.sub")}</p>
           </div>
           <FormDialog
-            title="Add a destination"
-            description="Search for a city or place, then set the days you are there."
+            title={t("page.addTitle")}
+            description={t("page.addDescription")}
             triggerIcon={<Plus />}
             triggerClassName="w-full sm:w-fit"
           >
@@ -107,9 +119,8 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
           </FormDialog>
         </div>
         {destinations.length === 0 ? (
-          <EmptyState icon={MapPin} title="No destinations yet">
-            Add each city or stop on the trip with its dates. They&apos;re pinned on the map, get a weather forecast, and
-            hold the activities you plan there. Use Add a destination above to start.
+          <EmptyState icon={MapPin} title={t("page.emptyTitle")}>
+            {t("page.emptyBody")}
           </EmptyState>
         ) : (
           destinations.map((destination, index) => {
@@ -120,7 +131,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                 key={destination.id}
                 tripId={tripId}
                 index={index}
-                dates={stayLabel(destination.startDate, destination.endDate)}
+                dates={stayLabel(destination.startDate, destination.endDate, locale)}
                 dateHint={dateHint}
                 note={note && !noteRepeatsActivity ? note : null}
                 remove={deleteDestination.bind(null, tripId, destination.id)}
@@ -138,13 +149,13 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
               >
                 <details open className="group">
                   <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-sm font-medium outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-                    <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
-                    Activities
+                    <ChevronRight className="size-4 transition-transform group-open:rotate-90 rtl:rotate-180" aria-hidden />
+                    {t("page.activities")}
                     <span className="font-normal text-muted-foreground">({destination.activities.length})</span>
                   </summary>
                   <div className="mt-2 grid gap-2">
                     {destination.activities.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Nothing planned at this stop yet.</p>
+                      <p className="text-sm text-muted-foreground">{t("page.nothingHere")}</p>
                     ) : (
                       <ul className="grid gap-2">
                         {destination.activities.map((activity) => (
@@ -166,7 +177,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                               </span>
                               {activity.startAt ? (
                                 <span className="block text-muted-foreground">
-                                  {activityWhen(activity.startAt, activity.endAt, activity.allDay)}
+                                  {activityWhen(activity.startAt, activity.endAt, activity.allDay, locale, tSchedule)}
                                 </span>
                               ) : null}
                               {activity.notes && activity.notes.trim() !== activity.title.trim() ? (
@@ -190,7 +201,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                             ) : null}
                             <ScheduleItemMenu
                               label={activity.title}
-                              confirmMessage={`Are you sure you want to remove ${activity.title}?`}
+                              confirmMessage={tCommon("confirmRemove", { name: activity.title })}
                               remove={deleteActivity.bind(null, tripId, activity.id)}
                             >
                               <ActivityEditor
@@ -214,12 +225,12 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                       </ul>
                     )}
                     <ActivityComposer destination={destination.name}>
-                      <ActionForm action={createActivity.bind(null, tripId, destination.id)} submitLabel="Add activity">
-                        <Field label="Activity">
+                      <ActionForm action={createActivity.bind(null, tripId, destination.id)} submitLabel={tSchedule("form.addActivity")}>
+                        <Field label={tSchedule("form.activity")}>
                           <Input name="title" required />
                         </Field>
                         <ScheduleWhenFields tripDays={tripDays} />
-                        <FieldGroup label="Tags">
+                        <FieldGroup label={tSchedule("form.tags")}>
                           <CheckList
                             name="tags"
                             defaultChecked={false}
@@ -230,7 +241,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                             }))}
                           />
                         </FieldGroup>
-                        <Field label="Notes">
+                        <Field label={tSchedule("form.notes")}>
                           <Textarea name="notes" rows={2} />
                         </Field>
                         <CostFields currency={trip.baseCurrency} withSymbols />
