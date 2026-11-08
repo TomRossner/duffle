@@ -4,6 +4,7 @@ import account from "./account";
 import auth from "./auth";
 import common from "./common";
 import documents from "./documents";
+import insurance from "./insurance";
 import labels from "./labels";
 import mail from "./mail";
 import map from "./map";
@@ -21,6 +22,7 @@ export const messages: Translation<Messages> = {
   auth,
   common,
   documents,
+  insurance,
   labels,
   mail,
   map,

@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
 import { INSURANCE_TYPES } from "@/lib/constants";
 import { parseDate } from "@/lib/dates";
 import { createSimplePlannedExpense, deleteExpenseById, updateExpenseRecord } from "@/lib/expenses";
@@ -44,13 +46,14 @@ export async function scanPolicy(
   | { status: "error"; error: string }
 > {
   await requireTrip(tripId);
+  const t = await getT("insurance");
   const checked = checkUpload(formData.get("file"), { allowPdf: true });
-  if (checked.status === "empty") return { status: "error", error: "Choose a file." };
+  if (checked.status === "empty") return { status: "error", error: t("errors.chooseFile") };
   if (checked.status === "invalid") return { status: "error", error: await uploadErrorText(checked.error) };
   if (!documentReaderConfigured()) return { status: "unavailable" };
 
   const facts = await readPolicyFacts(new Uint8Array(await checked.file.arrayBuffer()), checked.file.type);
-  if (!facts) return { status: "error", error: "Couldn't read the policy. Fill in the details yourself." };
+  if (!facts) return { status: "error", error: t("errors.readFailed") };
 
   const userId = facts.insuredName ? matchTraveler(facts.insuredName, await acceptedMembers(tripId)) : null;
   return {
@@ -68,7 +71,13 @@ export async function scanPolicy(
   };
 }
 
-function readPolicyForm(formData: FormData) {
+/** "Allianz travel insurance": the planned expense's title, in the language of whoever saved it. */
+async function expenseTitleFor(t: Translator<"insurance">, provider: string, type: string) {
+  const label = (await getT("labels")).dynamic(`insuranceTypes.${type}`, undefined, type.toLowerCase());
+  return t("expenseTitle", { provider, type: t.locale === "en" ? label.toLowerCase() : label });
+}
+
+function readPolicyForm(formData: FormData, t: Translator<"insurance">) {
   const provider = String(formData.get("provider") ?? "").trim();
   const type = String(formData.get("type") ?? "TRAVEL");
   const policyNumber = String(formData.get("policyNumber") ?? "").trim() || null;
@@ -80,12 +89,12 @@ function readPolicyForm(formData: FormData) {
   const manualRaw = String(formData.get("manualRate") ?? "").trim();
   const currency = String(formData.get("currency") ?? "").toUpperCase();
 
-  if (!provider) return { error: "Name the insurer." } as const;
+  if (!provider) return { error: t("errors.nameInsurer") } as const;
   if (!INSURANCE_TYPES.includes(type as (typeof INSURANCE_TYPES)[number])) {
-    return { error: "Choose a policy type." } as const;
+    return { error: t("errors.chooseType") } as const;
   }
-  if (!startDate || !endDate) return { error: "Choose coverage dates." } as const;
-  if (endDate < startDate) return { error: "Coverage must end on or after it starts." } as const;
+  if (!startDate || !endDate) return { error: t("errors.chooseDates") } as const;
+  if (endDate < startDate) return { error: t("errors.endAfterStart") } as const;
 
   return {
     data: { provider, type, policyNumber, startDate, endDate, notes, insuredUserId, amountRaw, manualRaw, currency },
@@ -93,15 +102,16 @@ function readPolicyForm(formData: FormData) {
 }
 
 export async function createPolicy(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("insurance");
   const { user } = await requireTrip(tripId);
-  const parsed = readPolicyForm(formData);
+  const parsed = readPolicyForm(formData, t);
   if ("error" in parsed) return parsed;
   const { provider, type, policyNumber, startDate, endDate, notes, insuredUserId, amountRaw, manualRaw, currency } =
     parsed.data;
 
   const members = await acceptedMembers(tripId);
   if (!members.some((member) => member.userId === insuredUserId)) {
-    return { error: "Choose a traveler on this trip." };
+    return { error: t("errors.chooseTraveler") };
   }
 
   let documentId: string | undefined;
@@ -112,7 +122,7 @@ export async function createPolicy(tripId: string, _: unknown, formData: FormDat
       data: {
         tripId,
         userId: insuredUserId,
-        title: `${provider} policy`,
+        title: t("documentTitle", { provider }),
         kind: "INSURANCE",
         storageKey: stored.key,
         mimeType: stored.mimeType,
@@ -125,7 +135,7 @@ export async function createPolicy(tripId: string, _: unknown, formData: FormDat
   if (amountRaw) {
     const created = await createSimplePlannedExpense({
       tripId,
-      title: `${provider} ${type.toLowerCase()} insurance`,
+      title: await expenseTitleFor(t, provider, type),
       category: "INSURANCE",
       amount: Number(amountRaw),
       currency,
@@ -165,8 +175,9 @@ export async function createPolicy(tripId: string, _: unknown, formData: FormDat
 }
 
 export async function updatePolicy(tripId: string, policyId: string, _: unknown, formData: FormData) {
+  const t = await getT("insurance");
   const { user } = await requireTrip(tripId);
-  const parsed = readPolicyForm(formData);
+  const parsed = readPolicyForm(formData, t);
   if ("error" in parsed) return parsed;
   const { provider, type, policyNumber, startDate, endDate, notes, insuredUserId, amountRaw, manualRaw, currency } =
     parsed.data;
@@ -175,11 +186,11 @@ export async function updatePolicy(tripId: string, policyId: string, _: unknown,
     where: { id: policyId, tripId },
     include: { expense: true },
   });
-  if (!policy) return { error: "Policy not found." };
+  if (!policy) return { error: t("errors.notFound") };
 
   const members = await acceptedMembers(tripId);
   if (!members.some((member) => member.userId === insuredUserId)) {
-    return { error: "Choose a traveler on this trip." };
+    return { error: t("errors.chooseTraveler") };
   }
 
   const stored = await storeImage(formData.get("file"), `documents/${tripId}`);
@@ -188,7 +199,7 @@ export async function updatePolicy(tripId: string, policyId: string, _: unknown,
   let documentId = policy.documentId;
   const previousDocumentId = policy.documentId;
   const removeImage = formData.get("removeImage") === "1";
-  const documentTitle = `${provider} policy`;
+  const documentTitle = t("documentTitle", { provider });
   if (!("empty" in stored)) {
     if (policy.documentId) {
       await prisma.document.update({
@@ -218,7 +229,7 @@ export async function updatePolicy(tripId: string, policyId: string, _: unknown,
   }
 
   let expenseId = policy.expenseId;
-  const expenseTitle = `${provider} ${type.toLowerCase()} insurance`;
+  const expenseTitle = await expenseTitleFor(t, provider, type);
   if (amountRaw) {
     const manualRate = manualRaw ? Number(manualRaw) : null;
     if (policy.expense) {
@@ -291,9 +302,10 @@ export async function updatePolicy(tripId: string, policyId: string, _: unknown,
 }
 
 export async function deletePolicy(tripId: string, policyId: string) {
+  const t = await getT("insurance");
   const { user } = await requireTrip(tripId);
   const policy = await prisma.insurancePolicy.findFirst({ where: { id: policyId, tripId } });
-  if (!policy) return { error: "Policy not found." };
+  if (!policy) return { error: t("errors.notFound") };
   await prisma.insurancePolicy.delete({ where: { id: policyId } });
   await deleteExpenseById(policy.expenseId);
   revalidatePath(`/trips/${tripId}/insurance`);
