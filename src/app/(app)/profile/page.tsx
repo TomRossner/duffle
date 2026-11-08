@@ -91,16 +91,17 @@ export default async function ProfilePage() {
 
       <Card>
         <CardContent className="grid gap-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-col items-start gap-4 text-start sm:flex-row sm:items-center">
-              <Avatar name={user.name} userId={user.id} imageKey={user.imageKey} size="lg" />
-              <div className="grid min-w-0 gap-1">
-                <p className="text-lg font-medium break-words">{user.name}</p>
-                <p className="text-sm break-all text-muted-foreground">{user.email}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{user.passwordHash ? t("signInPassword") : t("signInGoogle")}</Badge>
-                  <span className="text-xs text-muted-foreground">{t("joined", { date: joined })}</span>
-                </div>
+          {/* On phones the avatar and buttons share the top row, and the name and email get the full width below. */}
+          <div className="flex flex-wrap items-start justify-between gap-4 sm:flex-nowrap sm:items-center">
+            <Avatar name={user.name} userId={user.id} imageKey={user.imageKey} size="lg" />
+            <div className="order-last grid min-w-0 basis-full gap-1 text-start sm:order-none sm:flex-1 sm:basis-auto">
+              <p className="text-lg font-medium break-words">{user.name}</p>
+              <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                <span dir="ltr">{user.email}</span>
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{user.passwordHash ? t("signInPassword") : t("signInGoogle")}</Badge>
+                <span className="text-xs text-muted-foreground">{t("joined", { date: joined })}</span>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
