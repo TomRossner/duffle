@@ -1,11 +1,13 @@
 import { FileImage } from "lucide-react";
 import { PersonalDocumentAddButton, PersonalDocumentCard } from "@/components/personal-documents";
+import { getT } from "@/i18n/server";
 import { formatDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
 
 export default async function DocumentsPage() {
   const sessionUser = await requireUser();
+  const t = await getT("documents");
   const documents = await prisma.personalDocument.findMany({
     where: { userId: sessionUser.id },
     include: { attachments: { include: { trip: { select: { id: true, name: true } } } } },
@@ -16,17 +18,15 @@ export default async function DocumentsPage() {
     <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
-          <p className="text-sm text-muted-foreground">
-            Passports, IDs, and licenses stay here. Attach one to a trip only when that trip needs it.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("personal.heading")}</h1>
+          <p className="text-sm text-muted-foreground">{t("personal.sub")}</p>
         </div>
         <PersonalDocumentAddButton />
       </div>
       {documents.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <FileImage className="size-4" />
-          No documents yet.
+          {t("personal.empty")}
         </p>
       ) : (
         <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">

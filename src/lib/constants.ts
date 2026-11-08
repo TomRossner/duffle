@@ -1,3 +1,5 @@
+import type { Translator } from "@/i18n/translate";
+
 export const CURRENCIES = [
   "USD",
   "EUR",
@@ -208,6 +210,12 @@ export const PERSONAL_DOCUMENT_LABELS: Record<(typeof PERSONAL_DOCUMENT_KINDS)[n
   VISA: "Visa",
   OTHER: "Other",
 };
+
+/** A document type's name in the viewer's language: identity documents and trip documents share the select. */
+export function documentKindLabel(t: Translator<"labels">, kind: string) {
+  const group = (PERSONAL_DOCUMENT_KINDS as readonly string[]).includes(kind) ? "personalDocs" : "documentKinds";
+  return t.dynamic(`${group}.${kind}`, undefined, personalDocumentLabel(kind));
+}
 
 export function personalDocumentLabel(kind: string) {
   if ((PERSONAL_DOCUMENT_KINDS as readonly string[]).includes(kind)) {

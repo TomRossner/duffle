@@ -7,7 +7,7 @@ import { readQuantity } from "@/lib/packing-list";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
 import { closetReaderConfigured, readClosetItem, type ClosetFacts } from "@/lib/closet-reader";
-import { checkUpload, storeImage } from "@/lib/uploads";
+import { checkUpload, storeImage, uploadErrorText } from "@/lib/uploads";
 
 function readClosetInput(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -68,7 +68,7 @@ export async function scanClosetItem(
   await requireUser();
   const checked = checkUpload(formData.get("file"));
   if (checked.status === "empty") return { status: "error", error: "Choose an image." };
-  if (checked.status === "invalid") return { status: "error", error: checked.error };
+  if (checked.status === "invalid") return { status: "error", error: await uploadErrorText(checked.error) };
   if (!closetReaderConfigured()) return { status: "unavailable" };
 
   const facts = await readClosetItem(new Uint8Array(await checked.file.arrayBuffer()), checked.file.type);

@@ -21,8 +21,14 @@ import {
   updatePersonalDocument,
   createPersonalDocument,
 } from "@/lib/actions/personal-documents";
-import { PERSONAL_DOCUMENT_KINDS, personalDocumentLabel } from "@/lib/constants";
+import { useLocale, useT } from "@/i18n/client";
+import { PERSONAL_DOCUMENT_KINDS, documentKindLabel } from "@/lib/constants";
 import { formatDateShort, parseDate } from "@/lib/dates";
+
+function useKindLabel() {
+  const tLabels = useT("labels");
+  return (kind: string) => documentKindLabel(tLabels, kind);
+}
 
 const menuItemClass =
   "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
@@ -69,11 +75,12 @@ function openInNewTab(src: string) {
 }
 
 function DocumentThumb({ src, mimeType, title }: { src: string; mimeType: string; title: string }) {
+  const t = useT("documents");
   if (isPdf(mimeType)) {
     return (
       <span className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
         <FileText className="size-10" />
-        <span className="text-xs font-medium tracking-wide">PDF · Click to open</span>
+        <span className="text-xs font-medium tracking-wide">{t("card.pdfOpen")}</span>
       </span>
     );
   }
@@ -143,31 +150,40 @@ function DocumentFields({
   issuedOn?: string;
   expiresOn?: string;
 }) {
+  const t = useT("documents");
+  const kindLabel = useKindLabel();
   return (
     <>
-      <Field label="Title">
+      <Field label={t("form.title")}>
         <Input name="title" defaultValue={title} required />
       </Field>
-      <Field label="Type">
+      <Field label={t("form.type")}>
         <Select name="kind" defaultValue={kind}>
           {PERSONAL_DOCUMENT_KINDS.map((item) => (
             <option key={item} value={item}>
-              {personalDocumentLabel(item)}
+              {kindLabel(item)}
             </option>
           ))}
         </Select>
       </Field>
-      <Field label="Full name">
-        <Input name="fullName" defaultValue={fullName} maxLength={120} autoComplete="off" dir="auto" placeholder="As printed on the document" />
+      <Field label={t("personal.fullName")}>
+        <Input
+          name="fullName"
+          defaultValue={fullName}
+          maxLength={120}
+          autoComplete="off"
+          dir="auto"
+          placeholder={t("personal.fullNamePlaceholder")}
+        />
       </Field>
-      <Field label="Number">
+      <Field label={t("personal.number")}>
         <Input name="documentNumber" defaultValue={documentNumber} maxLength={40} autoComplete="off" />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Issued">
+        <Field label={t("personal.issued")}>
           <Input name="issuedOn" type="date" defaultValue={issuedOn} />
         </Field>
-        <Field label="Expires">
+        <Field label={t("personal.expires")}>
           <Input name="expiresOn" type="date" defaultValue={expiresOn} />
         </Field>
       </div>
@@ -176,12 +192,13 @@ function DocumentFields({
 }
 
 function CopyButton({ value, label }: { value: string; label: string }) {
+  const tCommon = useT("common");
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
       className="inline-flex size-9 shrink-0 items-center sm:size-6 justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-      aria-label={copied ? "Copied" : label}
+      aria-label={copied ? tCommon("copied") : label}
       onClick={() => {
         void navigator.clipboard.writeText(value).then(() => {
           setCopied(true);
@@ -195,16 +212,40 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 }
 
 function DocumentDetails({ document }: { document: DocumentFacts }) {
+  const t = useT("documents");
+  const locale = useLocale();
   const issued = document.issuedOn ? parseDate(document.issuedOn) : null;
   const expires = document.expiresOn ? parseDate(document.expiresOn) : null;
+  type Row = { label: string; copyLabel: string; value: string; copy: string };
   const rows = [
-    document.fullName ? { label: "Name", value: document.fullName, copy: document.fullName } : null,
-    document.documentNumber
-      ? { label: "Number", value: document.documentNumber, copy: document.documentNumber }
+    document.fullName
+      ? { label: t("personal.name"), copyLabel: t("personal.copyName"), value: document.fullName, copy: document.fullName }
       : null,
-    issued ? { label: "Issued", value: formatDateShort(issued), copy: document.issuedOn ?? "" } : null,
-    expires ? { label: "Expires", value: formatDateShort(expires), copy: document.expiresOn ?? "" } : null,
-  ].filter((row): row is { label: string; value: string; copy: string } => Boolean(row));
+    document.documentNumber
+      ? {
+          label: t("personal.number"),
+          copyLabel: t("personal.copyNumber"),
+          value: document.documentNumber,
+          copy: document.documentNumber,
+        }
+      : null,
+    issued
+      ? {
+          label: t("personal.issued"),
+          copyLabel: t("personal.copyIssued"),
+          value: formatDateShort(issued, locale),
+          copy: document.issuedOn ?? "",
+        }
+      : null,
+    expires
+      ? {
+          label: t("personal.expires"),
+          copyLabel: t("personal.copyExpires"),
+          value: formatDateShort(expires, locale),
+          copy: document.expiresOn ?? "",
+        }
+      : null,
+  ].filter((row): row is Row => Boolean(row));
   if (rows.length === 0) return null;
   return (
     <dl className="mb-3 grid gap-1 text-sm">
@@ -213,7 +254,7 @@ function DocumentDetails({ document }: { document: DocumentFacts }) {
           <dt className="text-muted-foreground">{row.label}</dt>
           <dd className="flex min-w-0 items-center gap-1 font-medium">
             <span className="truncate" dir="auto">{row.value}</span>
-            <CopyButton value={row.copy} label={`Copy ${row.label.toLowerCase()}`} />
+            <CopyButton value={row.copy} label={row.copyLabel} />
           </dd>
         </div>
       ))}
@@ -222,13 +263,15 @@ function DocumentDetails({ document }: { document: DocumentFacts }) {
 }
 
 export function PersonalDocumentAddButton() {
+  const t = useT("documents");
+  const tCommon = useT("common");
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button type="button" className="w-full shrink-0 sm:w-fit" onClick={() => setOpen(true)}>
         <Plus />
-        Add a document
+        {t("personal.addTitle")}
       </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
@@ -237,17 +280,16 @@ export function PersonalDocumentAddButton() {
             <Dialog.Popup className="dialog-popup relative my-auto w-full max-w-lg rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <Dialog.Title className="text-lg font-medium">Add a document</Dialog.Title>
+                  <Dialog.Title className="text-lg font-medium">{t("personal.addTitle")}</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    A passport, ID, license, or visa. Name, number and dates are optional, and stay private until you attach
-                    this document to a trip.
+                    {t("personal.addDescription")}
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
-              <ActionForm action={createPersonalDocument} submitLabel="Save document" onSaved={() => setOpen(false)}>
+              <ActionForm action={createPersonalDocument} submitLabel={t("personal.saveDocument")} onSaved={() => setOpen(false)}>
                 <DocumentFileField required />
                 <DocumentFields />
               </ActionForm>
@@ -260,6 +302,9 @@ export function PersonalDocumentAddButton() {
 }
 
 export function PersonalDocumentCard({ document }: { document: PersonalDocumentItem }) {
+  const t = useT("documents");
+  const tCommon = useT("common");
+  const kindLabel = useKindLabel();
   const [viewing, setViewing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -273,28 +318,29 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
       <button
         type="button"
         className="block w-full cursor-pointer overflow-hidden rounded-t-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        aria-label={`View ${document.title}`}
+        aria-label={t("card.view", { title: document.title })}
         onClick={view}
       >
         <DocumentThumb src={src} mimeType={document.mimeType} title={document.title} />
       </button>
       <CardHeader>
         <CardTitle>
-          <button type="button" className="text-left hover:underline" onClick={view}>
+          <button type="button" className="text-start hover:underline" onClick={view}>
             {document.title}
           </button>
         </CardTitle>
         <CardDescription>
-          {personalDocumentLabel(document.kind)}
+          {kindLabel(document.kind)}
+          {" · "}
           {document.trips.length > 0
-            ? ` · On ${document.trips.map((trip) => trip.name).join(", ")}`
-            : " · Not attached to a trip"}
+            ? t("personal.onTrips", { trips: document.trips.map((trip) => trip.name).join(", ") })
+            : t("personal.notAttached")}
         </CardDescription>
         <DocumentDetails document={document} />
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
         <CardAction>
           <Menu.Root>
-            <Menu.Trigger className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={`Actions for ${document.title}`}>
+            <Menu.Trigger className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("actionsFor", { name: document.title })}>
               <EllipsisVertical />
             </Menu.Trigger>
             <Menu.Portal>
@@ -302,19 +348,19 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
                 <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
                   <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
                     <Pencil className="size-3.5" />
-                    Edit
+                    {tCommon("edit")}
                   </Menu.Item>
                   <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer className="size-3.5" />
-                    Print
+                    {t("card.print")}
                   </Menu.Item>
                   <Menu.Item className={menuItemClass} onClick={() => void downloadDocument(src, filename)}>
                     <Download className="size-3.5" />
-                    Download
+                    {t("card.download")}
                   </Menu.Item>
                   <Menu.Item className={`${menuItemClass} text-destructive`} onClick={() => setConfirming(true)}>
                     <Trash2 className="size-3.5" />
-                    Delete
+                    {tCommon("delete")}
                   </Menu.Item>
                 </Menu.Popup>
               </Menu.Positioner>
@@ -329,7 +375,7 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
             <Dialog.Popup className="dialog-popup w-full max-w-3xl rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <Dialog.Title className="text-lg font-medium">{document.title}</Dialog.Title>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
@@ -345,14 +391,14 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
             <Dialog.Popup className="dialog-popup relative my-auto w-full max-w-lg rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
-                <Dialog.Title className="text-lg font-medium">Edit document</Dialog.Title>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Title className="text-lg font-medium">{t("card.editTitle")}</Dialog.Title>
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
               <ActionForm
                 action={updatePersonalDocument.bind(null, document.id)}
-                submitLabel="Save"
+                submitLabel={tCommon("save")}
                 onSaved={() => setEditing(false)}
               >
                 <DocumentFileField />
@@ -372,7 +418,7 @@ export function PersonalDocumentCard({ document }: { document: PersonalDocumentI
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}
-        message={`Are you sure you want to delete "${document.title}"? It will also be removed from any trip it is attached to.`}
+        message={t("personal.confirmDelete", { title: document.title })}
         onConfirm={() => {
           setConfirming(false);
           setError(null);
@@ -406,6 +452,9 @@ export function AttachedPersonalDocumentCard({
   owner: { id: string; name: string; imageKey: string | null };
   canDetach: boolean;
 }) {
+  const t = useT("documents");
+  const tCommon = useT("common");
+  const kindLabel = useKindLabel();
   const [viewing, setViewing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -418,20 +467,20 @@ export function AttachedPersonalDocumentCard({
       <button
         type="button"
         className="block w-full cursor-pointer overflow-hidden rounded-t-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        aria-label={`View ${document.title}`}
+        aria-label={t("card.view", { title: document.title })}
         onClick={view}
       >
         <DocumentThumb src={src} mimeType={document.mimeType} title={document.title} />
       </button>
       <CardHeader>
         <CardTitle>
-          <button type="button" className="text-left hover:underline" onClick={view}>
+          <button type="button" className="text-start hover:underline" onClick={view}>
             {document.title}
           </button>
         </CardTitle>
         <CardDescription>
           <span className="inline-flex flex-wrap items-center gap-1">
-            {personalDocumentLabel(document.kind)} ·{" "}
+            {kindLabel(document.kind)} ·{" "}
             <MemberTag userId={owner.id} name={owner.name} imageKey={owner.imageKey} />
           </span>
         </CardDescription>
@@ -439,7 +488,7 @@ export function AttachedPersonalDocumentCard({
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
         <CardAction>
           <Menu.Root>
-            <Menu.Trigger className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={`Actions for ${document.title}`}>
+            <Menu.Trigger className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("actionsFor", { name: document.title })}>
               <EllipsisVertical />
             </Menu.Trigger>
             <Menu.Portal>
@@ -447,16 +496,16 @@ export function AttachedPersonalDocumentCard({
                 <Menu.Popup className="min-w-52 sm:min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
                   <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer className="size-3.5" />
-                    Print
+                    {t("card.print")}
                   </Menu.Item>
                   <Menu.Item className={menuItemClass} onClick={() => void downloadDocument(src, filename)}>
                     <Download className="size-3.5" />
-                    Download
+                    {t("card.download")}
                   </Menu.Item>
                   {canDetach ? (
                     <Menu.Item className={`${menuItemClass} text-destructive`} onClick={() => setConfirming(true)}>
                       <Trash2 className="size-3.5" />
-                      Remove from trip
+                      {t("personal.removeFromTrip")}
                     </Menu.Item>
                   ) : null}
                 </Menu.Popup>
@@ -472,7 +521,7 @@ export function AttachedPersonalDocumentCard({
             <Dialog.Popup className="dialog-popup w-full max-w-3xl rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <Dialog.Title className="text-lg font-medium">{document.title}</Dialog.Title>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
@@ -485,8 +534,8 @@ export function AttachedPersonalDocumentCard({
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}
-        confirmLabel="Remove"
-        message={`Remove "${document.title}" from this trip? It stays in your documents.`}
+        confirmLabel={tCommon("remove")}
+        message={t("personal.confirmDetach", { title: document.title })}
         onConfirm={() => {
           setConfirming(false);
           setError(null);
@@ -500,6 +549,7 @@ export function AttachedPersonalDocumentCard({
 }
 
 function AttachButton({ tripId, documentId }: { tripId: string; documentId: string }) {
+  const t = useT("documents");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -521,7 +571,7 @@ function AttachButton({ tripId, documentId }: { tripId: string; documentId: stri
         }}
       >
         <Link2 />
-        {pending ? "Attaching..." : "Attach"}
+        {pending ? t("personal.attaching") : t("personal.attach")}
       </Button>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
@@ -537,6 +587,7 @@ export function BringDocuments({
   copy: string;
   documents: { id: string; title: string; kind: string; suggested: boolean }[];
 }) {
+  const t = useT("documents");
   const suggested = documents.filter((document) => document.suggested);
   const optional = documents.filter((document) => !document.suggested);
 
@@ -544,16 +595,14 @@ export function BringDocuments({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Bring your documents</CardTitle>
+          <CardTitle>{t("bring.title")}</CardTitle>
           <CardDescription>{copy}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="mb-3 text-sm text-muted-foreground">
-            Add a passport, ID, or license once, then attach it to the trips that need it.
-          </p>
+          <p className="mb-3 text-sm text-muted-foreground">{t("bring.addOnce")}</p>
           <Button nativeButton={false} render={<Link href="/documents" />}>
             <Plus />
-            Go to Documents
+            {t("bring.goTo")}
           </Button>
         </CardContent>
       </Card>
@@ -563,14 +612,16 @@ export function BringDocuments({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Bring your documents</CardTitle>
-        <CardDescription>{copy} Attaching shares the file with everyone on this trip.</CardDescription>
+        <CardTitle>{t("bring.title")}</CardTitle>
+        <CardDescription>
+          {copy} {t("bring.sharing")}
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {suggested.length > 0 ? <DocumentRows tripId={tripId} documents={suggested} /> : null}
         {optional.length > 0 ? (
           <div className="grid gap-2">
-            <p className="text-sm font-medium">Not suggested for this trip</p>
+            <p className="text-sm font-medium">{t("bring.notSuggested")}</p>
             <DocumentRows tripId={tripId} documents={optional} />
           </div>
         ) : null}
@@ -586,13 +637,14 @@ function DocumentRows({
   tripId: string;
   documents: { id: string; title: string; kind: string }[];
 }) {
+  const kindLabel = useKindLabel();
   return (
     <ul className="grid gap-2">
       {documents.map((document) => (
         <li key={document.id} className="flex items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2">
           <span className="min-w-0">
             <span className="block truncate text-sm font-medium">{document.title}</span>
-            <span className="text-xs text-muted-foreground">{personalDocumentLabel(document.kind)}</span>
+            <span className="text-xs text-muted-foreground">{kindLabel(document.kind)}</span>
           </span>
           <AttachButton tripId={tripId} documentId={document.id} />
         </li>

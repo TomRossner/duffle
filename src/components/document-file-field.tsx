@@ -3,6 +3,9 @@
 import { FileText, LoaderCircle, Sparkles, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { scanPersonalDocument } from "@/lib/actions/personal-documents";
+import { useLocale, useT } from "@/i18n/client";
+import { INTL_LOCALES, type Locale } from "@/i18n/config";
+import type { Translator } from "@/i18n/translate";
 import { compressImage, formatFileSize, setInputFile } from "@/lib/image-compress";
 import { cn } from "@/lib/utils";
 
@@ -31,19 +34,21 @@ export type FileReader = {
   replaceDefaults?: boolean;
 };
 
-export const personalDocumentReader: FileReader = {
-  read: scanPersonalDocument,
-  fields: [
-    // The type always has a value (it opens on Passport), so the reading replaces it unless the traveler changed it.
-    { name: "kind", label: "type", replaceDefault: true },
-    { name: "fullName", label: "name" },
-    { name: "documentNumber", label: "number" },
-    { name: "issuedOn", label: "issue date" },
-    { name: "expiresOn", label: "expiry date" },
-  ],
-  hint: "The type, name, number and dates are filled in for you.",
-  nothingFound: "Couldn't find the type, name, number or dates on this document. Fill them in yourself.",
-};
+export function personalDocumentReader(t: Translator<"documents">): FileReader {
+  return {
+    read: scanPersonalDocument,
+    fields: [
+      // The type always has a value (it opens on Passport), so the reading replaces it unless the traveler changed it.
+      { name: "kind", label: t("file.fields.type"), replaceDefault: true },
+      { name: "fullName", label: t("file.fields.name") },
+      { name: "documentNumber", label: t("file.fields.number") },
+      { name: "issuedOn", label: t("file.fields.issueDate") },
+      { name: "expiresOn", label: t("file.fields.expiryDate") },
+    ],
+    hint: t("file.personalHint"),
+    nothingFound: t("file.personalNothing"),
+  };
+}
 
 type FillTarget = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
@@ -66,9 +71,8 @@ type Status =
   | { kind: "note"; text: string }
   | { kind: "error"; text: string };
 
-function joinLabels(labels: string[]) {
-  if (labels.length <= 1) return labels.join("");
-  return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+function joinLabels(labels: string[], locale: Locale) {
+  return new Intl.ListFormat(INTL_LOCALES[locale], { style: "long", type: "conjunction" }).format(labels);
 }
 
 /**
@@ -77,13 +81,17 @@ function joinLabels(labels: string[]) {
  */
 export function DocumentFileField({
   required = false,
-  label = "File",
-  reader = personalDocumentReader,
+  label,
+  reader: readerProp,
 }: {
   required?: boolean;
   label?: string;
+  /** Defaults to reading identity documents; null turns reading off. */
   reader?: FileReader | null;
 }) {
+  const t = useT("documents");
+  const locale = useLocale();
+  const reader = readerProp === undefined ? personalDocumentReader(t) : readerProp;
   const inputRef = useRef<HTMLInputElement>(null);
   const scanId = useRef(0);
   const [dragging, setDragging] = useState(false);
@@ -102,7 +110,7 @@ export function DocumentFileField({
     if (!acceptedTypes.has(picked.type)) {
       input.value = "";
       setFile(null);
-      setStatus({ kind: "error", text: "Use a PDF, JPEG, PNG, WebP, or GIF." });
+      setStatus({ kind: "error", text: t("file.invalidType") });
       return;
     }
 
@@ -125,7 +133,7 @@ export function DocumentFileField({
     });
 
     if (upload.size > serverLimit) {
-      setStatus({ kind: "error", text: `${isPdf ? "This PDF" : "This image"} is over 5MB. Choose a smaller file.` });
+      setStatus({ kind: "error", text: isPdf ? t("file.pdfTooLarge") : t("file.imageTooLarge") });
       return;
     }
     if (!reader) {
@@ -140,7 +148,7 @@ export function DocumentFileField({
     try {
       result = await reader.read(body);
     } catch {
-      result = { status: "error", error: "Couldn't read the document. Fill in the details yourself." };
+      result = { status: "error", error: t("file.readFailed") };
     }
     if (id !== scanId.current) return;
 
@@ -177,10 +185,10 @@ export function DocumentFileField({
     }
 
     if (filled.length > 0) {
-      const note = kept.length > 0 ? ` Kept the ${joinLabels(kept)} you entered.` : "";
-      setStatus({ kind: "filled", text: `Filled the ${joinLabels(filled)} from the document. Check them before saving.${note}` });
+      const note = kept.length > 0 ? ` ${t("file.kept", { fields: joinLabels(kept, locale) })}` : "";
+      setStatus({ kind: "filled", text: `${t("file.filled", { fields: joinLabels(filled, locale) })}${note}` });
     } else if (kept.length > 0) {
-      setStatus({ kind: "note", text: `Kept the ${joinLabels(kept)} you entered.` });
+      setStatus({ kind: "note", text: t("file.kept", { fields: joinLabels(kept, locale) }) });
     } else {
       setStatus({ kind: "note", text: reader.nothingFound });
     }
@@ -188,7 +196,7 @@ export function DocumentFileField({
 
   return (
     <div className="grid gap-1.5">
-      <span className="text-sm leading-none font-medium">{label}</span>
+      <span className="text-sm leading-none font-medium">{label ?? t("file.label")}</span>
       <label
         className={cn(
           "flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-input p-3 transition-colors hover:bg-muted/50",
@@ -233,7 +241,7 @@ export function DocumentFileField({
             <span className="grid min-w-0 gap-0.5">
               <span className="truncate text-sm font-medium">{file.name}</span>
               <span className="text-xs text-muted-foreground">
-                {file.isPdf ? "PDF" : "Image"} · {formatFileSize(file.size)} · Click or drop to replace
+                {file.isPdf ? t("file.pdf") : t("file.image")} · {formatFileSize(file.size)} · {t("file.replace")}
               </span>
             </span>
           </>
@@ -244,10 +252,10 @@ export function DocumentFileField({
             </span>
             <span className="grid min-w-0 gap-0.5">
               <span className="text-sm font-medium">
-                <span className="text-primary">Upload a file</span> or drop it here
+                {t.rich("file.prompt", { em: (chunks) => <span className="text-primary">{chunks}</span> })}
               </span>
               <span className="text-xs text-muted-foreground">
-                PDF or image, up to 5MB.{reader ? ` ${reader.hint}` : ""}
+                {t("file.limit")}{reader ? ` ${reader.hint}` : ""}
               </span>
             </span>
           </>
@@ -256,7 +264,7 @@ export function DocumentFileField({
       {status.kind === "reading" ? (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
           <LoaderCircle className="size-3.5 animate-spin" />
-          Reading the document…
+          {t("file.reading")}
         </p>
       ) : status.kind === "filled" ? (
         <p className="flex items-start gap-1.5 text-xs text-primary" aria-live="polite">

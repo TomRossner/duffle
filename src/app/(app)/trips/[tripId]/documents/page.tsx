@@ -6,7 +6,8 @@ import { EmptyState } from "@/components/empty-state";
 import { DocumentFormToggle } from "@/components/document-form";
 import { AttachedPersonalDocumentCard, BringDocuments } from "@/components/personal-documents";
 import { buttonVariants } from "@/components/ui/button";
-import { personalDocumentLabel } from "@/lib/constants";
+import { getT } from "@/i18n/server";
+import { documentKindLabel } from "@/lib/constants";
 import { formatDate } from "@/lib/dates";
 import { bringDocumentsCopy, suggestedPersonalKinds, tripCountryScope } from "@/lib/personal-documents";
 import { prisma } from "@/lib/prisma";
@@ -22,6 +23,8 @@ export default async function DocumentsPage({
   const { tripId } = await params;
   const { type } = await searchParams;
   const { user } = await requireTrip(tripId);
+  const t = await getT("documents");
+  const tLabels = await getT("labels");
   const [members, documents, account, destinations, personalDocuments, attachments] = await Promise.all([
     acceptedMembers(tripId),
     prisma.document.findMany({
@@ -60,8 +63,8 @@ export default async function DocumentsPage({
     typeCounts.set(kind, (typeCounts.get(kind) ?? 0) + 1);
   }
   const types = [...typeCounts.entries()]
-    .map(([kind, count]) => ({ kind, count, label: personalDocumentLabel(kind) }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .map(([kind, count]) => ({ kind, count, label: documentKindLabel(tLabels, kind) }))
+    .sort((a, b) => a.label.localeCompare(b.label, t.locale));
   // Several types can be selected at once: ?type=PASSPORT,TICKET
   const activeTypes = new Set(
     (Array.isArray(type) ? type.join(",") : (type ?? ""))
@@ -117,7 +120,7 @@ export default async function DocumentsPage({
       {showPrompt ? (
         <BringDocuments
           tripId={tripId}
-          copy={bringDocumentsCopy(scope, account?.country)}
+          copy={bringDocumentsCopy(scope, account?.country, t, t.locale)}
           documents={unattached.map((document) => ({
             id: document.id,
             title: document.title,
@@ -128,8 +131,8 @@ export default async function DocumentsPage({
       ) : null}
       <DocumentFormToggle tripId={tripId} currentUserId={user.id} members={memberOptions} />
       {types.length > 0 ? (
-        <nav aria-label="Filter by type" className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Filter by type:</span>
+        <nav aria-label={t("page.filterLabel")} className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">{t("page.filterBy")}</span>
           {types.map((entry) => (
             <Link
               key={entry.kind}
@@ -150,30 +153,29 @@ export default async function DocumentsPage({
                 className={buttonVariants({ variant: "ghost", size: "sm" })}
               >
                 <X />
-                Show all
+                {t("page.showAll")}
               </Link>
               <span className="text-sm text-muted-foreground">
-                Showing {matchCount} of {attachments.length + documents.length}
+                {t("page.showing", { count: matchCount, total: attachments.length + documents.length })}
               </span>
             </>
           ) : null}
         </nav>
       ) : null}
       {groups.length === 0 ? (
-        <EmptyState icon={FileImage} title="No documents yet">
-          Keep tickets, bookings and confirmations here for the whole group. Your passport or ID stays private until
-          you attach it to this trip.
+        <EmptyState icon={FileImage} title={t("page.emptyTitle")}>
+          {t("page.emptyBody")}
         </EmptyState>
       ) : null}
       {groups.map((group) => (
         <details key={group.id} open className="group rounded-xl border bg-muted/40">
           <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl p-3 text-sm font-medium select-none sm:p-4 [&::-webkit-details-marker]:hidden">
             <Avatar name={group.name} userId={group.id} imageKey={group.imageKey} size="md" />
-            {group.id === user.id ? `${group.name} (you)` : group.name}
+            {group.id === user.id ? t("page.you", { name: group.name }) : group.name}
             <span className="font-normal text-muted-foreground">
               · {group.attachments.length + group.documents.length}
             </span>
-            <ChevronDown className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+            <ChevronDown className="ms-auto size-4 text-muted-foreground transition-transform group-open:rotate-180" />
           </summary>
           <div className="grid auto-rows-fr gap-4 px-3 pb-3 sm:grid-cols-2 sm:px-4 sm:pb-4 lg:grid-cols-3">
             {group.attachments.map((attachment) => (

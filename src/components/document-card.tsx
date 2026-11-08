@@ -13,7 +13,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { deleteDocument, updateDocument } from "@/lib/actions/documents";
-import { DOCUMENT_KINDS } from "@/lib/constants";
+import { useT } from "@/i18n/client";
+import { DOCUMENT_KINDS, documentKindLabel } from "@/lib/constants";
 
 const menuItemClass =
   "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
@@ -30,10 +31,6 @@ export type TripDocument = {
   userName: string;
   userImageKey: string | null;
 };
-
-function kindLabel(kind: string) {
-  return kind.charAt(0) + kind.slice(1).toLowerCase();
-}
 
 function fileName(title: string, mimeType: string) {
   const extensions: Record<string, string> = {
@@ -113,6 +110,10 @@ export function DocumentCard({
   document: TripDocument;
   members: Member[];
 }) {
+  const t = useT("documents");
+  const tCommon = useT("common");
+  const tLabels = useT("labels");
+  const kindLabel = (kind: string) => documentKindLabel(tLabels, kind);
   const [viewing, setViewing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -126,13 +127,13 @@ export function DocumentCard({
       <button
         type="button"
         className="block w-full cursor-pointer overflow-hidden rounded-t-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        aria-label={`View ${document.title}`}
+        aria-label={t("card.view", { title: document.title })}
         onClick={view}
       >
         {isPdf(document.mimeType) ? (
           <span className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 bg-muted text-muted-foreground">
             <FileText className="size-10" />
-            <span className="text-xs font-medium tracking-wide">PDF · Click to open</span>
+            <span className="text-xs font-medium tracking-wide">{t("card.pdfOpen")}</span>
           </span>
         ) : (
           <StoredImage src={src} alt={document.title} className="aspect-[4/3] w-full object-cover" />
@@ -140,7 +141,7 @@ export function DocumentCard({
       </button>
       <CardHeader>
         <CardTitle>
-          <button type="button" className="text-left hover:underline" onClick={view}>
+          <button type="button" className="text-start hover:underline" onClick={view}>
             {document.title}
           </button>
         </CardTitle>
@@ -155,7 +156,7 @@ export function DocumentCard({
           <Menu.Root>
             <Menu.Trigger
               className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-              aria-label={`Actions for ${document.title}`}
+              aria-label={tCommon("actionsFor", { name: document.title })}
             >
               <EllipsisVertical />
             </Menu.Trigger>
@@ -164,19 +165,19 @@ export function DocumentCard({
                 <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
                   <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
                     <Pencil className="size-3.5" />
-                    Edit
+                    {tCommon("edit")}
                   </Menu.Item>
                   <Menu.Item className={menuItemClass} onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer className="size-3.5" />
-                    Print
+                    {t("card.print")}
                   </Menu.Item>
                   <Menu.Item className={menuItemClass} onClick={() => void downloadDocument(src, filename)}>
                     <Download className="size-3.5" />
-                    Download
+                    {t("card.download")}
                   </Menu.Item>
                   <Menu.Item className={`${menuItemClass} text-destructive`} onClick={() => setConfirmingDelete(true)}>
                     <Trash2 className="size-3.5" />
-                    Delete
+                    {tCommon("delete")}
                   </Menu.Item>
                 </Menu.Popup>
               </Menu.Positioner>
@@ -187,7 +188,7 @@ export function DocumentCard({
       <DeleteDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
-        message={`Are you sure you want to delete "${document.title}"?`}
+        message={t("card.confirmDelete", { title: document.title })}
         onConfirm={() => {
           setConfirmingDelete(false);
           setDeleteError(null);
@@ -211,7 +212,7 @@ export function DocumentCard({
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => printDocument(src, document.title, document.mimeType)}>
                     <Printer />
-                    Print
+                    {t("card.print")}
                   </Button>
                   <Button
                     type="button"
@@ -220,9 +221,9 @@ export function DocumentCard({
                     onClick={() => void downloadDocument(src, filename)}
                   >
                     <Download />
-                    Download
+                    {t("card.download")}
                   </Button>
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                     <X />
                   </Dialog.Close>
                 </div>
@@ -239,25 +240,25 @@ export function DocumentCard({
             <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <Dialog.Title className="text-lg font-medium">Edit document</Dialog.Title>
+                  <Dialog.Title className="text-lg font-medium">{t("card.editTitle")}</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    Change the title, type, or traveler. Leave the image empty to keep the current one.
+                    {t("card.editDescription")}
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
               <ActionForm
                 action={updateDocument.bind(null, tripId, document.id)}
-                submitLabel="Save"
+                submitLabel={tCommon("save")}
                 submitIcon={<Save />}
                 onSaved={() => setEditing(false)}
               >
-                <Field label="Title">
+                <Field label={t("form.title")}>
                   <Input name="title" defaultValue={document.title} required />
                 </Field>
-                <Field label="Type">
+                <Field label={t("form.type")}>
                   <Select name="kind" defaultValue={document.kind}>
                     {DOCUMENT_KINDS.map((kind) => (
                       <option key={kind} value={kind}>
@@ -266,7 +267,7 @@ export function DocumentCard({
                     ))}
                   </Select>
                 </Field>
-                <Field label="Traveler">
+                <Field label={t("form.traveler")}>
                   <Select name="userId" defaultValue={document.userId}>
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
@@ -275,7 +276,7 @@ export function DocumentCard({
                     ))}
                   </Select>
                 </Field>
-                <Field label="Image">
+                <Field label={t("form.image")}>
                   <Input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
                 </Field>
               </ActionForm>

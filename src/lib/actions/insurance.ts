@@ -7,7 +7,7 @@ import { createSimplePlannedExpense, deleteExpenseById, updateExpenseRecord } fr
 import { prisma } from "@/lib/prisma";
 import { notifyTrip } from "@/lib/notify";
 import { acceptedMembers, requireTrip } from "@/lib/trip-access";
-import { checkUpload, storeImage } from "@/lib/uploads";
+import { checkUpload, storeImage, uploadErrorText } from "@/lib/uploads";
 import { documentReaderConfigured } from "@/lib/document-reader";
 import { readPolicyFacts } from "@/lib/policy-reader";
 
@@ -46,7 +46,7 @@ export async function scanPolicy(
   await requireTrip(tripId);
   const checked = checkUpload(formData.get("file"), { allowPdf: true });
   if (checked.status === "empty") return { status: "error", error: "Choose a file." };
-  if (checked.status === "invalid") return { status: "error", error: checked.error };
+  if (checked.status === "invalid") return { status: "error", error: await uploadErrorText(checked.error) };
   if (!documentReaderConfigured()) return { status: "unavailable" };
 
   const facts = await readPolicyFacts(new Uint8Array(await checked.file.arrayBuffer()), checked.file.type);

@@ -6,7 +6,8 @@ import { Field, Select } from "@/components/fields";
 import { FormDialog } from "@/components/form-dialog";
 import { Input } from "@/components/ui/input";
 import { createDocument } from "@/lib/actions/documents";
-import { DOCUMENT_KINDS } from "@/lib/constants";
+import { useT } from "@/i18n/client";
+import { DOCUMENT_KINDS, documentKindLabel } from "@/lib/constants";
 
 export function DocumentFormToggle({
   tripId,
@@ -17,27 +18,29 @@ export function DocumentFormToggle({
   currentUserId: string;
   members: { id: string; name: string }[];
 }) {
+  const t = useT("documents");
+  const tLabels = useT("labels");
   return (
     <FormDialog
-      title="Add a document"
-      description="Tickets, bookings, and other files for this trip. Visible to everyone on the trip."
+      title={t("form.addTitle")}
+      description={t("form.addDescription")}
       icon={<FileImage />}
       triggerClassName="w-full sm:w-fit"
     >
-        <ActionForm action={createDocument.bind(null, tripId)} submitLabel="Upload" submitIcon={<Upload />}>
-          <Field label="Title">
+        <ActionForm action={createDocument.bind(null, tripId)} submitLabel={t("form.upload")} submitIcon={<Upload />}>
+          <Field label={t("form.title")}>
             <Input name="title" required />
           </Field>
-          <Field label="Type">
+          <Field label={t("form.type")}>
             <Select name="kind" defaultValue="TICKET">
               {DOCUMENT_KINDS.map((kind) => (
                 <option key={kind} value={kind}>
-                  {kind.charAt(0) + kind.slice(1).toLowerCase()}
+                  {documentKindLabel(tLabels, kind)}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Traveler">
+          <Field label={t("form.traveler")}>
             <Select name="userId" defaultValue={currentUserId}>
               {members.map((member) => (
                 <option key={member.id} value={member.id}>
@@ -46,7 +49,7 @@ export function DocumentFormToggle({
               ))}
             </Select>
           </Field>
-          <Field label="File">
+          <Field label={t("form.file")}>
             <Input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required />
           </Field>
         </ActionForm>

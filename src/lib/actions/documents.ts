@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getT } from "@/i18n/server";
 import { DOCUMENT_KINDS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { notifyTrip } from "@/lib/notify";
@@ -8,23 +9,24 @@ import { acceptedMembers, requireTrip } from "@/lib/trip-access";
 import { storeImage } from "@/lib/uploads";
 
 export async function createDocument(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("documents");
   const { user } = await requireTrip(tripId);
   const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "OTHER");
   const userId = String(formData.get("userId") ?? "");
 
-  if (!title) return { error: "Name the document." };
+  if (!title) return { error: t("errors.nameDocument") };
   if (!DOCUMENT_KINDS.includes(kind as (typeof DOCUMENT_KINDS)[number])) {
-    return { error: "Choose a document type." };
+    return { error: t("errors.chooseType") };
   }
 
   const members = await acceptedMembers(tripId);
   if (!members.some((member) => member.userId === userId)) {
-    return { error: "Choose a traveler on this trip." };
+    return { error: t("errors.chooseTraveler") };
   }
 
   const stored = await storeImage(formData.get("file"), `documents/${tripId}`);
-  if ("empty" in stored) return { error: "Choose an image." };
+  if ("empty" in stored) return { error: t("errors.chooseImage") };
   if ("error" in stored) return stored;
 
   await prisma.document.create({
@@ -49,22 +51,23 @@ export async function createDocument(tripId: string, _: unknown, formData: FormD
 }
 
 export async function updateDocument(tripId: string, documentId: string, _: unknown, formData: FormData) {
+  const t = await getT("documents");
   const { user } = await requireTrip(tripId);
   const document = await prisma.document.findFirst({ where: { id: documentId, tripId } });
-  if (!document) return { error: "Document not found." };
+  if (!document) return { error: t("errors.notFound") };
 
   const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "OTHER");
   const userId = String(formData.get("userId") ?? "");
 
-  if (!title) return { error: "Name the document." };
+  if (!title) return { error: t("errors.nameDocument") };
   if (!DOCUMENT_KINDS.includes(kind as (typeof DOCUMENT_KINDS)[number])) {
-    return { error: "Choose a document type." };
+    return { error: t("errors.chooseType") };
   }
 
   const members = await acceptedMembers(tripId);
   if (!members.some((member) => member.userId === userId)) {
-    return { error: "Choose a traveler on this trip." };
+    return { error: t("errors.chooseTraveler") };
   }
 
   const stored = await storeImage(formData.get("file"), `documents/${tripId}`);
@@ -91,9 +94,10 @@ export async function updateDocument(tripId: string, documentId: string, _: unkn
 }
 
 export async function deleteDocument(tripId: string, documentId: string) {
+  const t = await getT("documents");
   const { user } = await requireTrip(tripId);
   const document = await prisma.document.findFirst({ where: { id: documentId, tripId } });
-  if (!document) return { error: "Document not found." };
+  if (!document) return { error: t("errors.notFound") };
   await prisma.document.delete({ where: { id: documentId } });
   revalidatePath(`/trips/${tripId}/documents`);
   await notifyTrip(tripId, user.id, {

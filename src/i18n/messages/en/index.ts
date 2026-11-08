@@ -1,6 +1,7 @@
 import account from "./account";
 import auth from "./auth";
 import common from "./common";
+import documents from "./documents";
 import labels from "./labels";
 import mail from "./mail";
 import map from "./map";
@@ -17,6 +18,7 @@ export const messages = {
   account,
   auth,
   common,
+  documents,
   labels,
   mail,
   map,
