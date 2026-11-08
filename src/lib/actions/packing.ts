@@ -2,7 +2,7 @@
 
 import type { ClothingSlot, PackingStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
 import { eachDate, formatDate } from "@/lib/dates";
 import { packingAgentConfigured, suggestPackingWithAgent } from "@/lib/packing-agent";
 import { suggestPacking, type PackingDayContext } from "@/lib/packing";
@@ -75,7 +75,7 @@ export async function collectPackingSuggestions(
   let suggestions = rules;
   if (packingAgentConfigured()) {
     await onStep?.("choose");
-    suggestions = (await suggestPackingWithAgent(closet, days, rules)) ?? rules;
+    suggestions = (await suggestPackingWithAgent(closet, days, rules, await getLocale())) ?? rules;
   }
 
   return { user, suggestions, items };

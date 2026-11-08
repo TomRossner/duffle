@@ -1,6 +1,7 @@
 import { neon } from "@neon/ai-sdk-provider";
 import { ToolLoopAgent, tool } from "ai";
 import { z } from "zod";
+import { agentLanguageRule, type Locale } from "@/i18n/config";
 import { slotLabel } from "@/lib/constants";
 import {
   applyPackingPicks,
@@ -45,13 +46,14 @@ export async function suggestPackingWithAgent(
   items: PackingClosetItem[],
   days: PackingDayContext[],
   ruleSuggestions: PackingSuggestion[],
+  locale: Locale,
 ): Promise<PackingSuggestion[] | null> {
   if (!packingAgentConfigured() || items.length === 0 || days.length === 0) return null;
   const closet = closetForPrompt(items, days);
   if (closet.length === 0) return null;
 
   try {
-    const suggestions = await runPackingAgent(closet, days, ruleSuggestions);
+    const suggestions = await runPackingAgent(closet, days, ruleSuggestions, locale);
     return suggestions.length > 0 ? suggestions : null;
   } catch (error) {
     console.error(
@@ -66,6 +68,7 @@ async function runPackingAgent(
   closet: PackingClosetItem[],
   days: PackingDayContext[],
   ruleSuggestions: PackingSuggestion[],
+  locale: Locale,
 ) {
   const allowed = new Set(closet.map((item) => item.id));
   let packed: PackingSuggestion[] = [];
@@ -74,7 +77,7 @@ async function runPackingAgent(
   const agent = new ToolLoopAgent({
     id: "packing",
     model: neon(modelId),
-    instructions: PACKING_INSTRUCTIONS,
+    instructions: `${PACKING_INSTRUCTIONS}\n\n${agentLanguageRule(locale, "each reason")}`,
     maxRetries: 0,
     toolChoice: "required",
     stopWhen: ({ steps }) => {

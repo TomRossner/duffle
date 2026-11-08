@@ -42,6 +42,14 @@ export const INTL_LOCALES: Record<Locale, string> = {
 
 const RTL_LOCALES: readonly Locale[] = ["he"];
 
+/**
+ * A line for an AI agent's instructions naming the language of the text it writes itself, so a Hebrew reader gets
+ * Hebrew names and notes. Text copied from the source (a brand, a printed name) stays as it is.
+ */
+export function agentLanguageRule(locale: Locale, fields: string) {
+  return `Write ${fields} in ${LOCALE_ENGLISH_NAMES[locale]}, the language the traveler uses the app in. Keep brand names, product names and labels such as Gore-Tex exactly as printed.`;
+}
+
 export function isLocale(value: unknown): value is Locale {
   return typeof value === "string" && (LOCALES as readonly string[]).includes(value);
 }

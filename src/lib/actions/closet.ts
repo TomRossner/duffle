@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
 import type { Translator } from "@/i18n/translate";
 import type { ClothingSlot } from "@prisma/client";
 import { CLOSET_ACTIVITY_TAGS, CLOTHING_SLOTS, CONDITION_TAGS } from "@/lib/constants";
@@ -74,7 +74,11 @@ export async function scanClosetItem(
   if (checked.status === "invalid") return { status: "error", error: await uploadErrorText(checked.error) };
   if (!closetReaderConfigured()) return { status: "unavailable" };
 
-  const facts = await readClosetItem(new Uint8Array(await checked.file.arrayBuffer()), checked.file.type);
+  const facts = await readClosetItem(
+    new Uint8Array(await checked.file.arrayBuffer()),
+    checked.file.type,
+    await getLocale(),
+  );
   if (facts === "not-clothing") {
     return { status: "error", error: t("errors.notClothing") };
   }

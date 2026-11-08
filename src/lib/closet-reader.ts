@@ -1,6 +1,7 @@
 import { neon } from "@neon/ai-sdk-provider";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import { agentLanguageRule, type Locale } from "@/i18n/config";
 import {
   CLOSET_ACTIVITY_TAGS,
   CLOTHING_SLOT_LABELS,
@@ -65,14 +66,18 @@ function cleanTemp(value: number | null) {
 }
 
 /** Describe a clothing photo so the closet form can be filled in. Returns "not-clothing", or null when the reader is off or fails. */
-export async function readClosetItem(bytes: Uint8Array, mediaType: string): Promise<ClosetFacts | "not-clothing" | null> {
+export async function readClosetItem(
+  bytes: Uint8Array,
+  mediaType: string,
+  locale: Locale,
+): Promise<ClosetFacts | "not-clothing" | null> {
   if (!closetReaderConfigured()) return null;
   const modelId = process.env.CLOSET_AGENT_MODEL?.trim() || "gemini-3-flash";
 
   try {
     const { output } = await generateText({
       model: neon(modelId),
-      system: READER_INSTRUCTIONS,
+      system: `${READER_INSTRUCTIONS}\n\n${agentLanguageRule(locale, "name and description")}`,
       maxRetries: 0,
       timeout: { totalMs: 25_000 },
       output: Output.object({ schema: readerOutput }),
