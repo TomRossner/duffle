@@ -4,6 +4,7 @@ import { BalanceSummary } from "@/components/balance-summary";
 import { BudgetSheets } from "@/components/budget-sheets";
 import { ExpenseCategoryTag } from "@/components/expense-category";
 import { ExpenseRowMenu } from "@/components/expense-editor";
+import { ExpenseSearch } from "@/components/expense-search";
 import { ExpenseFormToggle, SettlementFormToggle } from "@/components/money-panel";
 import { SplitTypeIcon } from "@/components/split-type";
 import { ConvertCurrencyButton, DisplayCurrencyProvider, Money, OriginalAmount } from "@/components/money-view";
@@ -13,10 +14,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createExpense, deleteExpense, markExpensePaid, markExpenseUnpaid, updateExpense } from "@/lib/actions/expenses";
 import { formatDate, formatDateLong } from "@/lib/dates";
+import { EXPENSE_CATEGORY_LABELS } from "@/lib/expense-categories";
 import { netBalances } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { acceptedMembers, requireTrip } from "@/lib/trip-access";
-import { cn, roundMoney } from "@/lib/utils";
+import { cn, formatMoney, roundMoney } from "@/lib/utils";
 
 function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name;
@@ -71,6 +73,26 @@ export default async function MoneyPage({ params }: { params: Promise<{ tripId: 
       0,
     ),
   );
+  const viewerName = (person: { id: string; name: string }) => (person.id === user.id ? "You" : firstName(person.name));
+  const searchEntries = ledger.map((expense) => {
+    const recipient = expense.category === "SETTLEMENT" ? expense.shares[0]?.user : null;
+    return {
+      id: expense.id,
+      title: recipient
+        ? `${viewerName(expense.paidBy)} paid ${recipient.id === user.id ? "you" : firstName(recipient.name)}`
+        : expense.title,
+      category: expense.category,
+      categoryLabel:
+        EXPENSE_CATEGORY_LABELS[expense.category as keyof typeof EXPENSE_CATEGORY_LABELS] ?? expense.category,
+      dateLabel: formatDateLong(expense.date),
+      amount: Number(expense.amountInBase),
+      original:
+        expense.currency === trip.baseCurrency ? null : formatMoney(Number(expense.amount), expense.currency),
+      paidBy: viewerName(expense.paidBy),
+      people: expense.shares.map((share) => firstName(share.user.name)),
+      notes: expense.notes,
+    };
+  });
   const yourNet = balances.find((row) => row.userId === user.id)?.net ?? 0;
 
   return (
@@ -159,6 +181,7 @@ export default async function MoneyPage({ params }: { params: Promise<{ tripId: 
 
             <section className="grid gap-3">
               <h2 className="font-heading text-base font-medium">Expenses &amp; payments</h2>
+              {ledger.length > 0 ? <ExpenseSearch entries={searchEntries} /> : null}
               <ExpenseList
                 tripId={tripId}
                 currency={trip.baseCurrency}
@@ -310,7 +333,10 @@ function ExpenseItem({
   const recipient = settlement ? row.shares[0]?.user : null;
 
   return (
-    <li className="flex items-start gap-3 px-3 py-3">
+    <li
+      data-expense-id={row.id}
+      className="flex scroll-mt-24 items-start gap-3 px-3 py-3 transition-[background-color,box-shadow] duration-500 first:rounded-t-xl last:rounded-b-xl data-flash:bg-primary/10 data-flash:ring-2 data-flash:ring-primary data-flash:ring-inset"
+    >
       <div className="grid min-w-0 flex-1 gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">
@@ -321,12 +347,12 @@ function ExpenseItem({
           <ExpenseCategoryTag category={row.category} className="whitespace-nowrap" />
           {row.phase === "PLANNED" ? <Badge variant="outline">From the plan</Badge> : null}
           {row.phase === "ACTUAL" && row.paid && !settlement ? (
-            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 [&_svg]:text-emerald-600 dark:[&_svg]:text-emerald-400">
               <Check aria-hidden />
               Paid
             </Badge>
           ) : null}
-          {row.manualRate ? <span className="text-xs text-muted-foreground">Manual rate</span> : null}
+          {row.manualRate ? <span className="text-xs text-muted-foreground">Custom exchange rate</span> : null}
         </div>
         {settlement ? null : (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">

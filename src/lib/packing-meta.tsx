@@ -26,20 +26,20 @@ const CATEGORY_ICONS: Record<PackingCategory, (props: { className?: string }) =>
 };
 
 export const CATEGORY_COLORS: Record<PackingCategory, string> = {
-  CLOTHES: "bg-sky-100 text-sky-950",
-  TOILETRIES: "bg-teal-100 text-teal-950",
-  ELECTRONICS: "bg-indigo-100 text-indigo-950",
-  DOCUMENTS: "bg-amber-100 text-amber-950",
-  HEALTH: "bg-rose-100 text-rose-950",
-  ACCESSORIES: "bg-orange-100 text-orange-950",
-  OTHER: "bg-slate-200 text-slate-900",
+  CLOTHES: "bg-sky-100 text-sky-950 [&_svg]:text-sky-600",
+  TOILETRIES: "bg-teal-100 text-teal-950 [&_svg]:text-teal-600",
+  ELECTRONICS: "bg-indigo-100 text-indigo-950 [&_svg]:text-indigo-600",
+  DOCUMENTS: "bg-amber-100 text-amber-950 [&_svg]:text-amber-600",
+  HEALTH: "bg-rose-100 text-rose-950 [&_svg]:text-rose-600",
+  ACCESSORIES: "bg-orange-100 text-orange-950 [&_svg]:text-orange-600",
+  OTHER: "bg-slate-200 text-slate-900 [&_svg]:text-slate-500",
 };
 
 export const KIND_COLORS: Record<LuggageKind, string> = {
-  PACK: "bg-emerald-100 text-emerald-950",
-  BAG: "bg-amber-100 text-amber-950",
-  TROLLEY: "bg-sky-100 text-sky-950",
-  LUGGAGE: "bg-violet-100 text-violet-950",
+  PACK: "bg-emerald-100 text-emerald-950 [&_svg]:text-emerald-600",
+  BAG: "bg-amber-100 text-amber-950 [&_svg]:text-amber-600",
+  TROLLEY: "bg-sky-100 text-sky-950 [&_svg]:text-sky-600",
+  LUGGAGE: "bg-violet-100 text-violet-950 [&_svg]:text-violet-600",
 };
 
 export function LuggageKindIcon({ kind, className = "size-4" }: { kind: string; className?: string }) {

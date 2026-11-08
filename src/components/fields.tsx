@@ -1,5 +1,6 @@
 import { CheckBox } from "@/components/checkbox";
 import { CurrencyPicker } from "@/components/currency-picker";
+import { CurrencyRateFields } from "@/components/currency-rate-fields";
 import { Input } from "@/components/ui/input";
 import { CURRENCIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -78,10 +79,14 @@ export function CurrencySelect({
 
 export function CostFields({
   currency,
+  baseCurrency,
   amount,
   withSymbols = false,
 }: {
+  /** The cost's currency when the form opens. */
   currency: string;
+  /** The trip's currency. Defaults to `currency`. */
+  baseCurrency?: string;
   amount?: string;
   withSymbols?: boolean;
 }) {
@@ -90,12 +95,7 @@ export function CostFields({
       <Field label="Cost (optional)">
         <Input name="amount" type="number" min="0" step="0.01" placeholder="0.00" defaultValue={amount || undefined} />
       </Field>
-      <Field label="Currency">
-        <CurrencySelect defaultValue={currency} withSymbols={withSymbols} />
-      </Field>
-      <Field label="Manual rate">
-        <Input name="manualRate" type="number" min="0" step="0.0001" placeholder="1 currency in trip currency" />
-      </Field>
+      <CurrencyRateFields defaultValue={currency} baseCurrency={baseCurrency ?? currency} withSymbols={withSymbols} />
     </div>
   );
 }

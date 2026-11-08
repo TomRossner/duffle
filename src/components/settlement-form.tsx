@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
-import { CurrencySelect, Field, Select } from "@/components/fields";
+import { CurrencyRateFields } from "@/components/currency-rate-fields";
+import { Field, Select } from "@/components/fields";
 import { useCloseFormDialog } from "@/components/form-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,14 +52,9 @@ export function SettlementForm({
         <Field label="Amount">
           <Input name="amount" type="number" min="0.01" step="0.01" required />
         </Field>
-        <Field label="Currency">
-          <CurrencySelect defaultValue={currency} withSymbols />
-        </Field>
+        <CurrencyRateFields defaultValue={currency} baseCurrency={currency} withSymbols />
         <Field label="Date">
           <Input name="date" type="date" required />
-        </Field>
-        <Field label="Manual rate">
-          <Input name="manualRate" type="number" min="0" step="0.0001" placeholder="Optional" />
         </Field>
       </div>
       {state && "error" in state ? <p className="text-sm text-destructive">{state.error}</p> : null}

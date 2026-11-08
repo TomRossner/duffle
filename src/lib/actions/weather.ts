@@ -6,7 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
 import { fetchDailyForecast } from "@/lib/weather";
 
-export async function refreshWeather(tripId: string) {
+/** How far ahead the forecast service has days. */
+const FORECAST_DAYS_AHEAD = 15;
+
+export async function refreshWeather(tripId: string): Promise<{ error?: string; notice?: string; ok?: boolean; saved?: number }> {
   await requireTrip(tripId);
   const destinations = await prisma.destination.findMany({ where: { tripId } });
   if (destinations.length === 0) return { error: "Add a destination before loading weather." };
@@ -50,7 +53,13 @@ export async function refreshWeather(tripId: string) {
 
   revalidatePath(`/trips/${tripId}`);
   if (saved === 0) {
-    return { error: "No forecast was returned for these dates. Open-Meteo covers about 16 days ahead, and past dates use the archive." };
+    // Forecasts only reach about two weeks out, so a trip further away simply has nothing yet.
+    const firstDay = destinations.reduce((first, destination) => (destination.startDate < first ? destination.startDate : first), destinations[0].startDate);
+    const daysAway = Math.floor((firstDay.getTime() - Date.now()) / 86_400_000);
+    if (daysAway > FORECAST_DAYS_AHEAD) {
+      return { notice: "It's too early for a forecast. Check back about two weeks before your trip." };
+    }
+    return { error: "Couldn't load the forecast right now. Try again in a little while." };
   }
   return { ok: true, saved };
 }

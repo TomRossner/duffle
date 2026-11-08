@@ -87,12 +87,29 @@ export function ExpenseCategoryTag({ category, className }: { category: string; 
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-medium",
-        group?.className ?? "bg-slate-200 text-slate-900",
+        group?.className ?? "bg-slate-200 text-slate-900 [&_svg]:text-slate-500",
         className,
       )}
     >
       <Icon className="size-4" aria-hidden />
       {label}
+    </span>
+  );
+}
+
+/** Just the category's icon on its colour, for compact rows. */
+export function ExpenseCategoryIcon({ category, className }: { category: string; className?: string }) {
+  const group = expenseGroupFor(category);
+  const Icon = ICONS[category] ?? Circle;
+  return (
+    <span
+      className={cn(
+        "flex size-8 shrink-0 items-center justify-center rounded-lg",
+        group?.className ?? "bg-slate-200 text-slate-900 [&_svg]:text-slate-500",
+        className,
+      )}
+    >
+      <Icon className="size-4" aria-hidden />
     </span>
   );
 }

@@ -146,7 +146,7 @@ const accountSections: Feature[] = [
     title: "Documents",
     body: "Passports, IDs and licenses stay on your account, private to you.",
     points: [
-      "Upload a photo or PDF and Duffle reads the name, number and dates.",
+      "Upload a photo or PDF and Duffle reads the type, name, number and dates.",
       "Attach a document to a trip only when that trip needs it.",
     ],
   },

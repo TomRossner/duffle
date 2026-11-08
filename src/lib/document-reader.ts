@@ -1,7 +1,10 @@
 import { neon } from "@neon/ai-sdk-provider";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import { PERSONAL_DOCUMENT_KINDS } from "@/lib/constants";
 import { formatDate, parseDate } from "@/lib/dates";
+
+type PersonalDocumentKind = (typeof PERSONAL_DOCUMENT_KINDS)[number];
 
 export function documentReaderConfigured() {
   return Boolean(process.env.NEON_AI_GATEWAY_TOKEN && process.env.NEON_AI_GATEWAY_BASE_URL);
@@ -63,8 +66,15 @@ export function cleanReadNumber(value: string | null) {
   return number && number.length <= 40 ? number : null;
 }
 
-const READER_INSTRUCTIONS = `You read one travel or identity document (passport, ID card, driver's license, visa, or similar) from an image or PDF and copy four facts from it.
+const READER_INSTRUCTIONS = `You read one travel or identity document (passport, ID card, driver's license, visa, or similar) from an image or PDF, say what kind of document it is, and copy four facts from it.
 
+- kind: what the document is.
+  - PASSPORT: a passport (any type: ordinary, diplomatic, service, emergency or temporary). Only the passport's own data page counts; a visa or stamp inside a passport is VISA.
+  - ID: a national identity card, or an identity card or residence permit card issued by a government.
+  - LICENSE: a driving license, including an international driving permit.
+  - VISA: a visa, a visa page or sticker, an e-visa, or a travel authorization such as an ESTA, eTA or ETIAS approval.
+  - OTHER: any other document.
+  Use null when you can't tell.
 - fullName: the holder's full name as printed in the visual zone, given names first and then the surname (for example "Maria Elena Garcia Lopez"). When the document prints the name in more than one language, use the English (Latin-letter) version exactly as printed. When the name is printed in only one language, keep it in that language and script (for example Hebrew, Arabic, Greek or Cyrillic): never translate or transliterate it yourself. Keep accents, and in scripts with capital letters use normal capitalization rather than ALL CAPS. Read the name from the machine-readable zone only when the visual zone is unreadable (surname before "<<", given names after, "<" between words).
 - documentNumber: the document's own number, exactly as printed, without spaces. For a passport or ID card, use the document number, not a personal/national ID number. For a visa, use the visa number or control number.
 - issuedOn: the date of issue, as YYYY-MM-DD.
@@ -73,6 +83,10 @@ const READER_INSTRUCTIONS = `You read one travel or identity document (passport,
 Convert any printed date format to YYYY-MM-DD, including the machine-readable zone and other languages and calendars. Use null for anything that isn't printed, is unreadable, or that you aren't sure of. Never guess.`;
 
 const readerOutput = z.object({
+  kind: z
+    .enum(PERSONAL_DOCUMENT_KINDS)
+    .nullable()
+    .describe("PASSPORT, ID, LICENSE, VISA or OTHER, or null when unsure."),
   fullName: z.string().nullable().describe("Holder's full name, given names first: the English version when printed in several languages, otherwise as printed. Or null."),
   documentNumber: z.string().nullable().describe("Document number as printed, or null."),
   issuedOn: z.string().nullable().describe("Issue date as YYYY-MM-DD, or null."),
@@ -80,13 +94,14 @@ const readerOutput = z.object({
 });
 
 export type DocumentFacts = {
+  kind: PersonalDocumentKind | null;
   fullName: string | null;
   documentNumber: string | null;
   issuedOn: string | null;
   expiresOn: string | null;
 };
 
-/** Read the holder's name, number and dates from a document image or PDF. Returns null when the reader is off or fails. */
+/** Read the document's type and the holder's name, number and dates from a document image or PDF. Returns null when the reader is off or fails. */
 export async function readDocumentFacts(bytes: Uint8Array, mediaType: string): Promise<DocumentFacts | null> {
   const output = await readFileWithModel({
     instructions: READER_INSTRUCTIONS,
@@ -98,6 +113,7 @@ export async function readDocumentFacts(bytes: Uint8Array, mediaType: string): P
   if (!output) return null;
 
   const facts = {
+    kind: output.kind && (PERSONAL_DOCUMENT_KINDS as readonly string[]).includes(output.kind) ? output.kind : null,
     fullName: cleanReadName(output.fullName),
     documentNumber: cleanReadNumber(output.documentNumber),
     issuedOn: cleanReadDate(output.issuedOn),

@@ -55,7 +55,7 @@ export default async function WeatherPage({ params }: { params: Promise<{ tripId
               </div>
               {destination.weatherDays.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No forecast loaded yet. Use the refresh button above. Forecasts reach about two weeks ahead.
+                  No forecast yet. Use Load forecast above once the trip is about two weeks away.
                 </p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

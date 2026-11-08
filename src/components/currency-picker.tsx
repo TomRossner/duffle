@@ -27,12 +27,20 @@ function CurrencyRow({ code, showName = false }: { code: string; showName?: bool
 export function CurrencyPicker({
   name = "currency",
   defaultValue = "USD",
+  onValueChange,
 }: {
   name?: string;
   defaultValue?: string;
+  onValueChange?: (value: string) => void;
 }) {
   return (
-    <Select.Root name={name} defaultValue={defaultValue}>
+    <Select.Root
+      name={name}
+      defaultValue={defaultValue}
+      onValueChange={(value: string | null) => {
+        if (value) onValueChange?.(value);
+      }}
+    >
       <Select.Trigger
         className={cn(
           "flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-base outline-none sm:h-8 sm:px-2 sm:text-sm",

@@ -230,13 +230,28 @@ export const PLAN_KINDS = [
 ] as const;
 
 export const PLAN_COLORS: Record<(typeof PLAN_KINDS)[number]["id"], string> = {
-  FLIGHT: "bg-sky-100 text-sky-950",
-  TRANSFER: "bg-amber-100 text-amber-950",
-  STAY: "bg-violet-100 text-violet-950",
-  DINNER: "bg-rose-100 text-rose-950",
-  MEETUP: "bg-emerald-100 text-emerald-950",
-  OTHER: "bg-slate-200 text-slate-900",
+  FLIGHT: "bg-sky-100 text-sky-950 [&_svg]:text-sky-600",
+  TRANSFER: "bg-amber-100 text-amber-950 [&_svg]:text-amber-600",
+  STAY: "bg-violet-100 text-violet-950 [&_svg]:text-violet-600",
+  DINNER: "bg-rose-100 text-rose-950 [&_svg]:text-rose-600",
+  MEETUP: "bg-emerald-100 text-emerald-950 [&_svg]:text-emerald-600",
+  OTHER: "bg-slate-200 text-slate-900 [&_svg]:text-slate-500",
 };
+
+/** A stronger shade of each plan colour, for the plan's icon on its tinted background. */
+export const PLAN_ICON_COLORS: Record<(typeof PLAN_KINDS)[number]["id"], string> = {
+  FLIGHT: "text-sky-600",
+  TRANSFER: "text-amber-600",
+  STAY: "text-violet-600",
+  DINNER: "text-rose-600",
+  MEETUP: "text-emerald-600",
+  OTHER: "text-slate-500",
+};
+
+export function planIconColor(kind: string) {
+  // Other kinds (activities) keep the colour of what they sit in.
+  return kind in PLAN_ICON_COLORS ? PLAN_ICON_COLORS[kind as keyof typeof PLAN_ICON_COLORS] : "";
+}
 
 export function planLabel(kind: string) {
   return PLAN_KINDS.find((entry) => entry.id === kind)?.label ?? kind;

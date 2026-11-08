@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { CalendarClock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { refreshWeather } from "@/lib/actions/weather";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,12 @@ export function RefreshWeather({ tripId }: { tripId: string }) {
         {pending ? "Loading forecast..." : "Load forecast"}
       </Button>
       {state?.error ? <p className="text-sm text-destructive sm:text-right">{state.error}</p> : null}
+      {state?.notice ? (
+        <p className="flex items-start gap-1.5 text-sm text-muted-foreground sm:text-right">
+          <CalendarClock className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {state.notice}
+        </p>
+      ) : null}
       {saved > 0 && state !== expired && !pending ? (
         <p className="text-sm text-muted-foreground sm:text-right">Saved {saved} days.</p>
       ) : null}

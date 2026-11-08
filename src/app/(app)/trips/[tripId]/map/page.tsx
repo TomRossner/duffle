@@ -2,7 +2,7 @@ import { ChevronRight, MapPin, Plus } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { ActivityComposer } from "@/components/activity-composer";
 import { ActivityEditor, ScheduleItemMenu } from "@/components/day-editor";
-import { PlaceLinks } from "@/components/place-links";
+import { DirectionsButton } from "@/components/place-links";
 import { DestinationCard } from "@/components/destination-card";
 import { EmptyState } from "@/components/empty-state";
 import { DestinationForm } from "@/components/destination-form";
@@ -172,18 +172,22 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                               {activity.notes && activity.notes.trim() !== activity.title.trim() ? (
                                 <span className="block text-muted-foreground">{activity.notes}</span>
                               ) : null}
-                              {activity.lat != null && activity.lng != null ? (
-                                <PlaceLinks
-                                  className="mt-1.5"
-                                  place={{
-                                    name: activity.title,
-                                    placeId: activity.placeId,
-                                    lat: activity.lat,
-                                    lng: activity.lng,
-                                  }}
-                                />
-                              ) : null}
                             </span>
+                            <span className="flex shrink-0 items-center gap-0.5">
+                            {activity.lat != null && activity.lng != null ? (
+                              <DirectionsButton
+                                places={[
+                                  {
+                                    place: {
+                                      name: activity.title,
+                                      placeId: activity.placeId,
+                                      lat: activity.lat,
+                                      lng: activity.lng,
+                                    },
+                                  },
+                                ]}
+                              />
+                            ) : null}
                             <ScheduleItemMenu
                               label={activity.title}
                               confirmMessage={`Are you sure you want to remove ${activity.title}?`}
@@ -204,6 +208,7 @@ export default async function MapPage({ params }: { params: Promise<{ tripId: st
                                 }}
                               />
                             </ScheduleItemMenu>
+                            </span>
                           </li>
                         ))}
                       </ul>

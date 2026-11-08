@@ -248,6 +248,35 @@ export function formatMinutes(minutes: number) {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
+/** The most seats one flight can list. */
+export const MAX_SEATS = 9;
+
+/**
+ * Seat numbers as typed ("14a 14b", "14A,14B; 15C") → "14A, 14B, 15C". Repeats are dropped. Null when empty,
+ * an error when a seat isn't a short code or there are too many.
+ */
+export function normalizeSeats(value: string): { seats: string | null } | { error: string } {
+  const seats = [
+    ...new Set(
+      value
+        .split(/[\s,;/]+/)
+        .map((seat) => seat.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ];
+  if (seats.length === 0) return { seats: null };
+  if (seats.some((seat) => !/^[0-9A-Z]{1,5}$/.test(seat))) {
+    return { error: "Enter seats as short codes like 14A, separated by commas." };
+  }
+  if (seats.length > MAX_SEATS) return { error: `Add up to ${MAX_SEATS} seats per flight.` };
+  return { seats: seats.join(", ") };
+}
+
+/** "14A, 14B" → ["14A", "14B"]. */
+export function seatList(seats: string | null | undefined) {
+  return (seats ?? "").split(",").map((seat) => seat.trim()).filter(Boolean);
+}
+
 /** The longest gap between an arrival and the next departure from that airport that counts as a connection. */
 export const MAX_CONNECTION_MINUTES = 24 * 60;
 

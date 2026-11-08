@@ -37,11 +37,11 @@ export const WEATHER_ICONS: Record<ConditionTag, LucideIcon> = {
 };
 
 export const WEATHER_COLORS: Record<ConditionTag, string> = {
-  RAIN: "bg-blue-100 text-blue-900",
-  SUN: "bg-amber-100 text-amber-950",
-  COLD: "bg-cyan-100 text-cyan-950",
-  SNOW: "bg-sky-100 text-sky-950",
-  WIND: "bg-slate-200 text-slate-900",
+  RAIN: "bg-blue-100 text-blue-900 [&_svg]:text-blue-600",
+  SUN: "bg-amber-100 text-amber-950 [&_svg]:text-amber-600",
+  COLD: "bg-cyan-100 text-cyan-950 [&_svg]:text-cyan-600",
+  SNOW: "bg-sky-100 text-sky-950 [&_svg]:text-sky-600",
+  WIND: "bg-slate-200 text-slate-900 [&_svg]:text-slate-500",
 };
 
 export const ACTIVITY_ICONS: Record<ActivityTag, LucideIcon> = {
@@ -55,24 +55,24 @@ export const ACTIVITY_ICONS: Record<ActivityTag, LucideIcon> = {
 };
 
 export const ACTIVITY_COLORS: Record<ActivityTag, string> = {
-  HIKE: "bg-green-100 text-green-900",
-  SPORT: "bg-lime-100 text-lime-950",
-  BEACH: "bg-orange-100 text-orange-950",
-  CITY: "bg-indigo-100 text-indigo-950",
-  DINNER: "bg-rose-100 text-rose-950",
-  FLIGHT: "bg-sky-100 text-sky-950",
-  EVERYDAY: "bg-yellow-100 text-yellow-950",
+  HIKE: "bg-green-100 text-green-900 [&_svg]:text-green-600",
+  SPORT: "bg-lime-100 text-lime-950 [&_svg]:text-lime-600",
+  BEACH: "bg-orange-100 text-orange-950 [&_svg]:text-orange-600",
+  CITY: "bg-indigo-100 text-indigo-950 [&_svg]:text-indigo-600",
+  DINNER: "bg-rose-100 text-rose-950 [&_svg]:text-rose-600",
+  FLIGHT: "bg-sky-100 text-sky-950 [&_svg]:text-sky-600",
+  EVERYDAY: "bg-yellow-100 text-yellow-950 [&_svg]:text-yellow-600",
 };
 
 const FAMILY_COLORS: Record<SlotFamily, string> = {
-  TOP: "bg-sky-100 text-sky-950",
-  BOTTOM: "bg-indigo-100 text-indigo-950",
-  OUTER: "bg-violet-100 text-violet-950",
-  SHOES: "bg-amber-100 text-amber-950",
-  SOCKS: "bg-stone-200 text-stone-900",
-  SWIM: "bg-teal-100 text-teal-950",
-  FORMAL: "bg-fuchsia-100 text-fuchsia-950",
-  ACCESSORY: "bg-orange-100 text-orange-950",
+  TOP: "bg-sky-100 text-sky-950 [&_svg]:text-sky-600",
+  BOTTOM: "bg-indigo-100 text-indigo-950 [&_svg]:text-indigo-600",
+  OUTER: "bg-violet-100 text-violet-950 [&_svg]:text-violet-600",
+  SHOES: "bg-amber-100 text-amber-950 [&_svg]:text-amber-600",
+  SOCKS: "bg-stone-200 text-stone-900 [&_svg]:text-stone-500",
+  SWIM: "bg-teal-100 text-teal-950 [&_svg]:text-teal-600",
+  FORMAL: "bg-fuchsia-100 text-fuchsia-950 [&_svg]:text-fuchsia-600",
+  ACCESSORY: "bg-orange-100 text-orange-950 [&_svg]:text-orange-600",
 };
 
 export function slotColor(slot: string) {

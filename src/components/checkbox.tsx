@@ -14,7 +14,7 @@ export function CheckBox({ className, ...props }: React.ComponentProps<"input">)
         )}
         {...props}
       />
-      <Check className="pointer-events-none absolute inset-0 m-auto size-3 text-primary-foreground opacity-0 peer-checked:opacity-100" />
+      <Check className="pointer-events-none absolute inset-0 m-auto size-3 text-primary-foreground! opacity-0 peer-checked:opacity-100" />
     </span>
   );
 }

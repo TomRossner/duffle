@@ -2,7 +2,7 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { EllipsisVertical, Pencil, Trash2, X } from "lucide-react";
+import { CalendarCheck, EllipsisVertical, Pencil, Trash2, X } from "lucide-react";
 import { cloneElement, isValidElement, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ActionForm } from "@/components/action-form";
@@ -56,17 +56,37 @@ export function DaySection({
   dateLabel,
   condition,
   forecast,
+  today = false,
   children,
 }: {
   dateLabel: string;
   condition: string | null;
   forecast: string | null;
+  today?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl ring-1 ring-foreground/10">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-        <h2 className="font-medium">{dateLabel}</h2>
+    <section
+      data-today={today || undefined}
+      aria-current={today ? "date" : undefined}
+      className={cn(
+        "scroll-mt-4 rounded-xl ring-1 ring-foreground/10",
+        today && "bg-primary/[0.03] shadow-md shadow-primary/10 ring-2 ring-primary",
+      )}
+    >
+      <header
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3",
+          today && "rounded-t-xl border-primary/20 bg-primary/10",
+        )}
+      >
+        <h2 className={cn("flex items-center gap-2 font-medium", today && "font-semibold text-primary")}>
+          {today ? <CalendarCheck className="size-4 shrink-0" aria-hidden /> : null}
+          {dateLabel}
+          {today ? (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">Today</span>
+          ) : null}
+        </h2>
         {condition && forecast ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <WeatherMark condition={condition} />
@@ -74,7 +94,8 @@ export function DaySection({
           </p>
         ) : null}
       </header>
-      <div className="grid gap-2 px-4 py-3">{children}</div>
+      {/* Extra top room on today, for the "Now" and "Up next" labels that sit on a card's top edge. */}
+      <div className={cn("grid gap-2 px-4 py-3", today && "pt-4")}>{children}</div>
     </section>
   );
 }

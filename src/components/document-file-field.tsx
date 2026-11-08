@@ -18,8 +18,11 @@ export type ScanResult =
 /** What the reader reads the file with, and which form inputs it may fill. */
 export type FileReader = {
   read: (body: FormData) => Promise<ScanResult>;
-  /** Form inputs the reader can fill, with how to name them in the status message. */
-  fields: readonly { name: string; label: string }[];
+  /**
+   * Form inputs the reader can fill, with how to name them in the status message. `replaceDefault` lets the
+   * reader replace a value the form opened with (like a select's first option), not only an empty one.
+   */
+  fields: readonly { name: string; label: string; replaceDefault?: boolean }[];
   /** Shown under the upload prompt. */
   hint: string;
   /** Shown when the reader found none of the fields. */
@@ -31,13 +34,15 @@ export type FileReader = {
 export const personalDocumentReader: FileReader = {
   read: scanPersonalDocument,
   fields: [
+    // The type always has a value (it opens on Passport), so the reading replaces it unless the traveler changed it.
+    { name: "kind", label: "type", replaceDefault: true },
     { name: "fullName", label: "name" },
     { name: "documentNumber", label: "number" },
     { name: "issuedOn", label: "issue date" },
     { name: "expiresOn", label: "expiry date" },
   ],
-  hint: "The name, number and dates are filled in for you.",
-  nothingFound: "Couldn't find a name, number or dates on this document. Fill them in yourself.",
+  hint: "The type, name, number and dates are filled in for you.",
+  nothingFound: "Couldn't find the type, name, number or dates on this document. Fill them in yourself.",
 };
 
 type FillTarget = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
@@ -159,7 +164,10 @@ export function DocumentFileField({
         continue;
       }
       const current = target.value.trim();
-      const untouched = !current || current === value || (reader.replaceDefaults && target.value === initialValue(target));
+      const untouched =
+        !current ||
+        current === value ||
+        ((reader.replaceDefaults || field.replaceDefault) && target.value === initialValue(target));
       if (!untouched) {
         kept.push(field.label);
         continue;

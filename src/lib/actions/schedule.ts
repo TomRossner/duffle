@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { SCHEDULE_KINDS } from "@/lib/constants";
 import { asDateOnly, parseDate, parseDateTime } from "@/lib/dates";
 import { createSimplePlannedExpense, deleteExpenseById } from "@/lib/expenses";
-import { airportCodeOf, fetchFlights, journeyRoute, normalizeFlightNumber } from "@/lib/flight-lookup";
+import { airportCodeOf, fetchFlights, journeyRoute, normalizeFlightNumber, normalizeSeats } from "@/lib/flight-lookup";
 import { takeRateLimit } from "@/lib/rate-limit";
 import { geocodeAddress } from "@/lib/places";
 import { prisma } from "@/lib/prisma";
@@ -77,6 +77,9 @@ type FlightLeg = Extract<ReturnType<typeof readLeg>, { leg: unknown }>["leg"];
 function readFlightInput(formData: FormData) {
   const confirmation = String(formData.get("confirmation") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const seatInput = normalizeSeats(String(formData.get("seats") ?? ""));
+  if ("error" in seatInput) return { error: seatInput.error };
+  const { seats } = seatInput;
   const legsRaw = String(formData.get("legs") ?? "").trim();
   let entries: ((key: string) => unknown)[] = [(key) => formData.get(key)];
   if (legsRaw) {
@@ -97,7 +100,7 @@ function readFlightInput(formData: FormData) {
     if (!read.leg) return { error: read.error };
     legs.push(read.leg);
   }
-  return { legs, confirmation, notes };
+  return { legs, confirmation, seats, notes };
 }
 
 /** "QF 1" or "QF 1 (SYD → SIN → LHR)" for notifications. */
@@ -121,7 +124,7 @@ export async function createFlight(tripId: string, _: unknown, formData: FormDat
   if ("error" in parsed) return parsed;
   const travelers = await travelerIds(tripId, formData);
   if (travelers.length === 0) return { error: "Choose at least one traveler." };
-  const { legs, confirmation, notes } = parsed;
+  const { legs, confirmation, seats, notes } = parsed;
 
   const airports = [...new Set(legs.flatMap((leg) => [leg.fromAirport, leg.toAirport]))];
   const points = new Map(
@@ -143,6 +146,8 @@ export async function createFlight(tripId: string, _: unknown, formData: FormDat
           toLat: points.get(leg.toAirport)?.lat,
           toLng: points.get(leg.toAirport)?.lng,
           confirmation,
+          // Seats differ from leg to leg, so they are only kept when one flight is added.
+          seats: legs.length === 1 ? seats : null,
           notes,
           expenseId: index === 0 ? cost.expenseId : undefined,
           travelers: { create: travelers.map((userId) => ({ userId })) },
@@ -172,7 +177,7 @@ export async function updateFlight(tripId: string, flightId: string, _: unknown,
   if (travelers.length === 0) return { error: "Choose at least one traveler." };
 
   const [leg] = parsed.legs;
-  const { confirmation, notes } = parsed;
+  const { confirmation, seats, notes } = parsed;
   let fromLat = flight.fromLat;
   let fromLng = flight.fromLng;
   let toLat = flight.toLat;
@@ -201,6 +206,7 @@ export async function updateFlight(tripId: string, flightId: string, _: unknown,
       toLat,
       toLng,
       confirmation,
+      seats,
       notes,
       travelers: {
         deleteMany: {},

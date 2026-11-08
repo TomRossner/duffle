@@ -118,3 +118,74 @@ export function PlaceLinks({
     </span>
   );
 }
+
+/**
+ * A compact icon button with the same choices as PlaceLinks in one menu: show the place on Google Maps, or
+ * navigate there with Google Maps or Waze. With several places (a flight's two airports) each gets a section.
+ */
+export function DirectionsButton({
+  places,
+  className,
+}: {
+  places: { label?: string; place: PlaceTarget }[];
+  className?: string;
+}) {
+  const options = places
+    .map(({ label, place }) => ({
+      label,
+      name: place.name?.trim() || place.address?.trim() || "this place",
+      maps: googleMapsPlaceUrl(place),
+      directions: googleMapsDirectionsUrl(place),
+      waze: wazeUrl(place),
+    }))
+    .filter((option) => option.maps || option.directions || option.waze);
+  if (options.length === 0) return null;
+  const title = options.length === 1 ? `Maps and directions for ${options[0].name}` : "Maps and directions";
+
+  return (
+    <Menu.Root>
+      <Menu.Trigger
+        className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "shrink-0 text-primary", className)}
+        aria-label={title}
+        title={title}
+      >
+        <Navigation />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner className="z-[90] outline-none" sideOffset={4} align="end">
+          <Menu.Popup className="min-w-56 sm:min-w-48 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+            {options.map((option, index) => (
+              <div key={index} className={cn(index > 0 && "mt-1 border-t pt-1")}>
+                <p className="truncate px-2 pt-1 pb-1.5 text-xs text-muted-foreground">{option.label ?? option.name}</p>
+                {option.maps ? (
+                  <Menu.LinkItem href={option.maps} target="_blank" rel="noreferrer" closeOnClick className={menuItemClass}>
+                    <GoogleMapsIcon />
+                    Show on Maps
+                  </Menu.LinkItem>
+                ) : null}
+                {option.directions ? (
+                  <Menu.LinkItem
+                    href={option.directions}
+                    target="_blank"
+                    rel="noreferrer"
+                    closeOnClick
+                    className={menuItemClass}
+                  >
+                    <Navigation className="text-muted-foreground" />
+                    Directions with Google Maps
+                  </Menu.LinkItem>
+                ) : null}
+                {option.waze ? (
+                  <Menu.LinkItem href={option.waze} target="_blank" rel="noreferrer" closeOnClick className={menuItemClass}>
+                    <WazeIcon />
+                    Directions with Waze
+                  </Menu.LinkItem>
+                ) : null}
+              </div>
+            ))}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  );
+}

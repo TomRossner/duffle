@@ -13,7 +13,7 @@ import { ScheduleWhenFields } from "@/components/schedule-when-fields";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createPlan, lookupFlight, updateFlight, updateStay } from "@/lib/actions/schedule";
-import { PLAN_COLORS, PLAN_KINDS, planLabel } from "@/lib/constants";
+import { PLAN_COLORS, PLAN_KINDS, planIconColor, planLabel } from "@/lib/constants";
 import {
   airlineCodeOf,
   dayOffset,
@@ -42,6 +42,7 @@ export type FlightDraft = {
   departAt: string;
   arriveAt: string;
   confirmation: string;
+  seats: string;
   notes: string;
   travelerIds: string[];
 };
@@ -50,7 +51,7 @@ export function PlanTag({ kind }: { kind: string }) {
   const color = kind in PLAN_COLORS ? PLAN_COLORS[kind as PlanKindId] : "bg-muted text-foreground";
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-sm in-data-[layout=calendar]:gap-1 in-data-[layout=calendar]:px-1 in-data-[layout=calendar]:py-0.5 in-data-[layout=calendar]:text-xs", color)}>
-      <KindIcon kind={kind} className="size-4 in-data-[layout=calendar]:size-3.5" />
+      <KindIcon kind={kind} className={cn("size-4 in-data-[layout=calendar]:size-3.5", planIconColor(kind))} />
       <span className="in-data-[layout=calendar]:sr-only">{planLabel(kind)}</span>
     </span>
   );
@@ -89,7 +90,7 @@ export function KindTags({
               onChange={() => onValueChange(kind.id)}
               className="sr-only"
             />
-            <KindIcon kind={kind.id} className="size-4" />
+            <KindIcon kind={kind.id} className={cn("size-4", planIconColor(kind.id))} />
             {kind.label}
           </label>
         );
@@ -175,6 +176,8 @@ export function PlanForm({
   defaultDate = "",
   compact = false,
   flightLookup = false,
+  open,
+  onOpenChange,
 }: {
   tripId: string;
   currency: string;
@@ -186,6 +189,9 @@ export function PlanForm({
   compact?: boolean;
   /** Whether the flight form can look flights up by number. */
   flightLookup?: boolean;
+  /** Open it from elsewhere; it then shows no button of its own. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [kind, setKind] = useState<PlanKindId>("FLIGHT");
   const preset = defaultDate ? `${defaultDate}T` : "";
@@ -198,6 +204,8 @@ export function PlanForm({
       triggerVariant={compact ? "outline" : "default"}
       triggerSize={compact ? "sm" : "default"}
       triggerClassName={compact ? "w-full" : "w-full sm:w-fit"}
+      open={open}
+      onOpenChange={onOpenChange}
       wide
     >
       <ActionForm action={createPlan.bind(null, tripId)} submitLabel={submitLabel}>
@@ -370,6 +378,7 @@ function FlightFields({
   toTerminal = "",
   durationMinutes = null,
   confirmation = "",
+  seats = "",
   notes = "",
   travelerIds,
   showCost = false,
@@ -392,6 +401,8 @@ function FlightFields({
   /** The real flying time, which only a lookup knows. */
   durationMinutes?: number | null;
   confirmation?: string;
+  /** Seat numbers, "14A, 14B". */
+  seats?: string;
   notes?: string;
   travelerIds?: string[];
   showCost?: boolean;
@@ -707,9 +718,28 @@ function FlightFields({
               <input type="hidden" name="durationMinutes" value={leg.durationMinutes ?? ""} />
             </>
           )}
-          <Field label="Confirmation">
-            <Input name="confirmation" defaultValue={confirmation} />
-          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Confirmation">
+              <Input name="confirmation" defaultValue={confirmation} />
+            </Field>
+            {legs ? (
+              // Each leg gets its own seats, so they're added per flight after saving.
+              <p className="self-end pb-2 text-xs text-muted-foreground sm:pb-1.5">
+                Add seats to each leg after saving, since they differ from flight to flight.
+              </p>
+            ) : (
+              <Field label="Seats (optional)">
+                <Input
+                  name="seats"
+                  defaultValue={seats}
+                  placeholder="14A, 14B"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                />
+              </Field>
+            )}
+          </div>
           <FieldGroup label="Travelers">
             <CheckList name="traveler" options={people} checkedIds={travelerIds} defaultChecked={travelerIds == null} />
           </FieldGroup>
@@ -869,6 +899,7 @@ export function FlightEditor({
         departAt={flight.departAt}
         arriveAt={flight.arriveAt}
         confirmation={flight.confirmation}
+        seats={flight.seats}
         notes={flight.notes}
         travelerIds={flight.travelerIds}
       />

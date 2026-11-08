@@ -3,7 +3,8 @@
 import { useActionState, useEffect, useState } from "react";
 import { CheckBox } from "@/components/checkbox";
 import { ExpenseCategoryPicker } from "@/components/expense-category";
-import { CurrencySelect, Field, FieldGroup, Select } from "@/components/fields";
+import { CurrencyRateFields } from "@/components/currency-rate-fields";
+import { Field, FieldGroup, Select } from "@/components/fields";
 import { useCloseFormDialog } from "@/components/form-dialog";
 import { MemberTag } from "@/components/member-tag";
 import { SplitTypePicker } from "@/components/split-type";
@@ -77,19 +78,12 @@ export function ExpenseForm({
         <Field label="Amount">
           <Input name="amount" type="number" min="0.01" step="0.01" defaultValue={defaults?.amount} required />
         </Field>
-        <Field label="Currency">
-          <CurrencySelect defaultValue={defaults?.currency ?? currency} withSymbols />
-        </Field>
-        <Field label="Manual rate">
-          <Input
-            name="manualRate"
-            type="number"
-            min="0"
-            step="0.0001"
-            placeholder="Optional"
-            defaultValue={defaults?.manualRate}
-          />
-        </Field>
+        <CurrencyRateFields
+          defaultValue={defaults?.currency ?? currency}
+          baseCurrency={currency}
+          defaultRate={defaults?.manualRate}
+          withSymbols
+        />
         <Field label="Date">
           <Input name="date" type="date" defaultValue={defaults?.date} required />
         </Field>

@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CircleHelp, IdCard, LogIn, Luggage, MapPinned, Menu, UserPlus, UserRound, X } from "lucide-react";
+import { CircleHelp, IdCard, LogIn, MapPinned, Menu, Shirt, UserPlus, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/trips", label: "Trips", icon: MapPinned },
-  { href: "/closet", label: "Closet", icon: Luggage },
+  { href: "/closet", label: "Closet", icon: Shirt },
   { href: "/documents", label: "Documents", icon: IdCard },
   { href: "/profile", label: "Profile", icon: UserRound },
   { href: "/how-it-works", label: "How it works", icon: CircleHelp },

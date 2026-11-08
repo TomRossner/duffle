@@ -199,7 +199,7 @@ function PolicyFields({
       <Field label="Notes">
         <Textarea name="notes" rows={2} defaultValue={defaults?.notes} />
       </Field>
-      <CostFields currency={defaults?.currency || currency} amount={defaults?.amount} />
+      <CostFields currency={defaults?.currency || currency} baseCurrency={currency} amount={defaults?.amount} />
     </>
   );
 }

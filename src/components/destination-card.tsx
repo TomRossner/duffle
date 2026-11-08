@@ -11,7 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { PlaceLinks } from "@/components/place-links";
+import { DirectionsButton } from "@/components/place-links";
 import { updateDestination } from "@/lib/actions/destinations";
 import type { PlaceResult } from "@/lib/places";
 
@@ -29,6 +29,16 @@ type DestinationDetails = {
   endDate: string;
   notes: string | null;
 };
+
+function destinationPlace(destination: DestinationDetails) {
+  return {
+    name: destination.name,
+    address: destination.address,
+    placeId: destination.placeId,
+    lat: destination.lat,
+    lng: destination.lng,
+  };
+}
 
 export function DestinationCard({
   tripId,
@@ -67,21 +77,11 @@ export function DestinationCard({
             <p className="mt-1 text-sm">{dates}</p>
           </div>
         </div>
-        <CardAction>
+        <CardAction className="flex items-center gap-0.5">
+          <DirectionsButton places={[{ place: destinationPlace(destination) }]} />
           <DestinationMenu name={destination.name} onEdit={() => setEditing(true)} remove={remove} onError={setError} />
         </CardAction>
         {error ? <p className="col-span-full text-sm text-destructive">{error}</p> : null}
-        {/* Full-width row below the title so the actions column doesn't squeeze it on mobile. */}
-        <PlaceLinks
-          className="col-span-full mt-1 sm:pl-10"
-          place={{
-            name: destination.name,
-            address: destination.address,
-            placeId: destination.placeId,
-            lat: destination.lat,
-            lng: destination.lng,
-          }}
-        />
       </CardHeader>
       <CardContent className="grid gap-4">
         {note ? <p className="text-sm text-muted-foreground">{note}</p> : null}
@@ -122,18 +122,12 @@ export function DestinationRow({
           <span className="font-medium">{destination.name}</span>
           <span className="text-muted-foreground"> · {dates}</span>
         </p>
-        <DestinationMenu name={destination.name} onEdit={() => setEditing(true)} remove={remove} onError={setError} />
+        <span className="flex shrink-0 items-center gap-0.5">
+          <DirectionsButton places={[{ place: destinationPlace(destination) }]} />
+          <DestinationMenu name={destination.name} onEdit={() => setEditing(true)} remove={remove} onError={setError} />
+        </span>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <PlaceLinks
-        place={{
-          name: destination.name,
-          address: destination.address,
-          placeId: destination.placeId,
-          lat: destination.lat,
-          lng: destination.lng,
-        }}
-      />
       <EditDestination
         tripId={tripId}
         destination={destination}

@@ -351,6 +351,8 @@ model Flight {
   departAt     DateTime
   arriveAt     DateTime
   confirmation String?
+  /// Seat numbers as typed, normalized to "14A, 14B". Null when none were added.
+  seats        String?
   notes        String?
   expenseId    String?  @unique
   trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)

@@ -12,6 +12,8 @@ import {
   journeyRoute,
   journeysOnDate,
   normalizeFlightNumber,
+  normalizeSeats,
+  seatList,
   parseFlights,
   terminalLabel,
 } from "./flight-lookup.ts";
@@ -222,4 +224,14 @@ test("airlineCodeOf reads the IATA prefix", () => {
   assert.equal(airlineCodeOf("u2 8123"), "U2");
   assert.equal(airlineCodeOf("EZY1234"), null);
   assert.equal(airlineCodeOf("Lufthansa"), null);
+});
+
+test("normalizeSeats tidies typed seat numbers", () => {
+  assert.deepEqual(normalizeSeats("14a 14b"), { seats: "14A, 14B" });
+  assert.deepEqual(normalizeSeats(" 14A,14B; 15c / 14a "), { seats: "14A, 14B, 15C" });
+  assert.deepEqual(normalizeSeats("   "), { seats: null });
+  assert.ok("error" in normalizeSeats("window seat please"));
+  assert.ok("error" in normalizeSeats("1A 2A 3A 4A 5A 6A 7A 8A 9A 10A"));
+  assert.deepEqual(seatList("14A, 14B"), ["14A", "14B"]);
+  assert.deepEqual(seatList(null), []);
 });

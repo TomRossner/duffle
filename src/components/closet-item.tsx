@@ -138,10 +138,10 @@ export function ClosetFields({
             options={[
               {
                 id: "yes",
-                color: "bg-cyan-100 text-cyan-950",
+                color: "bg-cyan-100 text-cyan-950 [&_svg]:text-cyan-600",
                 label: (
                   <span className="inline-flex items-center gap-1.5">
-                    <Droplets className="size-4" aria-hidden />
+                    <Droplets className="size-4 text-cyan-600" aria-hidden />
                     Gore-Tex
                   </span>
                 ),
@@ -155,10 +155,10 @@ export function ClosetFields({
             options={[
               {
                 id: "yes",
-                color: "bg-sky-100 text-sky-950",
+                color: "bg-sky-100 text-sky-950 [&_svg]:text-sky-600",
                 label: (
                   <span className="inline-flex items-center gap-1.5">
-                    <Shirt className="size-4" aria-hidden />
+                    <Shirt className="size-4 text-sky-600" aria-hidden />
                     Dri-Fit
                   </span>
                 ),
@@ -257,13 +257,13 @@ export function ClosetCard({ item }: { item: ClosetDraft }) {
               <div className="flex flex-wrap gap-1.5">
                 {item.goreTex ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-100 px-2.5 py-1 text-sm text-cyan-950">
-                    <Droplets className="size-4" aria-hidden />
+                    <Droplets className="size-4 text-cyan-600" aria-hidden />
                     Gore-Tex
                   </span>
                 ) : null}
                 {item.driFit ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-sm text-sky-950">
-                    <Shirt className="size-4" aria-hidden />
+                    <Shirt className="size-4 text-sky-600" aria-hidden />
                     Dri-Fit
                   </span>
                 ) : null}
