@@ -4,6 +4,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
 import { CalendarCheck, EllipsisVertical, Pencil, Trash2, X } from "lucide-react";
 import { cloneElement, isValidElement, useState } from "react";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { ActionForm } from "@/components/action-form";
 import { DeleteDialog } from "@/components/delete-dialog";
@@ -65,6 +66,7 @@ export function DaySection({
   today?: boolean;
   children: React.ReactNode;
 }) {
+  const t = useT("schedule");
   return (
     <section
       data-today={today || undefined}
@@ -84,7 +86,7 @@ export function DaySection({
           {today ? <CalendarCheck className="size-4 shrink-0" aria-hidden /> : null}
           {dateLabel}
           {today ? (
-            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">Today</span>
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">{t("board.today")}</span>
           ) : null}
         </h2>
         {condition && forecast ? (
@@ -111,6 +113,8 @@ export function ScheduleItemMenu({
   remove: () => Promise<{ error?: string } | void>;
   children: React.ReactElement<{ onSaved?: () => void }>;
 }) {
+  const t = useT("schedule");
+  const tCommon = useT("common");
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,13 +122,13 @@ export function ScheduleItemMenu({
 
   return (
     <div
-      className="shrink-0 in-data-[layout=calendar]:absolute in-data-[layout=calendar]:top-1/2 in-data-[layout=calendar]:right-0.5 in-data-[layout=calendar]:-translate-y-1/2 in-data-[layout=calendar]:bg-muted"
+      className="shrink-0 in-data-[layout=calendar]:absolute in-data-[layout=calendar]:top-1/2 in-data-[layout=calendar]:end-0.5 in-data-[layout=calendar]:-translate-y-1/2 in-data-[layout=calendar]:bg-muted"
       onClick={(event) => event.stopPropagation()}
     >
       <Menu.Root>
         <Menu.Trigger
           className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "in-data-[layout=calendar]:size-6")}
-          aria-label={`Actions for ${label}`}
+          aria-label={tCommon("actionsFor", { name: label })}
         >
           <EllipsisVertical />
         </Menu.Trigger>
@@ -133,11 +137,11 @@ export function ScheduleItemMenu({
             <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
               <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
                 <Pencil className="size-3.5" />
-                Edit
+                {tCommon("edit")}
               </Menu.Item>
               <Menu.Item className={`${menuItemClass} text-destructive`} onClick={() => setConfirming(true)}>
                 <Trash2 className="size-3.5" />
-                Remove
+                {tCommon("remove")}
               </Menu.Item>
             </Menu.Popup>
           </Menu.Positioner>
@@ -150,8 +154,8 @@ export function ScheduleItemMenu({
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
             <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
-                <Dialog.Title className="text-lg font-medium">Edit {label}</Dialog.Title>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Title className="text-lg font-medium">{t("board.editTitle", { name: label })}</Dialog.Title>
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
@@ -164,7 +168,7 @@ export function ScheduleItemMenu({
         open={confirming}
         onOpenChange={setConfirming}
         message={confirmMessage}
-        confirmLabel="Remove"
+        confirmLabel={tCommon("remove")}
         onConfirm={() => {
           setConfirming(false);
           setError(null);
@@ -188,10 +192,11 @@ export function PlanEditor({
   tripDays: string[];
   onSaved?: () => void;
 }) {
+  const tCommon = useT("common");
   return (
     <ActionForm
       action={updateScheduleItem.bind(null, tripId, plan.id)}
-      submitLabel="Save"
+      submitLabel={tCommon("save")}
       onSaved={onSaved}
       className="grid gap-3"
     >
@@ -211,14 +216,16 @@ export function ActivityEditor({
   tripDays: string[];
   onSaved?: () => void;
 }) {
+  const t = useT("schedule");
+  const tCommon = useT("common");
   return (
     <ActionForm
       action={updateActivity.bind(null, tripId, activity.id)}
-      submitLabel="Save"
+      submitLabel={tCommon("save")}
       onSaved={onSaved}
       className="grid gap-3"
     >
-      <Field label="Activity">
+      <Field label={t("form.activity")}>
         <Input name="title" defaultValue={activity.title} required />
       </Field>
       <ScheduleWhenFields
@@ -230,7 +237,7 @@ export function ActivityEditor({
         editing
       />
       {activity.tags ? (
-        <FieldGroup label="Tags">
+        <FieldGroup label={t("form.tags")}>
           <input type="hidden" name="editTags" value="on" />
           <CheckList
             name="tags"
@@ -244,7 +251,7 @@ export function ActivityEditor({
           />
         </FieldGroup>
       ) : null}
-      <Field label="Notes">
+      <Field label={t("form.notes")}>
         <Textarea name="notes" rows={2} defaultValue={activity.notes} />
       </Field>
     </ActionForm>
@@ -258,13 +265,14 @@ function PlanFields({
   defaults: DayPlan;
   tripDays: string[];
 }) {
+  const t = useT("schedule");
   const [kind, setKind] = useState(defaults.kind);
   return (
     <>
-      <Field label="Title">
+      <Field label={t("form.title")}>
         <Input name="title" defaultValue={defaults.title} required />
       </Field>
-      <FieldGroup label="Kind">
+      <FieldGroup label={t("form.kind")}>
         <KindTags value={kind} onValueChange={setKind} kinds={scheduleKinds} />
       </FieldGroup>
       <ScheduleWhenFields
@@ -276,10 +284,10 @@ function PlanFields({
         required
         editing
       />
-      <Field label="Place">
+      <Field label={t("form.place")}>
         <Input name="placeName" defaultValue={defaults.placeName} />
       </Field>
-      <Field label="Notes">
+      <Field label={t("form.notes")}>
         <Textarea name="notes" rows={2} defaultValue={defaults.notes} />
       </Field>
     </>

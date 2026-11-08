@@ -2,7 +2,9 @@
 
 import { Select } from "@base-ui/react/select";
 import { Check, ChevronDown } from "lucide-react";
-import { CURRENCIES, CURRENCY_NAMES, CURRENCY_SYMBOLS } from "@/lib/constants";
+import { useLocale, useT } from "@/i18n/client";
+import { currencyName } from "@/lib/account-details";
+import { CURRENCIES, CURRENCY_SYMBOLS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type CurrencyCode = (typeof CURRENCIES)[number];
@@ -13,7 +15,8 @@ function isCurrency(value: string): value is CurrencyCode {
 
 function CurrencyRow({ code, showName = false }: { code: string; showName?: boolean }) {
   const symbol = isCurrency(code) ? CURRENCY_SYMBOLS[code] : "";
-  const name = isCurrency(code) ? CURRENCY_NAMES[code] : code;
+  const locale = useLocale();
+  const name = currencyName(code, locale);
 
   return (
     <span className="flex min-w-0 items-center gap-3">
@@ -33,6 +36,8 @@ export function CurrencyPicker({
   defaultValue?: string;
   onValueChange?: (value: string) => void;
 }) {
+  const t = useT("ui");
+  const locale = useLocale();
   return (
     <Select.Root
       name={name}
@@ -48,7 +53,7 @@ export function CurrencyPicker({
           "data-popup-open:border-ring data-popup-open:ring-3 data-popup-open:ring-ring/50",
         )}
       >
-        <Select.Value>{(value: string | null) => (value ? <CurrencyRow code={value} /> : "Currency")}</Select.Value>
+        <Select.Value>{(value: string | null) => (value ? <CurrencyRow code={value} /> : t("currency"))}</Select.Value>
         <Select.Icon className="text-muted-foreground">
           <ChevronDown className="size-4" />
         </Select.Icon>
@@ -61,11 +66,11 @@ export function CurrencyPicker({
                 <Select.Item
                   key={code}
                   value={code}
-                  label={`${code} ${CURRENCY_NAMES[code]}`}
+                  label={`${code} ${currencyName(code, locale)}`}
                   className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm outline-none data-highlighted:bg-accent data-selected:bg-muted"
                 >
                   <CurrencyRow code={code} showName />
-                  <Select.ItemIndicator className="ml-auto text-foreground">
+                  <Select.ItemIndicator className="ms-auto text-foreground">
                     <Check className="size-4" />
                   </Select.ItemIndicator>
                 </Select.Item>

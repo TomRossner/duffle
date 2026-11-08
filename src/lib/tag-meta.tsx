@@ -27,6 +27,7 @@ import {
   type ConditionTag,
   type SlotFamily,
 } from "@/lib/constants";
+import { LabelText } from "@/components/label-text";
 
 export const WEATHER_ICONS: Record<ConditionTag, LucideIcon> = {
   RAIN: CloudRain,
@@ -168,7 +169,7 @@ export function ActivityTagLabel({ tag, iconClassName = "size-4" }: { tag: Activ
   return (
     <span className="inline-flex items-center gap-1.5">
       <Icon className={iconClassName} aria-hidden />
-      {titleCase(tag)}
+      <LabelText group="activityTags" id={tag} fallback={titleCase(tag)} />
     </span>
   );
 }
@@ -178,7 +179,7 @@ export function WeatherTagLabel({ tag, iconClassName = "size-4" }: { tag: Condit
   return (
     <span className="inline-flex items-center gap-1.5">
       <Icon className={iconClassName} aria-hidden />
-      {titleCase(tag)}
+      <LabelText group="conditionTags" id={tag} fallback={titleCase(tag)} />
     </span>
   );
 }

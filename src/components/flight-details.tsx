@@ -7,6 +7,7 @@ import { ConfirmationRow, DetailList, DetailRow, DirectionsSection, NotesRow } f
 import type { AirportInfo } from "@/lib/airports";
 import { formatDateLong, formatDateShort, formatTime } from "@/lib/dates";
 import { formatMinutes, terminalLabel } from "@/lib/flight-lookup";
+import { useLocale, useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 export type FlightDetailsData = {
@@ -58,8 +59,9 @@ function Endpoint({
   align: "start" | "end";
   offset?: number;
 }) {
+  const locale = useLocale();
   return (
-    <div className={cn("grid min-w-0 gap-1", align === "end" ? "justify-items-end text-right" : "justify-items-start")}>
+    <div className={cn("grid min-w-0 gap-1", align === "end" ? "justify-items-end text-end" : "justify-items-start")}>
       <p className="font-mono text-3xl font-semibold tracking-tight sm:text-4xl">{code}</p>
       {airport ? (
         <p className={cn("flex max-w-full items-center gap-1.5 text-sm font-medium", align === "end" && "flex-row-reverse")}>
@@ -70,13 +72,13 @@ function Endpoint({
       <p className="mt-2 text-2xl font-semibold tabular-nums">
         {formatTime(time)}
         {offset !== 0 ? (
-          <sup className="ml-0.5 text-xs font-medium text-primary">{offset > 0 ? `+${offset}` : offset}</sup>
+          <sup className="ms-0.5 text-xs font-medium text-primary">{offset > 0 ? `+${offset}` : offset}</sup>
         ) : null}
       </p>
-      <p className="text-xs text-muted-foreground">{formatDateShort(date)}</p>
+      <p className="text-xs text-muted-foreground">{formatDateShort(date, locale)}</p>
       {terminal ? (
         <span className="mt-1 rounded-md bg-background px-2 py-0.5 text-xs font-medium ring-1 ring-foreground/10">
-          {terminalLabel(terminal)}
+          {terminalLabel(terminal, locale)}
         </span>
       ) : null}
       {airport ? <p className="line-clamp-2 text-xs text-muted-foreground">{airport.name}</p> : null}
@@ -87,11 +89,15 @@ function Endpoint({
 /** Everything about one flight, for the dialog that opens from the schedule. */
 export function FlightDetails({ flight }: { flight: FlightDetailsData }) {
   const { connection } = flight;
+  const t = useT("schedule");
+  const tCommon = useT("common");
+  const locale = useLocale();
+  const strong = (chunks: React.ReactNode) => <strong className="font-medium">{chunks}</strong>;
 
   return (
     <div className="grid gap-5">
       <section
-        aria-label={`${flight.fromAirport} to ${flight.toAirport}`}
+        aria-label={t("flight.route", { from: flight.fromAirport, to: flight.toAirport })}
         className="rounded-xl bg-muted/60 p-4 ring-1 ring-foreground/10 sm:p-5"
       >
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-3">
@@ -113,7 +119,7 @@ export function FlightDetails({ flight }: { flight: FlightDetailsData }) {
             </div>
             {flight.durationMinutes ? (
               <span className="text-xs font-medium whitespace-nowrap text-muted-foreground">
-                {formatMinutes(flight.durationMinutes)}
+                {formatMinutes(flight.durationMinutes, locale)}
               </span>
             ) : null}
           </div>
@@ -130,13 +136,15 @@ export function FlightDetails({ flight }: { flight: FlightDetailsData }) {
         {flight.dayOffset !== 0 ? (
           <p className="mt-4 border-t border-dashed border-foreground/15 pt-3 text-xs text-muted-foreground">
             {flight.dayOffset > 0
-              ? `Lands ${flight.dayOffset === 1 ? "the next day" : `${flight.dayOffset} days later`}, ${formatDateLong(flight.arriveAt)}.`
-              : `Lands the day before by local time, ${formatDateLong(flight.arriveAt)}.`}{" "}
-            Times are local to each airport.
+              ? flight.dayOffset === 1
+                ? t("flight.landsNext", { date: formatDateLong(flight.arriveAt, locale) })
+                : t("flight.landsLater", { count: flight.dayOffset, date: formatDateLong(flight.arriveAt, locale) })
+              : t("flight.landsBefore", { date: formatDateLong(flight.arriveAt, locale) })}{" "}
+            {t("flight.localNote")}
           </p>
         ) : (
           <p className="mt-4 border-t border-dashed border-foreground/15 pt-3 text-xs text-muted-foreground">
-            Times are local to each airport.
+            {t("flight.localNote")}
           </p>
         )}
       </section>
@@ -145,25 +153,25 @@ export function FlightDetails({ flight }: { flight: FlightDetailsData }) {
         <p className="flex items-start gap-2.5 rounded-lg bg-primary/10 px-3 py-2.5 text-sm">
           <Hourglass className="mt-0.5 size-4 shrink-0 text-primary" />
           <span>
-            {connection.sameNumber ? (
-              <>
-                Continues after a <strong className="font-medium">{formatMinutes(connection.minutes)}</strong> stop in{" "}
-                {flight.fromAirport}.
-              </>
-            ) : (
-              <>
-                Connects from {connection.label} with a{" "}
-                <strong className="font-medium">{formatMinutes(connection.minutes)}</strong> layover in{" "}
-                {flight.fromAirport}.
-              </>
-            )}
+            {connection.sameNumber
+              ? t.rich("flight.continuesStop", {
+                  duration: formatMinutes(connection.minutes, locale),
+                  airport: flight.fromAirport,
+                  b: strong,
+                })
+              : t.rich("flight.connectsFrom", {
+                  flight: connection.label,
+                  duration: formatMinutes(connection.minutes, locale),
+                  airport: flight.fromAirport,
+                  b: strong,
+                })}
           </span>
         </p>
       ) : null}
 
       <DetailList>
         <ConfirmationRow code={flight.confirmation} />
-        <DetailRow icon={Armchair} label={flight.seats.length === 1 ? "Seat" : "Seats"}>
+        <DetailRow icon={Armchair} label={t("flight.seats", { count: flight.seats.length === 1 ? 1 : 2 })}>
           {flight.seats.length > 0 ? (
             <span className="mt-1 flex flex-wrap gap-1.5">
               {flight.seats.map((seat) => (
@@ -176,17 +184,17 @@ export function FlightDetails({ flight }: { flight: FlightDetailsData }) {
               ))}
             </span>
           ) : (
-            <span className="text-muted-foreground">Not added</span>
+            <span className="text-muted-foreground">{tCommon("notAdded")}</span>
           )}
         </DetailRow>
-        <DetailRow icon={Clock} label="Flight time">
+        <DetailRow icon={Clock} label={t("flight.flightTime")}>
           {flight.durationMinutes ? (
-            formatMinutes(flight.durationMinutes)
+            formatMinutes(flight.durationMinutes, locale)
           ) : (
-            <span className="text-muted-foreground">Unknown</span>
+            <span className="text-muted-foreground">{t("flight.unknown")}</span>
           )}
         </DetailRow>
-        <DetailRow icon={Users} label={flight.travelers.length === 1 ? "Traveler" : "Travelers"}>
+        <DetailRow icon={Users} label={t("flight.travelers", { count: flight.travelers.length === 1 ? 1 : 2 })}>
           {flight.travelers.length > 0 ? (
             <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1.5">
               {flight.travelers.map((traveler) => (
@@ -194,11 +202,11 @@ export function FlightDetails({ flight }: { flight: FlightDetailsData }) {
               ))}
             </span>
           ) : (
-            <span className="text-muted-foreground">No one assigned</span>
+            <span className="text-muted-foreground">{t("flight.noOne")}</span>
           )}
         </DetailRow>
         {flight.cost ? (
-          <DetailRow icon={Wallet} label="Cost">
+          <DetailRow icon={Wallet} label={t("details.cost")}>
             {flight.cost}
           </DetailRow>
         ) : null}
@@ -206,15 +214,15 @@ export function FlightDetails({ flight }: { flight: FlightDetailsData }) {
       </DetailList>
 
       <DirectionsSection
-        title="Getting to the airports"
+        title={t("flight.gettingToAirports")}
         places={[
           {
-            label: `To ${flight.fromAirport}`,
-            place: { name: `${flight.fromAirport} airport`, lat: flight.fromLat, lng: flight.fromLng },
+            label: t("page.toAirport", { airport: flight.fromAirport }),
+            place: { name: t("page.airportName", { airport: flight.fromAirport }), lat: flight.fromLat, lng: flight.fromLng },
           },
           {
-            label: `To ${flight.toAirport}`,
-            place: { name: `${flight.toAirport} airport`, lat: flight.toLat, lng: flight.toLng },
+            label: t("page.toAirport", { airport: flight.toAirport }),
+            place: { name: t("page.airportName", { airport: flight.toAirport }), lat: flight.toLat, lng: flight.toLng },
           },
         ]}
       />
@@ -222,7 +230,7 @@ export function FlightDetails({ flight }: { flight: FlightDetailsData }) {
       {flight.checkedAt ? (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <RefreshCw className="size-3" />
-          Checked against the airline schedule on {formatDateShort(flight.checkedAt)}.
+          {t("flight.checked", { date: formatDateShort(flight.checkedAt, locale) })}
         </p>
       ) : null}
     </div>

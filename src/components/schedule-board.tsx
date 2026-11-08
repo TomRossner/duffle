@@ -13,6 +13,9 @@ import {
 } from "@/components/schedule-clock";
 import { buttonVariants } from "@/components/ui/button";
 import { WeatherMark } from "@/components/weather-mark";
+import type { Locale } from "@/i18n/config";
+import { useLocale, useT } from "@/i18n/client";
+import { formatMonthYear, weekdayNames } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 export type ScheduleDay = {
@@ -56,6 +59,9 @@ export function ScheduleItem({
   actions?: React.ReactNode;
   wide?: boolean;
 }) {
+  const t = useT("schedule");
+  const tCommon = useT("common");
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const state = useEntryState(timeId);
   const inCalendar = (element: HTMLElement) =>
@@ -78,7 +84,7 @@ export function ScheduleItem({
         )}
         role={opensInList ? "button" : undefined}
         tabIndex={opensInList ? 0 : undefined}
-        aria-label={opensInList ? `Open details for ${label}` : undefined}
+        aria-label={opensInList ? t("board.openDetails", { name: label }) : undefined}
         onKeyDown={(event) => {
           if (!opensInList || event.target !== event.currentTarget) return;
           if (event.key !== "Enter" && event.key !== " ") return;
@@ -107,12 +113,12 @@ export function ScheduleItem({
       >
         {state?.kind === "current" ? (
           <>
-            <span className="pointer-events-none absolute -top-2.5 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground shadow-sm in-data-[layout=calendar]:hidden">
+            <span className="pointer-events-none absolute -top-2.5 start-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground shadow-sm in-data-[layout=calendar]:hidden">
               <span className="relative flex size-1.5">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary-foreground opacity-75 motion-reduce:hidden" />
                 <span className="relative inline-flex size-1.5 rounded-full bg-primary-foreground" />
               </span>
-              Now · {formatSpan(state.minutesLeft)} left
+              {t("board.nowLeft", { time: formatSpan(state.minutesLeft, locale, t) })}
             </span>
             <span
               className="pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-lg in-data-[layout=calendar]:hidden"
@@ -122,8 +128,8 @@ export function ScheduleItem({
             </span>
           </>
         ) : state?.kind === "next" ? (
-          <span className="pointer-events-none absolute -top-2.5 left-3 z-10 rounded-full border border-primary/40 bg-background px-2 py-0.5 text-xs font-medium text-primary in-data-[layout=calendar]:hidden">
-            Up next · in {formatSpan(state.minutesUntil)}
+          <span className="pointer-events-none absolute -top-2.5 start-3 z-10 rounded-full border border-primary/40 bg-background px-2 py-0.5 text-xs font-medium text-primary in-data-[layout=calendar]:hidden">
+            {t("board.upNext", { time: formatSpan(state.minutesUntil, locale, t) })}
           </span>
         ) : null}
         {children}
@@ -156,7 +162,7 @@ export function ScheduleItem({
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   {actions}
-                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                  <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                     <X />
                   </Dialog.Close>
                 </div>
@@ -173,15 +179,13 @@ export function ScheduleItem({
 type Layout = "list" | "calendar";
 
 const LAYOUT_COOKIE = "duffle-schedule-layout";
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function writeLayout(layout: Layout) {
   document.cookie = `${LAYOUT_COOKIE}=${layout}; path=/; max-age=31536000; samesite=lax`;
 }
 
-function monthHeading(days: ScheduleDay[]) {
-  const format = new Intl.DateTimeFormat("en", { month: "long", year: "numeric", timeZone: "UTC" });
-  const labels = [...new Set(days.map((day) => format.format(new Date(`${day.date}T00:00:00Z`))))];
+function monthHeading(days: ScheduleDay[], locale: Locale) {
+  const labels = [...new Set(days.map((day) => formatMonthYear(new Date(`${day.date}T00:00:00Z`), locale)))];
   return labels.join(" – ");
 }
 
@@ -236,19 +240,21 @@ function CalendarMonth({
   onOpenDay: (day: ScheduleDay) => void;
 }) {
   const { today } = useScheduleClock();
+  const t = useT("schedule");
+  const locale = useLocale();
   const first = new Date(`${days[0].date}T00:00:00Z`);
   const lead = (first.getUTCDay() + 6) % 7;
   const cells: (ScheduleDay | null)[] = [...Array.from({ length: lead }, () => null), ...days];
   while (cells.length % 7 !== 0) cells.push(null);
 
   return (
-    <section className="grid gap-3" aria-label={monthHeading(days)}>
+    <section className="grid gap-3" aria-label={monthHeading(days, locale)}>
       <h2 className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 py-1 text-base font-semibold backdrop-blur-sm">
-        {monthHeading(days)}
+        {monthHeading(days, locale)}
       </h2>
       <div className="overflow-x-auto p-1">
         <div className="grid min-w-[52rem] grid-cols-7 gap-2">
-          {WEEKDAYS.map((label) => (
+          {weekdayNames(locale).map((label) => (
             <div key={label} className="px-1 text-xs font-medium text-muted-foreground">
               {label}
             </div>
@@ -257,7 +263,7 @@ function CalendarMonth({
             day ? (
               <section
                 key={day.key}
-                aria-label={`Open ${day.dateLabel}${day.key === today ? " (today)" : ""}`}
+                aria-label={day.key === today ? t("board.openToday", { date: day.dateLabel }) : t("board.openDay", { date: day.dateLabel })}
                 aria-current={day.key === today ? "date" : undefined}
                 data-today={day.key === today || undefined}
                 onClick={(event) => {
@@ -280,7 +286,7 @@ function CalendarMonth({
                       <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
                         {Number(day.date.slice(8, 10))}
                       </span>
-                      <span className="text-xs text-primary">Today</span>
+                      <span className="text-xs text-primary">{t("board.today")}</span>
                     </p>
                   ) : (
                     <p className="text-sm font-medium">{Number(day.date.slice(8, 10))}</p>
@@ -326,6 +332,7 @@ export function ScheduleBoard({
 
 function Board({ days, initialLayout }: { days: ScheduleDay[]; initialLayout: Layout }) {
   const { today, states } = useScheduleClock();
+  const t = useT("schedule");
   const scrolled = useRef(false);
   const [layout, setLayout] = useState<Layout>(initialLayout);
 
@@ -356,11 +363,11 @@ function Board({ days, initialLayout }: { days: ScheduleDay[]; initialLayout: La
   return (
     <div className="grid gap-4">
       <div className="flex justify-end">
-        <div className="inline-flex rounded-lg bg-muted p-[3px]" role="group" aria-label="Schedule layout">
+        <div className="inline-flex rounded-lg bg-muted p-[3px]" role="group" aria-label={t("board.layout")}>
           {(
             [
-              ["list", List, "List"],
-              ["calendar", CalendarDays, "Calendar"],
+              ["list", List, t("board.list")],
+              ["calendar", CalendarDays, t("board.calendar")],
             ] as const
           ).map(([value, Icon, label]) => (
             <button

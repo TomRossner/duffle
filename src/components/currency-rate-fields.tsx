@@ -4,7 +4,18 @@ import { useState } from "react";
 import { CurrencyPicker } from "@/components/currency-picker";
 import { Field, Select } from "@/components/fields";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/i18n/client";
 import { CURRENCIES } from "@/lib/constants";
+
+/** The optional amount of a cost. */
+export function CostAmountField({ amount }: { amount?: string }) {
+  const t = useT("ui");
+  return (
+    <Field label={t("costOptional")}>
+      <Input name="amount" type="number" min="0" step="0.01" placeholder="0.00" defaultValue={amount || undefined} />
+    </Field>
+  );
+}
 
 /**
  * The currency of an amount and an optional exchange rate into the trip's currency. The rate's placeholder spells
@@ -24,12 +35,13 @@ export function CurrencyRateFields({
   defaultRate?: string;
   withSymbols?: boolean;
 }) {
+  const t = useT("ui");
   const [currency, setCurrency] = useState(defaultValue);
   const same = currency === baseCurrency;
 
   return (
     <>
-      <Field label="Currency">
+      <Field label={t("currency")}>
         {withSymbols ? (
           <CurrencyPicker name={name} defaultValue={defaultValue} onValueChange={setCurrency} />
         ) : (
@@ -42,7 +54,7 @@ export function CurrencyRateFields({
           </Select>
         )}
       </Field>
-      <Field label="Exchange rate (optional)">
+      <Field label={t("rateOptional")}>
         <Input
           name="manualRate"
           type="number"
@@ -51,11 +63,11 @@ export function CurrencyRateFields({
           inputMode="decimal"
           defaultValue={defaultRate}
           disabled={same}
-          placeholder={same ? "Not needed" : `1 ${currency} = ? ${baseCurrency}`}
+          placeholder={same ? t("rateNotNeeded") : t("ratePlaceholder", { currency, base: baseCurrency })}
           title={
             same
-              ? `Amounts in ${baseCurrency} need no conversion.`
-              : `How many ${baseCurrency} one ${currency} is worth. Leave empty to use that day's rate.`
+              ? t("rateSame", { base: baseCurrency })
+              : t("rateHint", { base: baseCurrency, currency })
           }
         />
       </Field>

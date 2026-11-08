@@ -140,7 +140,7 @@ function SuggestInput<T>({
     >
       <div className="relative">
         <Autocomplete.Input
-          render={<Input className={end ? "pr-10 sm:pr-10" : undefined} />}
+          render={<Input className={end ? "pe-10 sm:pe-10" : undefined} />}
           placeholder={placeholder}
           autoComplete="off"
           title={end ? value : undefined}
@@ -149,7 +149,7 @@ function SuggestInput<T>({
           }}
         />
         {end ? (
-          <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center">{end}</span>
+          <span className="pointer-events-none absolute inset-y-0 end-2.5 flex items-center">{end}</span>
         ) : null}
       </div>
       {toSubmitted ? <input type="hidden" name={name} value={toSubmitted(value)} /> : null}
@@ -284,9 +284,9 @@ export function AirportLabel({
   const airportName = airport?.[1] || fallbackName;
   const city = airport?.[2] ?? "";
   return (
-    // Right-aligned with text-right, not justify-items-end: that sizes the name to its text, so a long
+    // End-aligned with text-end, not justify-items-end: that sizes the name to its text, so a long
     // name grows past the column instead of wrapping inside it.
-    <span className={cn("grid min-w-0", align === "end" && "text-right")}>
+    <span className={cn("grid min-w-0", align === "end" && "text-end")}>
       <span className={cn("flex items-center gap-1.5", align === "end" && "flex-row-reverse")}>
         <span className="font-mono text-base font-semibold">{code}</span>
         {airport?.[3] ? <CountryFlag code={airport[3]} /> : null}

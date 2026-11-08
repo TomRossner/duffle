@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { PlanForm } from "@/components/plan-form";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 
 type PlanFormProps = Omit<React.ComponentProps<typeof PlanForm>, "defaultDate" | "compact" | "open" | "onOpenChange">;
 
@@ -34,11 +35,12 @@ export function AddPlanProvider({ children, ...form }: PlanFormProps & { childre
 
 export function AddPlanButton({ date, className }: { date: string; className?: string }) {
   const open = useContext(AddPlanContext);
+  const t = useT("schedule");
   if (!open) return null;
   return (
     <Button type="button" variant="outline" size="sm" className={className} onClick={() => open(date)}>
       <Plus />
-      Add a plan
+      {t("form.addPlan")}
     </Button>
   );
 }

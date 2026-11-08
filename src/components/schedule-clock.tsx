@@ -1,6 +1,9 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import type { Locale } from "@/i18n/config";
+import type { Translator } from "@/i18n/translate";
+import { formatMinutes } from "@/lib/flight-lookup";
 
 /**
  * One timed entry on the schedule. Times are the place's local wall-clock time as "YYYY-MM-DDTHH:mm",
@@ -34,13 +37,10 @@ function localNow() {
 }
 
 /** 95 → "1h 35m", 2900 → "2d". */
-export function formatSpan(total: number) {
+export function formatSpan(total: number, locale: Locale, t: Translator<"schedule">) {
   const value = Math.max(0, Math.round(total));
-  if (value >= 48 * 60) return `${Math.round(value / (24 * 60))}d`;
-  const hours = Math.floor(value / 60);
-  const rest = value % 60;
-  if (hours === 0) return `${rest}m`;
-  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+  if (value >= 48 * 60) return t("board.spanDays", { count: Math.round(value / (24 * 60)) });
+  return formatMinutes(value, locale);
 }
 
 type Clock = { now: string | null; today: string | null; states: Map<string, EntryState> };

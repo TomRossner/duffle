@@ -2,6 +2,7 @@ import { BedDouble } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { StayCard, StayFormToggle, type StayStatus } from "@/components/stay-form";
 import { deleteStay } from "@/lib/actions/schedule";
+import { getT } from "@/i18n/server";
 import { dateKey } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
@@ -10,6 +11,8 @@ import { formatMoney } from "@/lib/utils";
 export default async function StaysPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const { trip } = await requireTrip(tripId);
+  const t = await getT("schedule");
+  const tCommon = await getT("common");
   const [destinations, stays] = await Promise.all([
     prisma.destination.findMany({ where: { tripId }, orderBy: [{ startDate: "asc" }, { endDate: "asc" }, { sortOrder: "asc" }] }),
     prisma.stay.findMany({
@@ -35,14 +38,13 @@ export default async function StaysPage({ params }: { params: Promise<{ tripId: 
         <StayFormToggle tripId={tripId} destinations={destinationOptions} currency={trip.baseCurrency} />
         {stays.length > 0 ? (
           <p className="text-sm text-muted-foreground">
-            {stays.length} {stays.length === 1 ? "stay" : "stays"} · {nights} {nights === 1 ? "night" : "nights"}
+            {t("stays.count", { count: stays.length })} · {tCommon("nights", { count: nights })}
           </p>
         ) : null}
       </div>
       {stays.length === 0 ? (
-        <EmptyState icon={BedDouble} title="No stays yet">
-          Add each hotel or rental with check-in and check-out times, the address and the confirmation number. Stays
-          show up on the schedule on the days you arrive and leave.
+        <EmptyState icon={BedDouble} title={t("stays.emptyTitle")}>
+          {t("stays.emptyBody")}
         </EmptyState>
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-2">
@@ -55,7 +57,7 @@ export default async function StaysPage({ params }: { params: Promise<{ tripId: 
               details={{
                 lat: stay.lat,
                 lng: stay.lng,
-                cost: stay.expense ? formatMoney(Number(stay.expense.amount), stay.expense.currency) : null,
+                cost: stay.expense ? formatMoney(Number(stay.expense.amount), stay.expense.currency, t.locale) : null,
                 status: statusOf(stay.checkIn, stay.checkOut),
               }}
               stay={{

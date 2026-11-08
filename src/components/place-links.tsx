@@ -5,6 +5,7 @@ import { Menu } from "@base-ui/react/menu";
 import { ChevronDown, Navigation } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { googleMapsDirectionsUrl, googleMapsPlaceUrl, wazeUrl, type PlaceTarget } from "@/lib/place-links";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 function GoogleMapsIcon() {
@@ -54,7 +55,8 @@ export function PlaceLinks({
   label?: string;
   className?: string;
 }) {
-  const name = place.name?.trim() || place.address?.trim() || "this place";
+  const t = useT("schedule");
+  const name = place.name?.trim() || place.address?.trim() || t("places.thisPlace");
   const maps = googleMapsPlaceUrl(place);
   const directions = googleMapsDirectionsUrl(place);
   const waze = wazeUrl(place);
@@ -71,26 +73,26 @@ export function PlaceLinks({
             target="_blank"
             rel="noreferrer"
             className={linkButtonClass}
-            aria-label={`Show ${name} on Google Maps`}
+            aria-label={t("places.showOnMapsFor", { name })}
           >
             <GoogleMapsIcon />
-            Show on Maps
+            {t("places.showOnMaps")}
           </a>
         ) : null}
         {directions || waze ? (
           <Menu.Root>
             <Menu.Trigger
               className={linkButtonClass}
-              aria-label={`Get directions to ${name}`}
+              aria-label={t("places.directionsTo", { name })}
             >
               <Navigation className="size-4" />
-              Get directions
+              {t("places.getDirections")}
               <ChevronDown className="size-3 opacity-60" />
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Positioner className="z-[90] outline-none" sideOffset={4} align="start">
                 <Menu.Popup className="min-w-52 sm:min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
-                  <p className="px-2 pt-1 pb-1.5 text-xs text-muted-foreground">Navigate with</p>
+                  <p className="px-2 pt-1 pb-1.5 text-xs text-muted-foreground">{t("places.navigateWith")}</p>
                   {directions ? (
                     <Menu.LinkItem
                       href={directions}
@@ -130,17 +132,18 @@ export function DirectionsButton({
   places: { label?: string; place: PlaceTarget }[];
   className?: string;
 }) {
+  const t = useT("schedule");
   const options = places
     .map(({ label, place }) => ({
       label,
-      name: place.name?.trim() || place.address?.trim() || "this place",
+      name: place.name?.trim() || place.address?.trim() || t("places.thisPlace"),
       maps: googleMapsPlaceUrl(place),
       directions: googleMapsDirectionsUrl(place),
       waze: wazeUrl(place),
     }))
     .filter((option) => option.maps || option.directions || option.waze);
   if (options.length === 0) return null;
-  const title = options.length === 1 ? `Maps and directions for ${options[0].name}` : "Maps and directions";
+  const title = options.length === 1 ? t("places.mapsFor", { name: options[0].name }) : t("places.maps");
 
   return (
     <Menu.Root>
@@ -160,7 +163,7 @@ export function DirectionsButton({
                 {option.maps ? (
                   <Menu.LinkItem href={option.maps} target="_blank" rel="noreferrer" closeOnClick className={menuItemClass}>
                     <GoogleMapsIcon />
-                    Show on Maps
+                    {t("places.showOnMaps")}
                   </Menu.LinkItem>
                 ) : null}
                 {option.directions ? (
@@ -172,13 +175,13 @@ export function DirectionsButton({
                     className={menuItemClass}
                   >
                     <Navigation className="text-muted-foreground" />
-                    Directions with Google Maps
+                    {t("places.directionsGoogle")}
                   </Menu.LinkItem>
                 ) : null}
                 {option.waze ? (
                   <Menu.LinkItem href={option.waze} target="_blank" rel="noreferrer" closeOnClick className={menuItemClass}>
                     <WazeIcon />
-                    Directions with Waze
+                    {t("places.directionsWaze")}
                   </Menu.LinkItem>
                 ) : null}
               </div>

@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { useCloseFormDialog } from "@/components/form-dialog";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 
 type ActionState = { error?: string; ok?: boolean; token?: string; message?: string; devLink?: string } | null | undefined;
 
@@ -29,6 +30,8 @@ export function ActionForm({
     null,
   );
 
+  const t = useT("ui");
+  const tCommon = useT("common");
   const closeDialog = useCloseFormDialog();
   useEffect(() => {
     if (!state?.ok) return;
@@ -45,29 +48,32 @@ export function ActionForm({
       {state?.devLink ? (
         <p className="text-sm">
           <a href={state.devLink} className="underline">
-            Open the email link
+            {t("openEmailLink")}
           </a>
-          <span className="text-muted-foreground"> (shown because SMTP is not configured)</span>
+          <span className="text-muted-foreground">{t("smtpNote")}</span>
         </p>
       ) : null}
       {state?.token ? <CopyInvite token={state.token} /> : null}
       <Button type="submit" disabled={pending}>
         {submitIcon}
-        {pending ? "Saving..." : submitLabel}
+        {pending ? tCommon("saving") : submitLabel}
       </Button>
     </form>
   );
 }
 
 export function CopyInvite({ token }: { token: string }) {
+  const t = useT("ui");
+  const tCommon = useT("common");
   const link = `/invite/${token}`;
   return (
     <div className="grid gap-2 rounded-lg bg-muted p-3">
-      <p className="text-sm">Share this link with the traveler. It matches the email you entered.</p>
+      <p className="text-sm">{t("inviteLinkHint")}</p>
       <div className="flex gap-2">
         <input
           readOnly
           value={link}
+          dir="ltr"
           className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-sm"
           onFocus={(event) => event.currentTarget.select()}
         />
@@ -79,18 +85,11 @@ export function CopyInvite({ token }: { token: string }) {
             void navigator.clipboard.writeText(absolute);
           }}
         >
-          Copy
+          {tCommon("copy")}
         </Button>
       </div>
     </div>
   );
-}
-
-function confirmText(label: string, confirmMessage?: string) {
-  if (confirmMessage) return confirmMessage;
-  if (/^delete$/i.test(label.trim())) return "Are you sure you want to delete this?";
-  if (/^remove$/i.test(label.trim())) return "Are you sure you want to remove this?";
-  return `Are you sure you want to ${label.trim().toLowerCase()}?`;
 }
 
 export function InlineAction({
@@ -116,10 +115,13 @@ export function InlineAction({
     },
     null as { error?: string } | null,
   );
+  const t = useT("ui");
   const formRef = useRef<HTMLFormElement>(null);
   const [confirming, setConfirming] = useState(false);
-  const needsConfirm = Boolean(confirmMessage) || /delete|remove/i.test(label);
-  const Icon = /delete|remove/i.test(label) ? Trash2 : /^edit/i.test(label) ? Pencil : null;
+  // Destructive actions always ask first and carry a bin icon.
+  const destructive = variant === "destructive";
+  const needsConfirm = Boolean(confirmMessage) || destructive;
+  const Icon = destructive ? Trash2 : null;
 
   return (
     <>
@@ -139,13 +141,13 @@ export function InlineAction({
           {Icon ? <Icon /> : null}
           {label}
         </Button>
-        {state?.error ? <span className="ml-2 text-xs text-destructive">{state.error}</span> : null}
+        {state?.error ? <span className="ms-2 text-xs text-destructive">{state.error}</span> : null}
       </form>
       {needsConfirm ? (
         <DeleteDialog
           open={confirming}
           onOpenChange={setConfirming}
-          message={confirmText(label, confirmMessage)}
+          message={confirmMessage ?? t("confirmGeneric")}
           confirmLabel={label}
           pending={pending}
           onConfirm={() => {

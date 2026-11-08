@@ -4,14 +4,17 @@ import { useState } from "react";
 import { CheckBox } from "@/components/checkbox";
 import { Field } from "@/components/fields";
 import { Input } from "@/components/ui/input";
+import { INTL_LOCALES, type Locale } from "@/i18n/config";
+import { useLocale, useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
-const weekday = new Intl.DateTimeFormat("en", { weekday: "short", timeZone: "UTC" });
-const monthDay = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", timeZone: "UTC" });
-
-function dayLabel(day: string) {
+function dayLabel(day: string, locale: Locale) {
   const date = new Date(`${day}T00:00:00Z`);
-  return { weekday: weekday.format(date), date: monthDay.format(date) };
+  const intl = INTL_LOCALES[locale];
+  return {
+    weekday: date.toLocaleDateString(intl, { weekday: "short", timeZone: "UTC" }),
+    date: date.toLocaleDateString(intl, { day: "numeric", month: "short", timeZone: "UTC" }),
+  };
 }
 
 /**
@@ -37,6 +40,8 @@ export function ScheduleWhenFields({
   /** When editing, the ticked days are the plan's full set of days: unticking a day removes it from there. */
   editing?: boolean;
 }) {
+  const t = useT("schedule");
+  const locale = useLocale();
   const [startDate, setStartDate] = useState(defaultStart.slice(0, 10));
   const [startTime, setStartTime] = useState(defaultAllDay ? "" : defaultStart.slice(11, 16));
   const [endDate, setEndDate] = useState(defaultEnd.slice(0, 10));
@@ -64,12 +69,12 @@ export function ScheduleWhenFields({
     <div className="grid gap-3">
       <label className="inline-flex w-fit cursor-pointer items-center gap-2 text-sm font-medium">
         <CheckBox name="allDay" checked={allDay} onChange={(event) => setAllDay(event.target.checked)} />
-        All day
+        {t("when.allDay")}
       </label>
 
       <div className={cn("grid gap-3", !allDay && "sm:grid-cols-2")}>
         <div className={cn("grid gap-3", !allDay && "grid-cols-2")}>
-          <Field label={allDay ? "Day" : "Starts"}>
+          <Field label={allDay ? t("when.day") : t("when.starts")}>
             <Input
               type="date"
               value={startDate}
@@ -78,7 +83,7 @@ export function ScheduleWhenFields({
             />
           </Field>
           {!allDay ? (
-            <Field label="Time">
+            <Field label={t("when.time")}>
               <Input
                 type="time"
                 step={60}
@@ -91,7 +96,7 @@ export function ScheduleWhenFields({
         </div>
         {!allDay ? (
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Ends">
+            <Field label={t("when.ends")}>
               <Input
                 type="date"
                 value={endDate}
@@ -99,7 +104,7 @@ export function ScheduleWhenFields({
                 onChange={(event) => setEndDate(event.target.value)}
               />
             </Field>
-            <Field label="Time">
+            <Field label={t("when.time")}>
               <Input type="time" step={60} value={endTime} onChange={(event) => setEndTime(event.target.value)} />
             </Field>
           </div>
@@ -109,14 +114,14 @@ export function ScheduleWhenFields({
       {tripDays.length > 1 ? (
         <div className="grid gap-2 rounded-lg bg-muted/50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-medium">Repeat on</span>
+            <span className="text-sm font-medium">{t("when.repeatOn")}</span>
             <span className="flex gap-1">
               <button
                 type="button"
                 className="rounded-md px-3 py-1.5 text-sm text-primary sm:px-2 sm:py-0.5 sm:text-xs hover:bg-background"
                 onClick={() => setRepeat(new Set(otherDays))}
               >
-                Every day
+                {t("when.everyDay")}
               </button>
               {selected.length > 0 ? (
                 <button
@@ -124,14 +129,14 @@ export function ScheduleWhenFields({
                   className="rounded-md px-3 py-1.5 text-sm text-muted-foreground sm:px-2 sm:py-0.5 sm:text-xs hover:bg-background"
                   onClick={() => setRepeat(new Set())}
                 >
-                  Clear
+                  {t("when.clear")}
                 </button>
               ) : null}
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {tripDays.map((day) => {
-              const label = dayLabel(day);
+              const label = dayLabel(day, locale);
               const isStart = day === startDate;
               const checked = isStart || repeat.has(day);
               return (
@@ -143,7 +148,7 @@ export function ScheduleWhenFields({
                     checked ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background hover:bg-muted",
                     isStart && "cursor-default opacity-70",
                   )}
-                  title={isStart ? "The day chosen above" : undefined}
+                  title={isStart ? t("when.chosenDay") : undefined}
                 >
                   <input
                     type="checkbox"
@@ -163,11 +168,9 @@ export function ScheduleWhenFields({
           <p className="text-xs text-muted-foreground">
             {selected.length === 0
               ? editing && seriesSize > 1
-                ? "Only on the day above. Saving removes it from the other days."
-                : "Pick more days to add this on each of them, with the same times."
-              : `On ${selected.length + 1} days, with the same times.${
-                  editing && seriesSize > 1 ? " Changes apply to every day, and unticked days are removed." : ""
-                }`}
+                ? t("when.onlyAbove")
+                : t("when.pickMore")
+              : `${t("when.onDays", { count: selected.length + 1 })}${editing && seriesSize > 1 ? t("when.appliesAll") : ""}`}
           </p>
         </div>
       ) : null}

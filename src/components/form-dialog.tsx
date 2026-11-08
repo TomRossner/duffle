@@ -4,6 +4,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 const CloseFormDialog = createContext<(() => void) | null>(null);
@@ -48,6 +49,7 @@ export function FormDialog({
   onOpenChange?: (open: boolean) => void;
   wide?: boolean;
 } & TriggerProps) {
+  const tCommon = useT("common");
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const controlled = controlledOpen !== undefined;
   const open = controlled ? controlledOpen : uncontrolledOpen;
@@ -94,7 +96,7 @@ export function FormDialog({
                     <Dialog.Description className="text-sm text-muted-foreground">{description}</Dialog.Description>
                   ) : null}
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>

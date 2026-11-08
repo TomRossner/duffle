@@ -2,6 +2,9 @@ import { dateKey, eachDate, parseDate, parseDateTime } from "@/lib/dates";
 
 const maxRepeats = 60;
 
+/** Keys in the schedule messages, under `errors`. */
+export type WhenError = "chooseDay" | "chooseStart" | "startInvalid" | "endInvalid" | "endBeforeStart" | "maxRepeats";
+
 export type ScheduleWhen = {
   startAt: Date;
   endAt: Date | null;
@@ -18,7 +21,7 @@ export function readScheduleWhen(
   formData: FormData,
   trip: { startDate: Date; endDate: Date },
   { requireStart = true }: { requireStart?: boolean } = {},
-): ScheduleWhen | { error: string } | { empty: true } {
+): ScheduleWhen | { error: WhenError; max?: number } | { empty: true } {
   const allDay = formData.get("allDay") === "on";
   const startRaw = String(formData.get("startAt") ?? "").slice(0, 16);
   const endRaw = String(formData.get("endAt") ?? "").slice(0, 16);
@@ -27,18 +30,18 @@ export function readScheduleWhen(
   let endAt: Date | null = null;
   if (allDay) {
     startAt = parseDate(startRaw.slice(0, 10));
-    if (!startAt) return { error: "Choose the day." };
+    if (!startAt) return { error: "chooseDay" };
   } else {
     if (!startRaw) {
-      if (requireStart) return { error: "Choose a start time." };
+      if (requireStart) return { error: "chooseStart" };
       return { empty: true };
     }
     startAt = parseDateTime(startRaw);
-    if (!startAt) return { error: "Start time is invalid." };
+    if (!startAt) return { error: "startInvalid" };
     if (endRaw) {
       endAt = parseDateTime(endRaw);
-      if (!endAt) return { error: "End time is invalid." };
-      if (endAt < startAt) return { error: "End time must be after the start." };
+      if (!endAt) return { error: "endInvalid" };
+      if (endAt < startAt) return { error: "endBeforeStart" };
     }
   }
 
@@ -47,7 +50,7 @@ export function readScheduleWhen(
   const repeatDates = [...new Set(formData.getAll("repeatDates").map(String))]
     .filter((day) => day !== startDay && tripDays.has(day))
     .sort();
-  if (repeatDates.length > maxRepeats) return { error: `Repeat on at most ${maxRepeats} days.` };
+  if (repeatDates.length > maxRepeats) return { error: "maxRepeats", max: maxRepeats };
 
   return { startAt, endAt, allDay, repeatDates };
 }

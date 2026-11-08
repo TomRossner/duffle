@@ -16,18 +16,23 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createStay } from "@/lib/actions/schedule";
 import { PLAN_COLORS, PLAN_ICON_COLORS } from "@/lib/constants";
+import { INTL_LOCALES, type Locale } from "@/i18n/config";
+import { useLocale, useT } from "@/i18n/client";
+import type { Translator } from "@/i18n/translate";
 import { cn } from "@/lib/utils";
 
 const menuItemClass =
   "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
 
-const weekday = new Intl.DateTimeFormat("en", { weekday: "short", timeZone: "UTC" });
-const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" });
-
 /** "2026-11-14T15:00" (local wall-clock time) as its parts, read in UTC like the rest of the app. */
-function parts(value: string) {
+function parts(value: string, locale: Locale) {
   const date = new Date(`${value}:00Z`);
-  return { weekday: weekday.format(date), date: monthDay.format(date), time: value.slice(11, 16) };
+  const intl = INTL_LOCALES[locale];
+  return {
+    weekday: date.toLocaleDateString(intl, { weekday: "short", timeZone: "UTC" }),
+    date: date.toLocaleDateString(intl, { month: "short", day: "numeric", timeZone: "UTC" }),
+    time: value.slice(11, 16),
+  };
 }
 
 function nightsBetween(checkIn: string, checkOut: string) {
@@ -36,14 +41,14 @@ function nightsBetween(checkIn: string, checkOut: string) {
   return Math.max(0, Math.round((to - from) / 86_400_000));
 }
 
-function nightsLabel(nights: number) {
-  return nights === 0 ? "Same day" : `${nights} ${nights === 1 ? "night" : "nights"}`;
+function nightsLabel(nights: number, t: Translator<"schedule">, tCommon: Translator<"common">) {
+  return nights === 0 ? t("details.sameDay") : tCommon("nights", { count: nights });
 }
 
 function Moment({ label, value, align }: { label: string; value: string; align: "start" | "end" }) {
-  const { weekday, date, time } = parts(value);
+  const { weekday, date, time } = parts(value, useLocale());
   return (
-    <div className={cn("grid min-w-0 gap-0.5", align === "end" && "justify-items-end text-right")}>
+    <div className={cn("grid min-w-0 gap-0.5", align === "end" && "justify-items-end text-end")}>
       <span className="text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">{label}</span>
       <span className="text-base font-semibold">
         {weekday}, {date}
@@ -77,6 +82,8 @@ export function StayCard({
   destinations: { id: string; name: string }[];
   remove: () => Promise<{ error?: string } | void>;
 }) {
+  const t = useT("schedule");
+  const tCommon = useT("common");
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -95,10 +102,10 @@ export function StayCard({
             <h2 className="min-w-0 truncate text-base font-semibold">{stay.name}</h2>
             {details.status === "current" ? (
               <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
-                Staying now
+                {t("stays.stayingNow")}
               </span>
             ) : details.status === "past" ? (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">Past</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t("stays.past")}</span>
             ) : null}
           </div>
           {stay.address || destination ? (
@@ -117,8 +124,8 @@ export function StayCard({
         />
         <Menu.Root>
           <Menu.Trigger
-            className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "-mr-1 shrink-0")}
-            aria-label={`Actions for ${stay.name}`}
+            className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "-me-1 shrink-0")}
+            aria-label={tCommon("actionsFor", { name: stay.name })}
           >
             <EllipsisVertical />
           </Menu.Trigger>
@@ -127,7 +134,7 @@ export function StayCard({
               <Menu.Popup className="min-w-48 sm:min-w-36 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
                 <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
                   <Pencil className="size-3.5" />
-                  Edit
+                  {tCommon("edit")}
                 </Menu.Item>
                 <Menu.Item
                   className={`${menuItemClass} text-destructive`}
@@ -135,7 +142,7 @@ export function StayCard({
                   onClick={() => setConfirming(true)}
                 >
                   <Trash2 className="size-3.5" />
-                  {removing ? "Removing..." : "Remove"}
+                  {removing ? tCommon("removing") : tCommon("remove")}
                 </Menu.Item>
               </Menu.Popup>
             </Menu.Positioner>
@@ -144,35 +151,35 @@ export function StayCard({
       </div>
 
       <div className="mx-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 rounded-lg bg-muted/60 px-3 py-3 ring-1 ring-foreground/5">
-        <Moment label="Check in" value={stay.checkIn} align="start" />
+        <Moment label={t("page.checkIn")} value={stay.checkIn} align="start" />
         <div className="flex w-16 flex-col items-center gap-1 sm:w-24">
           <div className="flex w-full items-center gap-1 text-muted-foreground" aria-hidden>
             <span className="h-px flex-1 border-t border-dashed border-current" />
             <Moon className="size-3.5 shrink-0 text-primary" />
             <span className="h-px flex-1 border-t border-dashed border-current" />
           </div>
-          <span className="text-xs font-medium whitespace-nowrap">{nightsLabel(nights)}</span>
+          <span className="text-xs font-medium whitespace-nowrap">{nightsLabel(nights, t, tCommon)}</span>
         </div>
-        <Moment label="Check out" value={stay.checkOut} align="end" />
+        <Moment label={t("page.checkOut")} value={stay.checkOut} align="end" />
       </div>
 
       {stay.confirmation || details.cost ? (
         <dl className="mx-4 mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
           {stay.confirmation ? (
             <div className="grid gap-0.5">
-              <dt className="text-xs text-muted-foreground">Confirmation</dt>
+              <dt className="text-xs text-muted-foreground">{t("details.confirmation")}</dt>
               <dd className="-my-1 flex items-center gap-0.5">
                 <span className="font-mono font-medium tracking-wider">{stay.confirmation}</span>
-                <CopyButton value={stay.confirmation} label="Copy confirmation code" />
+                <CopyButton value={stay.confirmation} label={t("details.copyConfirmation")} />
               </dd>
             </div>
           ) : null}
           {details.cost ? (
             <div className="grid gap-0.5">
-              <dt className="text-xs text-muted-foreground">Cost</dt>
+              <dt className="text-xs text-muted-foreground">{t("details.cost")}</dt>
               <dd className="font-medium">
                 {details.cost}
-                {nights > 1 ? <span className="font-normal text-muted-foreground"> · {nights} nights</span> : null}
+                {nights > 1 ? <span className="font-normal text-muted-foreground"> · {tCommon("nights", { count: nights })}</span> : null}
               </dd>
             </div>
           ) : null}
@@ -192,8 +199,8 @@ export function StayCard({
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}
-        message={`Are you sure you want to remove ${stay.name}?`}
-        confirmLabel="Remove"
+        message={tCommon("confirmRemove", { name: stay.name })}
+        confirmLabel={tCommon("remove")}
         pending={removing}
         onConfirm={() => {
           setConfirming(false);
@@ -207,7 +214,7 @@ export function StayCard({
           });
         }}
       />
-      <FormDialog title={`Edit ${stay.name}`} icon={<BedDouble />} open={editing} onOpenChange={setEditing} wide>
+      <FormDialog title={t("board.editTitle", { name: stay.name })} icon={<BedDouble />} open={editing} onOpenChange={setEditing} wide>
         <StayEditor tripId={tripId} stay={stay} destinations={destinations} />
       </FormDialog>
     </Card>
@@ -223,24 +230,25 @@ export function StayFormToggle({
   destinations: { id: string; name: string }[];
   currency: string;
 }) {
+  const t = useT("schedule");
   return (
     <FormDialog
-      title="Add a stay"
-      description="Hotels and other places you will sleep. Check-in and check-out also show on the schedule."
+      title={t("stays.addTitle")}
+      description={t("stays.addDescription")}
       icon={<BedDouble />}
       triggerClassName="w-full sm:w-fit"
       wide
     >
-        <ActionForm action={createStay.bind(null, tripId)} submitLabel="Add stay">
-          <Field label="Name">
+        <ActionForm action={createStay.bind(null, tripId)} submitLabel={t("form.addStay")}>
+          <Field label={t("form.name")}>
             <Input name="name" required />
           </Field>
-          <Field label="Address">
+          <Field label={t("form.address")}>
             <Input name="address" />
           </Field>
-          <Field label="Destination">
+          <Field label={t("form.destination")}>
             <Select name="destinationId" defaultValue="">
-              <option value="">None</option>
+              <option value="">{t("form.none")}</option>
               {destinations.map((destination) => (
                 <option key={destination.id} value={destination.id}>
                   {destination.name}
@@ -250,16 +258,16 @@ export function StayFormToggle({
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid grid-cols-2 gap-3">
-              <DateAndTime name="checkIn" dateLabel="Check in" timeLabel="Time" required />
+              <DateAndTime name="checkIn" dateLabel={t("page.checkIn")} timeLabel={t("form.time")} required />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <DateAndTime name="checkOut" dateLabel="Check out" timeLabel="Time" required />
+              <DateAndTime name="checkOut" dateLabel={t("page.checkOut")} timeLabel={t("form.time")} required />
             </div>
           </div>
-          <Field label="Confirmation">
+          <Field label={t("form.confirmation")}>
             <Input name="confirmation" />
           </Field>
-          <Field label="Notes">
+          <Field label={t("form.notes")}>
             <Textarea name="notes" rows={2} />
           </Field>
           <CostFields currency={currency} />

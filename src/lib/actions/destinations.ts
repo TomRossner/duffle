@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { getT } from "@/i18n/server";
 import { ACTIVITY_TAGS } from "@/lib/constants";
 import { parseDate } from "@/lib/dates";
 import { createSimplePlannedExpense, deleteExpenseById } from "@/lib/expenses";
@@ -111,7 +112,10 @@ export async function createActivity(tripId: string, destinationId: string, _: u
   if (!title) return { error: "Name the activity." };
   // An activity may be left unscheduled; then there's nothing to repeat.
   const when = readScheduleWhen(formData, trip, { requireStart: false });
-  if ("error" in when) return when;
+  if ("error" in when) {
+    const tSchedule = await getT("schedule");
+    return { error: tSchedule(`errors.${when.error}`, { max: when.max ?? 0 }) };
+  }
   const times =
     "empty" in when
       ? [{ startAt: null, endAt: null }]
@@ -179,7 +183,10 @@ export async function updateActivity(tripId: string, activityId: string, _: unkn
     : undefined;
 
   const when = readScheduleWhen(formData, trip, { requireStart: false });
-  if ("error" in when) return when;
+  if ("error" in when) {
+    const tSchedule = await getT("schedule");
+    return { error: tSchedule(`errors.${when.error}`, { max: when.max ?? 0 }) };
+  }
   if ("empty" in when) {
     // Unscheduling only affects this activity; its series copies keep their days.
     await prisma.activity.update({

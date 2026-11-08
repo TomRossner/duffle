@@ -169,7 +169,8 @@ const cache = new Map<string, { legs: FlightMatch[]; expiresAt: number }>();
  */
 export async function fetchFlights(flightNumber: string, date: string, { fresh = false } = {}) {
   const key = process.env.AERODATABOX_API_KEY;
-  if (!key) return { error: "Flight lookup is not set up on this server." };
+  // Errors are keys in the schedule messages, under `errors`.
+  if (!key) return { error: "lookupOff" as const };
 
   const cacheKey = `${flightNumber}|${date}`;
   const cached = cache.get(cacheKey);
@@ -189,7 +190,7 @@ export async function fetchFlights(flightNumber: string, date: string, { fresh =
     });
   } catch (error) {
     console.error("[aerodatabox] Request failed:", error);
-    return { error: "Could not reach the flight service. Fill in the details by hand." };
+    return { error: "lookupUnreachable" as const };
   }
 
   // 204 is AeroDataBox's "nothing found". Treat 404 the same.
@@ -199,8 +200,8 @@ export async function fetchFlights(flightNumber: string, date: string, { fresh =
   }
   if (!response.ok) {
     console.error(`[aerodatabox] ${response.status}: ${(await response.text()).slice(0, 300)}`);
-    if (response.status === 429) return { error: "The flight service is busy. Try again in a minute." };
-    return { error: "The flight service could not look that up. Fill in the details by hand." };
+    if (response.status === 429) return { error: "lookupBusy" as const };
+    return { error: "lookupFailed" as const };
   }
 
   const legs = parseFlights(await response.json());
@@ -277,7 +278,8 @@ export const MAX_SEATS = 9;
  * Seat numbers as typed ("14a 14b", "14A,14B; 15C") → "14A, 14B, 15C". Repeats are dropped. Null when empty,
  * an error when a seat isn't a short code or there are too many.
  */
-export function normalizeSeats(value: string): { seats: string | null } | { error: string } {
+/** Errors are keys in the schedule messages, under `errors`; seatsMax takes {max}. */
+export function normalizeSeats(value: string): { seats: string | null } | { error: "seatsFormat" | "seatsMax" } {
   const seats = [
     ...new Set(
       value
@@ -288,9 +290,9 @@ export function normalizeSeats(value: string): { seats: string | null } | { erro
   ];
   if (seats.length === 0) return { seats: null };
   if (seats.some((seat) => !/^[0-9A-Z]{1,5}$/.test(seat))) {
-    return { error: "Enter seats as short codes like 14A, separated by commas." };
+    return { error: "seatsFormat" };
   }
-  if (seats.length > MAX_SEATS) return { error: `Add up to ${MAX_SEATS} seats per flight.` };
+  if (seats.length > MAX_SEATS) return { error: "seatsMax" };
   return { seats: seats.join(", ") };
 }
 

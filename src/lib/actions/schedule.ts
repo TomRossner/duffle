@@ -2,10 +2,19 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
 import { SCHEDULE_KINDS } from "@/lib/constants";
 import { asDateOnly, parseDate, parseDateTime } from "@/lib/dates";
 import { createSimplePlannedExpense, deleteExpenseById } from "@/lib/expenses";
-import { airportCodeOf, fetchFlights, journeyRoute, normalizeFlightNumber, normalizeSeats } from "@/lib/flight-lookup";
+import {
+  airportCodeOf,
+  fetchFlights,
+  journeyRoute,
+  MAX_SEATS,
+  normalizeFlightNumber,
+  normalizeSeats,
+} from "@/lib/flight-lookup";
 import { takeRateLimit } from "@/lib/rate-limit";
 import { geocodeAddress } from "@/lib/places";
 import { prisma } from "@/lib/prisma";
@@ -58,13 +67,13 @@ function readLeg(get: (key: string) => unknown) {
   const durationMinutes = text("durationMinutes") && duration > 0 && duration < 30 * 60 ? duration : null;
 
   if (!airline || !flightNumber || !fromAirport || !toAirport) {
-    return { error: "Airline, flight number, and both airports are required." };
+    return { error: "legRequired" as const };
   }
-  if (!departAt || !arriveAt) return { error: "Choose a departure and arrival date and time." };
+  if (!departAt || !arriveAt) return { error: "legTimes" as const };
   // Times are each airport's local time, so an eastbound arrival can read earlier than the departure,
   // but never by more than the time zones apart (about a day).
   if (arriveAt.getTime() < departAt.getTime() - 26 * 60 * 60 * 1000) {
-    return { error: "Arrival must be after departure." };
+    return { error: "arriveAfter" as const };
   }
   return {
     leg: { airline, flightNumber, fromAirport, toAirport, fromTerminal, toTerminal, departAt, arriveAt, durationMinutes },
@@ -74,11 +83,11 @@ function readLeg(get: (key: string) => unknown) {
 type FlightLeg = Extract<ReturnType<typeof readLeg>, { leg: unknown }>["leg"];
 
 /** The legs to save: the `legs` list when the form adds all of a flight number's legs, otherwise one. */
-function readFlightInput(formData: FormData) {
+function readFlightInput(formData: FormData, t: Translator<"schedule">) {
   const confirmation = String(formData.get("confirmation") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const seatInput = normalizeSeats(String(formData.get("seats") ?? ""));
-  if ("error" in seatInput) return { error: seatInput.error };
+  if ("error" in seatInput) return { error: t(`errors.${seatInput.error}`, { max: MAX_SEATS }) };
   const { seats } = seatInput;
   const legsRaw = String(formData.get("legs") ?? "").trim();
   let entries: ((key: string) => unknown)[] = [(key) => formData.get(key)];
@@ -87,17 +96,17 @@ function readFlightInput(formData: FormData) {
     try {
       list = JSON.parse(legsRaw);
     } catch {
-      return { error: "Could not read the flight legs. Look the flight up again." };
+      return { error: t("errors.legsUnreadable") };
     }
     if (!Array.isArray(list) || list.length === 0 || list.length > 6) {
-      return { error: "Could not read the flight legs. Look the flight up again." };
+      return { error: t("errors.legsUnreadable") };
     }
     entries = list.map((entry) => (key: string) => (entry && typeof entry === "object" ? (entry as Record<string, unknown>)[key] : ""));
   }
   const legs: FlightLeg[] = [];
   for (const entry of entries) {
     const read = readLeg(entry);
-    if (!read.leg) return { error: read.error };
+    if (!read.leg) return { error: t(`errors.${read.error}`) };
     legs.push(read.leg);
   }
   return { legs, confirmation, seats, notes };
@@ -119,11 +128,12 @@ async function travelerIds(tripId: string, formData: FormData) {
 }
 
 export async function createFlight(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("schedule");
   const { user } = await requireTrip(tripId);
-  const parsed = readFlightInput(formData);
+  const parsed = readFlightInput(formData, t);
   if ("error" in parsed) return parsed;
   const travelers = await travelerIds(tripId, formData);
-  if (travelers.length === 0) return { error: "Choose at least one traveler." };
+  if (travelers.length === 0) return { error: t("errors.chooseTraveler") };
   const { legs, confirmation, seats, notes } = parsed;
 
   const airports = [...new Set(legs.flatMap((leg) => [leg.fromAirport, leg.toAirport]))];
@@ -167,14 +177,15 @@ export async function createFlight(tripId: string, _: unknown, formData: FormDat
 }
 
 export async function updateFlight(tripId: string, flightId: string, _: unknown, formData: FormData) {
+  const t = await getT("schedule");
   const { user } = await requireTrip(tripId);
   const flight = await prisma.flight.findFirst({ where: { id: flightId, tripId } });
-  if (!flight) return { error: "Flight not found." };
-  const parsed = readFlightInput(formData);
+  if (!flight) return { error: t("errors.flightNotFound") };
+  const parsed = readFlightInput(formData, t);
   if ("error" in parsed) return parsed;
-  if (parsed.legs.length !== 1) return { error: "Choose one leg for this flight." };
+  if (parsed.legs.length !== 1) return { error: t("errors.oneLeg") };
   const travelers = await travelerIds(tripId, formData);
-  if (travelers.length === 0) return { error: "Choose at least one traveler." };
+  if (travelers.length === 0) return { error: t("errors.chooseTraveler") };
 
   const [leg] = parsed.legs;
   const { confirmation, seats, notes } = parsed;
@@ -230,16 +241,17 @@ export async function updateFlight(tripId: string, flightId: string, _: unknown,
 export async function lookupFlight(tripId: string, flightNumberRaw: string, date: string) {
   const { user } = await requireTrip(tripId);
   const flightNumber = normalizeFlightNumber(flightNumberRaw);
-  if (!flightNumber) return { error: "Enter a flight number like LH400." };
-  if (!parseDate(date)) return { error: "Choose the departure date first." };
+  const t = await getT("schedule");
+  if (!flightNumber) return { error: t("errors.flightNumber") };
+  if (!parseDate(date)) return { error: t("errors.departDateFirst") };
   // Each lookup is a paid API call, so keep one traveler from running through the quota.
   if (!takeRateLimit(`flight-lookup:${user.id}`, 30, 60 * 60 * 1000).ok) {
-    return { error: "Too many flight lookups. Try again later." };
+    return { error: t("errors.tooManyLookups") };
   }
   const result = await fetchFlights(flightNumber, date);
-  if ("error" in result) return result;
+  if ("error" in result) return { error: t(`errors.${result.error}`) };
   if (result.journeys.length === 0) {
-    return { error: `No ${flightNumber} found departing on that date. Check the number and date.` };
+    return { error: t("errors.noFlight", { number: flightNumber }) };
   }
   return { journeys: result.journeys };
 }
@@ -252,9 +264,10 @@ export async function createPlan(tripId: string, state: unknown, formData: FormD
 }
 
 export async function deleteFlight(tripId: string, flightId: string) {
+  const t = await getT("schedule");
   const { user } = await requireTrip(tripId);
   const flight = await prisma.flight.findFirst({ where: { id: flightId, tripId } });
-  if (!flight) return { error: "Flight not found." };
+  if (!flight) return { error: t("errors.flightNotFound") };
   await prisma.flight.delete({ where: { id: flightId } });
   await deleteExpenseById(flight.expenseId);
   revalidatePath(`/trips/${tripId}`);
@@ -268,6 +281,7 @@ export async function deleteFlight(tripId: string, flightId: string) {
 }
 
 export async function createStay(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("schedule");
   const { user } = await requireTrip(tripId);
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim() || null;
@@ -277,13 +291,13 @@ export async function createStay(tripId: string, _: unknown, formData: FormData)
   const confirmation = String(formData.get("confirmation") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  if (!name) return { error: "Name the stay." };
-  if (!checkIn || !checkOut) return { error: "Choose check-in and check-out dates and times." };
-  if (checkOut <= checkIn) return { error: "Check-out must be after check-in." };
+  if (!name) return { error: t("errors.stayName") };
+  if (!checkIn || !checkOut) return { error: t("errors.stayTimes") };
+  if (checkOut <= checkIn) return { error: t("errors.checkoutAfter") };
 
   if (destinationId) {
     const destination = await prisma.destination.findFirst({ where: { id: destinationId, tripId } });
-    if (!destination) return { error: "That destination is not on this trip." };
+    if (!destination) return { error: t("errors.destinationMissing") };
   }
 
   const point = address ? await geocodeAddress(address) : null;
@@ -317,9 +331,10 @@ export async function createStay(tripId: string, _: unknown, formData: FormData)
 }
 
 export async function updateStay(tripId: string, stayId: string, _: unknown, formData: FormData) {
+  const t = await getT("schedule");
   const { user } = await requireTrip(tripId);
   const stay = await prisma.stay.findFirst({ where: { id: stayId, tripId } });
-  if (!stay) return { error: "Stay not found." };
+  if (!stay) return { error: t("errors.stayNotFound") };
 
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim() || null;
@@ -329,13 +344,13 @@ export async function updateStay(tripId: string, stayId: string, _: unknown, for
   const confirmation = String(formData.get("confirmation") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  if (!name) return { error: "Name the stay." };
-  if (!checkIn || !checkOut) return { error: "Choose check-in and check-out dates and times." };
-  if (checkOut <= checkIn) return { error: "Check-out must be after check-in." };
+  if (!name) return { error: t("errors.stayName") };
+  if (!checkIn || !checkOut) return { error: t("errors.stayTimes") };
+  if (checkOut <= checkIn) return { error: t("errors.checkoutAfter") };
 
   if (destinationId) {
     const destination = await prisma.destination.findFirst({ where: { id: destinationId, tripId } });
-    if (!destination) return { error: "That destination is not on this trip." };
+    if (!destination) return { error: t("errors.destinationMissing") };
   }
 
   const point = address && address !== stay.address ? await geocodeAddress(address) : null;
@@ -366,9 +381,10 @@ export async function updateStay(tripId: string, stayId: string, _: unknown, for
 }
 
 export async function deleteStay(tripId: string, stayId: string) {
+  const t = await getT("schedule");
   const { user } = await requireTrip(tripId);
   const stay = await prisma.stay.findFirst({ where: { id: stayId, tripId } });
-  if (!stay) return { error: "Stay not found." };
+  if (!stay) return { error: t("errors.stayNotFound") };
   await prisma.stay.delete({ where: { id: stayId } });
   await deleteExpenseById(stay.expenseId);
   revalidatePath(`/trips/${tripId}`);
@@ -382,17 +398,18 @@ export async function deleteStay(tripId: string, stayId: string) {
 }
 
 export async function createScheduleItem(tripId: string, _: unknown, formData: FormData) {
+  const t = await getT("schedule");
   const { user, trip } = await requireTrip(tripId);
   const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "OTHER");
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const placeName = String(formData.get("placeName") ?? "").trim() || null;
 
-  if (!title) return { error: "Name the plan." };
-  if (!SCHEDULE_KINDS.includes(kind as (typeof SCHEDULE_KINDS)[number])) return { error: "Choose a kind." };
+  if (!title) return { error: t("errors.planName") };
+  if (!SCHEDULE_KINDS.includes(kind as (typeof SCHEDULE_KINDS)[number])) return { error: t("errors.chooseKind") };
   const when = readScheduleWhen(formData, trip);
-  if ("error" in when) return when;
-  if ("empty" in when) return { error: "Choose a start time." };
+  if ("error" in when) return { error: t(`errors.${when.error}`, { max: when.max ?? 0 }) };
+  if ("empty" in when) return { error: t("errors.chooseStart") };
 
   let lat: number | undefined;
   let lng: number | undefined;
@@ -431,20 +448,21 @@ export async function createScheduleItem(tripId: string, _: unknown, formData: F
 }
 
 export async function updateScheduleItem(tripId: string, itemId: string, _: unknown, formData: FormData) {
+  const t = await getT("schedule");
   const { user, trip } = await requireTrip(tripId);
   const item = await prisma.scheduleItem.findFirst({ where: { id: itemId, tripId } });
-  if (!item) return { error: "Plan not found." };
+  if (!item) return { error: t("errors.planNotFound") };
 
   const title = String(formData.get("title") ?? "").trim();
   const kind = String(formData.get("kind") ?? "OTHER");
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const placeName = String(formData.get("placeName") ?? "").trim() || null;
 
-  if (!title) return { error: "Name the plan." };
-  if (!SCHEDULE_KINDS.includes(kind as (typeof SCHEDULE_KINDS)[number])) return { error: "Choose a kind." };
+  if (!title) return { error: t("errors.planName") };
+  if (!SCHEDULE_KINDS.includes(kind as (typeof SCHEDULE_KINDS)[number])) return { error: t("errors.chooseKind") };
   const when = readScheduleWhen(formData, trip);
-  if ("error" in when) return when;
-  if ("empty" in when) return { error: "Choose a start time." };
+  if ("error" in when) return { error: t(`errors.${when.error}`, { max: when.max ?? 0 }) };
+  if ("empty" in when) return { error: t("errors.chooseStart") };
   const { allDay } = when;
 
   let lat: number | null = item.lat;
@@ -486,9 +504,10 @@ export async function updateScheduleItem(tripId: string, itemId: string, _: unkn
 }
 
 export async function deleteScheduleItem(tripId: string, itemId: string) {
+  const t = await getT("schedule");
   const { user } = await requireTrip(tripId);
   const item = await prisma.scheduleItem.findFirst({ where: { id: itemId, tripId } });
-  if (!item) return { error: "Plan not found." };
+  if (!item) return { error: t("errors.planNotFound") };
   await prisma.scheduleItem.delete({ where: { id: itemId } });
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {

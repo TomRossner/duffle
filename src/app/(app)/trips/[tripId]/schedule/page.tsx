@@ -9,7 +9,7 @@ import {
   PlanIconTile,
   StayDetails,
 } from "@/components/plan-details";
-import { planLabel } from "@/lib/constants";
+import { getT } from "@/i18n/server";
 import { DirectionsButton } from "@/components/place-links";
 import type { PlaceTarget } from "@/lib/place-links";
 import {
@@ -56,6 +56,10 @@ export default async function SchedulePage({
   const layoutCookie = (await cookies()).get("duffle-schedule-layout")?.value;
   const initialLayout = layoutCookie === "calendar" ? "calendar" : "list";
   const { trip } = await requireTrip(tripId);
+  const t = await getT("schedule");
+  const tCommon = await getT("common");
+  const tLabels = await getT("labels");
+  const locale = t.locale;
   const [members, destinations, flights, stays, items, weatherDays] =
     await Promise.all([
       acceptedMembers(tripId),
@@ -166,7 +170,7 @@ export default async function SchedulePage({
   // Every card opens its details dialog, so it reads as clickable in the list too.
   const cardClass = `${itemClass} cursor-pointer transition-colors hover:border-foreground/30 hover:shadow-sm`;
   const costOf = (expense: { amount: unknown; currency: string } | null) =>
-    expense ? formatMoney(Number(expense.amount), expense.currency) : null;
+    expense ? formatMoney(Number(expense.amount), expense.currency, locale) : null;
   const destinationName = (id: string | null) =>
     destinations.find((destination) => destination.id === id)?.name ?? null;
   const detailClass = "in-data-[layout=calendar]:hidden";
@@ -257,12 +261,10 @@ export default async function SchedulePage({
       0 ? (
         <EmptyState
           icon={CalendarDays}
-          title="Nothing on the schedule yet"
+          title={t("page.emptyTitle")}
           compact
         >
-          Use Add a plan to put flights, tours, dinners and anything else on a
-          day. Type a flight number to fill in its details. Your stays, and
-          destination activities with a date, show up here too.
+          {t("page.emptyBody")}
         </EmptyState>
       ) : null}
 
@@ -332,7 +334,7 @@ export default async function SchedulePage({
                     className={`flex items-center gap-2 text-sm text-muted-foreground ${detailClass}`}
                   >
                     <CalendarDays className="size-4" />
-                    Nothing planned.
+                    {t("page.nothingPlanned")}
                   </p>
                 ) : null}
                 {[
@@ -346,7 +348,7 @@ export default async function SchedulePage({
                     const menu = (
                       <ScheduleItemMenu
                         label={flightLabel}
-                        confirmMessage={`Are you sure you want to remove ${flightLabel}?`}
+                        confirmMessage={tCommon("confirmRemove", { name: flightLabel })}
                         remove={deleteFlight.bind(null, tripId, flight.id)}
                       >
                         <FlightEditor
@@ -393,28 +395,28 @@ export default async function SchedulePage({
                               {flight.fromAirport}
                             </span>
                             {flight.fromTerminal
-                              ? ` (${terminalLabel(flight.fromTerminal)})`
+                              ? ` (${terminalLabel(flight.fromTerminal, locale)})`
                               : ""}{" "}
                             →{" "}
                             <span className="font-mono">
                               {flight.toAirport}
                             </span>
                             {flight.toTerminal
-                              ? ` (${terminalLabel(flight.toTerminal)})`
+                              ? ` (${terminalLabel(flight.toTerminal, locale)})`
                               : ""}
-                            , arrives {formatTime(flight.arriveAt)}
+                            {t("page.arrives", { time: formatTime(flight.arriveAt) })}
                             {overnight !== 0 ? (
-                              <sup className="ml-0.5">
+                              <sup className="ms-0.5">
                                 {overnight > 0 ? `+${overnight}` : overnight}
                               </sup>
                             ) : null}
                             {flight.durationMinutes
-                              ? ` · ${formatMinutes(flight.durationMinutes)}`
+                              ? ` · ${formatMinutes(flight.durationMinutes, locale)}`
                               : ""}
                             {flight.confirmation
                               ? ` · ${flight.confirmation}`
                               : ""}
-                            {flight.seats ? ` · Seats ${flight.seats}` : ""}
+                            {flight.seats ? ` · ${t("page.seats", { seats: flight.seats })}` : ""}
                           </p>
                           {connection ? (
                             <p
@@ -423,8 +425,16 @@ export default async function SchedulePage({
                               {connection.from.flightNumber ===
                               flight.flightNumber
                                 ? // The same number flying on: a stop, not a change of plane booked separately.
-                                  `Continues ${flight.airline} ${flight.flightNumber} after a ${formatMinutes(connection.minutes)} stop in ${flight.fromAirport}`
-                                : `Connects from ${connection.from.airline} ${connection.from.flightNumber} · ${formatMinutes(connection.minutes)} layover in ${flight.fromAirport}`}
+                                  t("page.continues", {
+                                    flight: `${flight.airline} ${flight.flightNumber}`,
+                                    duration: formatMinutes(connection.minutes, locale),
+                                    airport: flight.fromAirport,
+                                  })
+                                : t("page.connects", {
+                                    flight: `${connection.from.airline} ${connection.from.flightNumber}`,
+                                    duration: formatMinutes(connection.minutes, locale),
+                                    airport: flight.fromAirport,
+                                  })}
                             </p>
                           ) : null}
                           {flight.travelers.length > 0 ? (
@@ -445,17 +455,17 @@ export default async function SchedulePage({
                         {cardActions(
                           [
                             {
-                              label: `To ${flight.fromAirport}`,
+                              label: t("page.toAirport", { airport: flight.fromAirport }),
                               place: {
-                                name: `${flight.fromAirport} airport`,
+                                name: t("page.airportName", { airport: flight.fromAirport }),
                                 lat: flight.fromLat,
                                 lng: flight.fromLng,
                               },
                             },
                             {
-                              label: `To ${flight.toAirport}`,
+                              label: t("page.toAirport", { airport: flight.toAirport }),
                               place: {
-                                name: `${flight.toAirport} airport`,
+                                name: t("page.airportName", { airport: flight.toAirport }),
                                 lat: flight.toLat,
                                 lng: flight.toLng,
                               },
@@ -482,7 +492,11 @@ export default async function SchedulePage({
                               />
                             </span>
                           }
-                          description={`${formatDateLong(flight.departAt)} · ${flight.fromAirport} to ${flight.toAirport}`}
+                          description={t("page.flightDescription", {
+                            date: formatDateLong(flight.departAt, locale),
+                            from: flight.fromAirport,
+                            to: flight.toAirport,
+                          })}
                           actions={menu}
                           details={
                             <FlightDetails
@@ -535,7 +549,7 @@ export default async function SchedulePage({
                     const menu = (
                       <ScheduleItemMenu
                         label={stay.name}
-                        confirmMessage={`Are you sure you want to remove ${stay.name}?`}
+                        confirmMessage={tCommon("confirmRemove", { name: stay.name })}
                         remove={deleteStay.bind(null, tripId, stay.id)}
                       >
                         <StayEditor
@@ -568,8 +582,8 @@ export default async function SchedulePage({
                                 )}{" "}
                               </span>
                               {dateKey(stay.checkIn) === key
-                                ? "Check in"
-                                : "Check out"}{" "}
+                                ? t("page.checkIn")
+                                : t("page.checkOut")}{" "}
                               · {stay.name}
                             </span>
                           </p>
@@ -609,7 +623,7 @@ export default async function SchedulePage({
                           opensInList
                           wide
                           icon={<PlanIconTile kind="STAY" />}
-                          description={`${checkingIn ? "Check in" : "Check out"} · ${formatDateLong(checkingIn ? stay.checkIn : stay.checkOut)}`}
+                          description={`${checkingIn ? t("page.checkIn") : t("page.checkOut")} · ${formatDateLong(checkingIn ? stay.checkIn : stay.checkOut, locale)}`}
                           actions={menu}
                           details={
                             <StayDetails
@@ -637,7 +651,7 @@ export default async function SchedulePage({
                     const menu = (
                       <ScheduleItemMenu
                         label={activity.title}
-                        confirmMessage={`Are you sure you want to remove ${activity.title}?`}
+                        confirmMessage={tCommon("confirmRemove", { name: activity.title })}
                         remove={deleteActivity.bind(null, tripId, activity.id)}
                       >
                         <ActivityEditor
@@ -678,7 +692,7 @@ export default async function SchedulePage({
                           <p className={`text-muted-foreground ${detailClass}`}>
                             {activity.place}
                             {activity.allDay
-                              ? " · All day"
+                              ? ` · ${t("page.allDay")}`
                               : activity.startAt
                                 ? ` · ${formatTime(activity.startAt)}${activity.endAt ? `–${formatTime(activity.endAt)}` : ""}`
                                 : ""}
@@ -704,7 +718,7 @@ export default async function SchedulePage({
                               className="bg-primary/10 text-primary"
                             />
                           }
-                          description={`Activity in ${activity.place} · ${formatDateLong(startAt)}`}
+                          description={t("page.activityIn", { place: activity.place, date: formatDateLong(startAt, locale) })}
                           actions={menu}
                           details={
                             <PlanDetails
@@ -735,7 +749,7 @@ export default async function SchedulePage({
                     const menu = (
                       <ScheduleItemMenu
                         label={item.title}
-                        confirmMessage={`Are you sure you want to remove ${item.title}?`}
+                        confirmMessage={tCommon("confirmRemove", { name: item.title })}
                         remove={deleteScheduleItem.bind(null, tripId, item.id)}
                       >
                         <PlanEditor
@@ -776,9 +790,9 @@ export default async function SchedulePage({
                             <span className="min-w-0 flex-1 truncate">
                               {item.allDay ? (
                                 <span
-                                  className={`mr-1.5 rounded bg-background px-1.5 py-0.5 text-xs font-normal text-muted-foreground ${detailClass}`}
+                                  className={`me-1.5 rounded bg-background px-1.5 py-0.5 text-xs font-normal text-muted-foreground ${detailClass}`}
                                 >
-                                  All day
+                                  {t("page.allDay")}
                                 </span>
                               ) : (
                                 `${formatTime(item.startAt)}${item.endAt ? `–${formatTime(item.endAt)}` : ""} `
@@ -810,7 +824,7 @@ export default async function SchedulePage({
                           opensInList
                           wide
                           icon={<PlanIconTile kind={item.kind} />}
-                          description={`${planLabel(item.kind)} · ${formatDateLong(item.startAt)}`}
+                          description={`${tLabels.dynamic(`planKinds.${item.kind}`, undefined, item.kind)} · ${formatDateLong(item.startAt, locale)}`}
                           actions={menu}
                           details={
                             <PlanDetails
@@ -849,10 +863,10 @@ export default async function SchedulePage({
             return {
               key,
               date: key,
-              dateLabel: formatDateLong(day),
+              dateLabel: formatDateLong(day, locale),
               condition: weather?.condition ?? null,
               forecast: weather
-                ? `${weather.condition} · ${Math.round(weather.tempMin)}–${Math.round(weather.tempMax)}°C`
+                ? `${tLabels.dynamic(`weather.${weather.condition}`, undefined, weather.condition)} · ${Math.round(weather.tempMin)}–${Math.round(weather.tempMax)}°C`
                 : null,
               content,
             };

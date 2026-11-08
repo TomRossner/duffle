@@ -13,7 +13,7 @@ import { ScheduleWhenFields } from "@/components/schedule-when-fields";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createPlan, lookupFlight, updateFlight, updateStay } from "@/lib/actions/schedule";
-import { PLAN_COLORS, PLAN_KINDS, planIconColor, planLabel } from "@/lib/constants";
+import { PLAN_COLORS, PLAN_KINDS, planIconColor } from "@/lib/constants";
 import {
   airlineCodeOf,
   dayOffset,
@@ -24,6 +24,8 @@ import {
   type FlightJourney,
   type FlightMatch,
 } from "@/lib/flight-lookup";
+import { INTL_LOCALES, type Locale } from "@/i18n/config";
+import { useLocale, useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 type PlanKindId = (typeof PLAN_KINDS)[number]["id"];
@@ -48,11 +50,12 @@ export type FlightDraft = {
 };
 
 export function PlanTag({ kind }: { kind: string }) {
+  const tLabels = useT("labels");
   const color = kind in PLAN_COLORS ? PLAN_COLORS[kind as PlanKindId] : "bg-muted text-foreground";
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-sm in-data-[layout=calendar]:gap-1 in-data-[layout=calendar]:px-1 in-data-[layout=calendar]:py-0.5 in-data-[layout=calendar]:text-xs", color)}>
       <KindIcon kind={kind} className={cn("size-4 in-data-[layout=calendar]:size-3.5", planIconColor(kind))} />
-      <span className="in-data-[layout=calendar]:sr-only">{planLabel(kind)}</span>
+      <span className="in-data-[layout=calendar]:sr-only">{tLabels.dynamic(`planKinds.${kind}`, undefined, kind)}</span>
     </span>
   );
 }
@@ -68,6 +71,7 @@ export function KindTags({
   onValueChange: (value: string) => void;
   kinds: readonly { id: string; label: string }[];
 }) {
+  const tLabels = useT("labels");
   return (
     <div className="flex flex-wrap gap-2">
       {kinds.map((kind) => {
@@ -91,7 +95,7 @@ export function KindTags({
               className="sr-only"
             />
             <KindIcon kind={kind.id} className={cn("size-4", planIconColor(kind.id))} />
-            {kind.label}
+            {tLabels.dynamic(`planKinds.${kind.id}`, undefined, kind.label)}
           </label>
         );
       })}
@@ -193,13 +197,15 @@ export function PlanForm({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
+  const t = useT("schedule");
   const [kind, setKind] = useState<PlanKindId>("FLIGHT");
   const preset = defaultDate ? `${defaultDate}T` : "";
-  const submitLabel = kind === "FLIGHT" ? "Add flight" : kind === "STAY" ? "Add stay" : "Add to schedule";
+  const submitLabel =
+    kind === "FLIGHT" ? t("form.addFlight") : kind === "STAY" ? t("form.addStay") : t("form.addToSchedule");
 
   return (
     <FormDialog
-      title="Add a plan"
+      title={t("form.addPlan")}
       triggerIcon={<Plus />}
       triggerVariant={compact ? "outline" : "default"}
       triggerSize={compact ? "sm" : "default"}
@@ -209,7 +215,7 @@ export function PlanForm({
       wide
     >
       <ActionForm action={createPlan.bind(null, tripId)} submitLabel={submitLabel}>
-        <FieldGroup label="Kind">
+        <FieldGroup label={t("form.kind")}>
           <KindTags value={kind} onValueChange={(next) => setKind(next as PlanKindId)} kinds={PLAN_KINDS} />
         </FieldGroup>
         {kind === "FLIGHT" ? (
@@ -260,15 +266,15 @@ function legDetails(match: FlightMatch): LegDetails {
 }
 
 /** "2026-11-10" → "Tue 10 Nov". The form's dates are local wall-clock dates, so read them as UTC. */
-function shortDay(date: string) {
+function shortDay(date: string, locale: Locale) {
   const day = new Date(`${date}T00:00:00Z`);
   if (Number.isNaN(day.getTime())) return "";
-  return day.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  return day.toLocaleDateString(INTL_LOCALES[locale], { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 function DayOffset({ offset }: { offset: number }) {
   if (offset === 0) return null;
-  return <sup className="ml-0.5 text-xs text-muted-foreground">{offset > 0 ? `+${offset}` : offset}</sup>;
+  return <sup className="ms-0.5 text-xs text-muted-foreground">{offset > 0 ? `+${offset}` : offset}</sup>;
 }
 
 /** One end of a leg: airport, terminal, time, and day. */
@@ -289,15 +295,16 @@ function LegEnd({
   offset?: number;
   align?: "start" | "end";
 }) {
+  const locale = useLocale();
   return (
-    <div className={cn("grid min-w-0 content-start gap-0.5", align === "end" && "text-right")}>
+    <div className={cn("grid min-w-0 content-start gap-0.5", align === "end" && "text-end")}>
       <AirportLabel code={code} fallbackName={name} align={align} />
       <p className="mt-1 font-medium">
         {time}
         <DayOffset offset={offset} />
       </p>
-      <p className="text-xs text-muted-foreground">{shortDay(date)}</p>
-      {terminal ? <p className="text-xs text-muted-foreground">{terminalLabel(terminal)}</p> : null}
+      <p className="text-xs text-muted-foreground">{shortDay(date, locale)}</p>
+      {terminal ? <p className="text-xs text-muted-foreground">{terminalLabel(terminal, locale)}</p> : null}
     </div>
   );
 }
@@ -314,6 +321,7 @@ function LegCard({
   departDate: string;
   action?: React.ReactNode;
 }) {
+  const locale = useLocale();
   const arriveDate = leg.arriveDate || departDate;
   return (
     <div className="grid gap-2 rounded-lg border border-border bg-background p-3 text-sm">
@@ -336,7 +344,7 @@ function LegCard({
         />
         <div className="grid justify-items-center gap-0.5 pt-1 text-xs whitespace-nowrap text-muted-foreground">
           <Plane className="size-4" />
-          {leg.durationMinutes ? <span>{formatMinutes(leg.durationMinutes)}</span> : null}
+          {leg.durationMinutes ? <span>{formatMinutes(leg.durationMinutes, locale)}</span> : null}
         </div>
         <LegEnd
           code={leg.toAirport}
@@ -407,6 +415,8 @@ function FlightFields({
   travelerIds?: string[];
   showCost?: boolean;
 }) {
+  const t = useT("schedule");
+  const locale = useLocale();
   const [number, setNumber] = useState(flightNumber);
   const [departDate, setDepartDate] = useState(departAt.split("T")[0] ?? "");
   const [leg, setLeg] = useState<LegDetails>({
@@ -464,7 +474,7 @@ function FlightFields({
     startTransition(async () => {
       const result = await lookupFlight(tripId, number, departDate);
       if ("error" in result) {
-        setLookupError(result.error ?? "Could not look up that flight.");
+        setLookupError(result.error ?? t("form.lookupFailed"));
         return;
       }
       const found = flightOptions(result.journeys, allowAllLegs);
@@ -481,7 +491,7 @@ function FlightFields({
   const changeButton =
     options.length > 1 ? (
       <Button type="button" variant="outline" size="sm" className="bg-muted hover:bg-accent" onClick={() => setChoosing(true)}>
-        Change
+        {t("form.change")}
       </Button>
     ) : null;
 
@@ -495,7 +505,7 @@ function FlightFields({
             lookup ? "grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]" : "grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]",
           )}
         >
-          <Field label="Flight number">
+          <Field label={t("form.flightNumber")}>
             <Input
               name="flightNumber"
               value={number}
@@ -512,7 +522,7 @@ function FlightFields({
               required
             />
           </Field>
-          <Field label="Date">
+          <Field label={t("form.date")}>
             <Input
               type="date"
               value={departDate}
@@ -529,7 +539,7 @@ function FlightFields({
               disabled={pending || !number.trim() || !departDate}
             >
               {pending ? <LoaderCircle className="animate-spin" /> : <Search />}
-              <span className="max-[359px]:sr-only">Look up</span>
+              <span className="max-[359px]:sr-only">{t("form.lookUp")}</span>
             </Button>
           ) : null}
         </div>
@@ -538,8 +548,8 @@ function FlightFields({
           <div className="grid gap-1">
             <p className="text-xs text-muted-foreground">
               {stopping
-                ? "This flight number stops on the way, and each leg is its own flight. Add the legs you're on:"
-                : "Several flights match. Choose yours:"}
+                ? t("form.stopsPrompt")
+                : t("form.severalMatch")}
             </p>
             {options.map((option) => {
               const first = option.legs[0];
@@ -550,18 +560,24 @@ function FlightFields({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-auto justify-start py-1.5 text-left whitespace-normal"
+                  className="h-auto justify-start py-1.5 text-start whitespace-normal"
                   onClick={() => choose(option)}
                 >
                   <AirlineLogo code={airlineCodeOf(first.flightNumber)} className="size-4" />
                   <span className="font-mono">{journeyRoute(option.legs)}</span>
                   <span className="text-muted-foreground">
-                    {shortDay(first.departAt.slice(0, 10))} {first.departAt.slice(11)} – {last.arriveAt.slice(11)}
+                    {shortDay(first.departAt.slice(0, 10), locale)} {first.departAt.slice(11)} – {last.arriveAt.slice(11)}
                     <DayOffset offset={dayOffset(first.departAt, last.arriveAt)} />
                     {option.legs.every((part) => part.durationMinutes)
-                      ? ` · ${formatMinutes(option.legs.reduce((sum, part) => sum + (part.durationMinutes ?? 0), 0))}${option.all ? " flying" : ""}`
+                      ? ` · ${(() => {
+                          const total = formatMinutes(
+                            option.legs.reduce((sum, part) => sum + (part.durationMinutes ?? 0), 0),
+                            locale,
+                          );
+                          return option.all ? t("form.flying", { duration: total }) : total;
+                        })()}`
                       : ""}
-                    {option.all ? ` · all ${option.legs.length} legs` : ""}
+                    {option.all ? ` · ${t("form.allLegs", { count: option.legs.length })}` : ""}
                   </span>
                 </Button>
               );
@@ -574,7 +590,7 @@ function FlightFields({
             className="justify-self-start text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
             onClick={() => setView("manual")}
           >
-            Enter details by hand
+            {t("form.byHand")}
           </button>
         ) : null}
       </div>
@@ -587,7 +603,10 @@ function FlightFields({
               <Fragment key={`${part.fromAirport}-${part.departAt}`}>
                 {previous ? (
                   <p className="text-center text-xs text-muted-foreground">
-                    {formatMinutes(minutesBetween(previous.arriveAt, part.departAt))} stop in {part.fromAirport}
+                    {t("form.stopIn", {
+                      duration: formatMinutes(minutesBetween(previous.arriveAt, part.departAt), locale),
+                      airport: part.fromAirport,
+                    })}
                   </p>
                 ) : null}
                 <LegCard
@@ -600,7 +619,7 @@ function FlightFields({
             );
           })}
           <p className="text-xs text-muted-foreground">
-            Adds {legs.length} flights, one per leg. Scheduled times, in each airport&apos;s local time.
+            {t("form.addsLegs", { count: legs.length })}
           </p>
           <input
             type="hidden"
@@ -633,12 +652,12 @@ function FlightFields({
                 {changeButton}
                 <Button type="button" variant="outline" size="sm" className="bg-muted hover:bg-accent" onClick={() => setView("manual")}>
                   <Pencil />
-                  Edit<span className="max-sm:sr-only"> details</span>
+                  {t.rich("form.editDetails", { more: (chunks) => <span className="max-sm:sr-only">{chunks}</span> })}
                 </Button>
               </span>
             }
           />
-          <p className="text-xs text-muted-foreground">Scheduled times, in each airport&apos;s local time.</p>
+          <p className="text-xs text-muted-foreground">{t("form.localTimes")}</p>
           <input type="hidden" name="airline" value={leg.airline} />
           <input type="hidden" name="fromAirport" value={leg.fromAirport} />
           <input type="hidden" name="fromTerminal" value={leg.fromTerminal} />
@@ -649,13 +668,13 @@ function FlightFields({
 
       {view === "manual" ? (
         <>
-          <Field label="Airline">
+          <Field label={t("form.airline")}>
             <AirlineInput key={`airline-${version}`} name="airline" defaultValue={leg.airline} required />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             {(["from", "to"] as const).map((end) => (
               <div key={end} className="grid grid-cols-[minmax(0,1fr)_5rem] gap-2">
-                <Field label={end === "from" ? "From" : "To"}>
+                <Field label={end === "from" ? t("form.from") : t("form.to")}>
                   <AirportInput
                     key={`${end}-${version}`}
                     name={end === "from" ? "fromAirport" : "toAirport"}
@@ -664,7 +683,7 @@ function FlightFields({
                     required
                   />
                 </Field>
-                <Field label="Terminal">
+                <Field label={t("form.terminal")}>
                   <Input
                     name={end === "from" ? "fromTerminal" : "toTerminal"}
                     value={end === "from" ? leg.fromTerminal : leg.toTerminal}
@@ -679,7 +698,7 @@ function FlightFields({
             ))}
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Field label="Departs" className="col-span-2 sm:col-span-1">
+            <Field label={t("form.departs")} className="col-span-2 sm:col-span-1">
               <Input
                 type="time"
                 step={60}
@@ -688,7 +707,7 @@ function FlightFields({
                 required
               />
             </Field>
-            <Field label="Arrival date">
+            <Field label={t("form.arrivalDate")}>
               <Input
                 type="date"
                 value={arriveDate}
@@ -696,7 +715,7 @@ function FlightFields({
                 required
               />
             </Field>
-            <Field label="Arrives">
+            <Field label={t("form.arrives")}>
               <Input
                 type="time"
                 step={60}
@@ -719,16 +738,16 @@ function FlightFields({
             </>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Confirmation">
+            <Field label={t("form.confirmation")}>
               <Input name="confirmation" defaultValue={confirmation} />
             </Field>
             {legs ? (
               // Each leg gets its own seats, so they're added per flight after saving.
               <p className="self-end pb-2 text-xs text-muted-foreground sm:pb-1.5">
-                Add seats to each leg after saving, since they differ from flight to flight.
+                {t("form.seatsPerLeg")}
               </p>
             ) : (
-              <Field label="Seats (optional)">
+              <Field label={t("form.seatsOptional")}>
                 <Input
                   name="seats"
                   defaultValue={seats}
@@ -740,10 +759,10 @@ function FlightFields({
               </Field>
             )}
           </div>
-          <FieldGroup label="Travelers">
+          <FieldGroup label={t("form.travelers")}>
             <CheckList name="traveler" options={people} checkedIds={travelerIds} defaultChecked={travelerIds == null} />
           </FieldGroup>
-          <Field label="Notes">
+          <Field label={t("form.notes")}>
             <Textarea name="notes" rows={2} defaultValue={notes} />
           </Field>
           {showCost && currency ? <CostFields currency={currency} /> : null}
@@ -776,17 +795,18 @@ function StayFields({
   checkOut?: string;
   showCost?: boolean;
 }) {
+  const t = useT("schedule");
   return (
     <>
-      <Field label="Name">
+      <Field label={t("form.name")}>
         <Input name="name" defaultValue={name} required />
       </Field>
-      <Field label="Address">
+      <Field label={t("form.address")}>
         <Input name="address" defaultValue={address} />
       </Field>
-      <Field label="Destination">
+      <Field label={t("form.destination")}>
         <Select name="destinationId" defaultValue={destinationId}>
-          <option value="">None</option>
+          <option value="">{t("form.none")}</option>
           {destinations.map((destination) => (
             <option key={destination.id} value={destination.id}>
               {destination.name}
@@ -795,13 +815,13 @@ function StayFields({
         </Select>
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <When name="checkIn" dateLabel="Check-in date" timeLabel="Time" defaultValue={checkIn} required />
-        <When name="checkOut" dateLabel="Check-out date" timeLabel="Time" defaultValue={checkOut} required />
+        <When name="checkIn" dateLabel={t("form.checkInDate")} timeLabel={t("form.time")} defaultValue={checkIn} required />
+        <When name="checkOut" dateLabel={t("form.checkOutDate")} timeLabel={t("form.time")} defaultValue={checkOut} required />
       </div>
-      <Field label="Confirmation">
+      <Field label={t("form.confirmation")}>
         <Input name="confirmation" defaultValue={confirmation} />
       </Field>
-      <Field label="Notes">
+      <Field label={t("form.notes")}>
         <Textarea name="notes" rows={2} defaultValue={notes} />
       </Field>
       {showCost && currency ? <CostFields currency={currency} /> : null}
@@ -810,16 +830,17 @@ function StayFields({
 }
 
 function ScheduleFields({ startAt = "", tripDays }: { startAt?: string; tripDays: string[] }) {
+  const t = useT("schedule");
   return (
     <>
-      <Field label="Title">
+      <Field label={t("form.title")}>
         <Input name="title" required />
       </Field>
       <ScheduleWhenFields tripDays={tripDays} defaultStart={startAt} required />
-      <Field label="Place">
+      <Field label={t("form.place")}>
         <Input name="placeName" />
       </Field>
-      <Field label="Notes">
+      <Field label={t("form.notes")}>
         <Textarea name="notes" rows={2} />
       </Field>
     </>
@@ -848,8 +869,9 @@ export function StayEditor({
   destinations: { id: string; name: string }[];
   onSaved?: () => void;
 }) {
+  const t = useT("schedule");
   return (
-    <ActionForm action={updateStay.bind(null, tripId, stay.id)} submitLabel="Save stay" className="grid gap-3" onSaved={onSaved}>
+    <ActionForm action={updateStay.bind(null, tripId, stay.id)} submitLabel={t("form.saveStay")} className="grid gap-3" onSaved={onSaved}>
       <StayFields
         destinations={destinations}
         name={stay.name}
@@ -878,10 +900,11 @@ export function FlightEditor({
   lookup?: boolean;
   onSaved?: () => void;
 }) {
+  const t = useT("schedule");
   return (
     <ActionForm
       action={updateFlight.bind(null, tripId, flight.id)}
-      submitLabel="Save flight"
+      submitLabel={t("form.saveFlight")}
       className="grid gap-3"
       onSaved={onSaved}
     >

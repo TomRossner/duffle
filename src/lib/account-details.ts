@@ -1,6 +1,7 @@
 import { getCountryCallingCode, isSupportedCountry } from "libphonenumber-js/min";
 import { INTL_LOCALES, type Locale } from "@/i18n/config";
 import type { Translator } from "@/i18n/translate";
+import { CURRENCY_NAMES } from "@/lib/constants";
 import { asDateOnly, parseDate } from "@/lib/dates";
 
 /** Labels are in the profile messages, under `genders`. */
@@ -161,4 +162,17 @@ export function readAccountDetails(
       postalCode,
     },
   };
+}
+
+const currencyNames = new Map<Locale, Intl.DisplayNames>();
+
+/** A currency's name in a language ("EUR" → "Euro", "יורו"). */
+export function currencyName(code: string, locale: Locale = "en") {
+  if (locale === "en" && code in CURRENCY_NAMES) return CURRENCY_NAMES[code as keyof typeof CURRENCY_NAMES];
+  let names = currencyNames.get(locale);
+  if (!names) {
+    names = new Intl.DisplayNames([INTL_LOCALES[locale]], { type: "currency" });
+    currencyNames.set(locale, names);
+  }
+  return names.of(code) ?? code;
 }

@@ -1,7 +1,6 @@
 import { CheckBox } from "@/components/checkbox";
 import { CurrencyPicker } from "@/components/currency-picker";
-import { CurrencyRateFields } from "@/components/currency-rate-fields";
-import { Input } from "@/components/ui/input";
+import { CostAmountField, CurrencyRateFields } from "@/components/currency-rate-fields";
 import { CURRENCIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -92,9 +91,7 @@ export function CostFields({
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <Field label="Cost (optional)">
-        <Input name="amount" type="number" min="0" step="0.01" placeholder="0.00" defaultValue={amount || undefined} />
-      </Field>
+      <CostAmountField amount={amount} />
       <CurrencyRateFields defaultValue={currency} baseCurrency={baseCurrency ?? currency} withSymbols={withSymbols} />
     </div>
   );
