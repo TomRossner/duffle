@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getT } from "@/i18n/server";
 import { parseDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
@@ -11,8 +12,9 @@ const FORECAST_DAYS_AHEAD = 15;
 
 export async function refreshWeather(tripId: string): Promise<{ error?: string; notice?: string; ok?: boolean; saved?: number }> {
   await requireTrip(tripId);
+  const t = await getT("weather");
   const destinations = await prisma.destination.findMany({ where: { tripId } });
-  if (destinations.length === 0) return { error: "Add a destination before loading weather." };
+  if (destinations.length === 0) return { error: t("errors.noDestinations") };
 
   let saved = 0;
   for (const destination of destinations) {
@@ -57,9 +59,9 @@ export async function refreshWeather(tripId: string): Promise<{ error?: string; 
     const firstDay = destinations.reduce((first, destination) => (destination.startDate < first ? destination.startDate : first), destinations[0].startDate);
     const daysAway = Math.floor((firstDay.getTime() - Date.now()) / 86_400_000);
     if (daysAway > FORECAST_DAYS_AHEAD) {
-      return { notice: "It's too early for a forecast. Check back about two weeks before your trip." };
+      return { notice: t("errors.tooEarly") };
     }
-    return { error: "Couldn't load the forecast right now. Try again in a little while." };
+    return { error: t("errors.failed") };
   }
   return { ok: true, saved };
 }

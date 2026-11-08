@@ -11,6 +11,7 @@ import profile from "./profile";
 import schedule from "./schedule";
 import trips from "./trips";
 import ui from "./ui";
+import weather from "./weather";
 
 export const messages = {
   account,
@@ -26,6 +27,7 @@ export const messages = {
   schedule,
   trips,
   ui,
+  weather,
 };
 
 export type Messages = typeof messages;

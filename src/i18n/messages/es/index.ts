@@ -13,6 +13,7 @@ import profile from "./profile";
 import schedule from "./schedule";
 import trips from "./trips";
 import ui from "./ui";
+import weather from "./weather";
 
 export const messages: Translation<Messages> = {
   account,
@@ -28,4 +29,5 @@ export const messages: Translation<Messages> = {
   schedule,
   trips,
   ui,
+  weather,
 };
