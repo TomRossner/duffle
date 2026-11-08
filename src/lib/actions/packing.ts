@@ -2,6 +2,7 @@
 
 import type { ClothingSlot, PackingStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { getT } from "@/i18n/server";
 import { eachDate, formatDate } from "@/lib/dates";
 import { packingAgentConfigured, suggestPackingWithAgent } from "@/lib/packing-agent";
 import { suggestPacking, type PackingDayContext } from "@/lib/packing";
@@ -13,6 +14,7 @@ export async function collectPackingSuggestions(
   tripId: string,
   onStep?: (step: SuggestClothesStep) => void | Promise<void>,
 ) {
+  const t = await getT("packing");
   const { user, trip } = await requireTrip(tripId);
   await onStep?.("forecast");
   const [items, destinations] = await Promise.all([
@@ -24,8 +26,8 @@ export async function collectPackingSuggestions(
     }),
   ]);
 
-  if (items.length === 0) return { error: "Add clothes to your closet before suggesting a packing list." };
-  if (destinations.length === 0) return { error: "Add a destination so suggestions can use the weather and plans." };
+  if (items.length === 0) return { error: t("errors.noCloset") };
+  if (destinations.length === 0) return { error: t("errors.noDestinations") };
 
   const days: PackingDayContext[] = eachDate(trip.startDate, trip.endDate).map((date) => {
     const key = formatDate(date);
@@ -80,6 +82,7 @@ export async function collectPackingSuggestions(
 }
 
 export async function generatePacking(tripId: string) {
+  const t = await getT("packing");
   const collected = await collectPackingSuggestions(tripId);
   if (collected.error !== undefined) return { error: collected.error };
   const { user, suggestions } = collected;
@@ -110,21 +113,22 @@ export async function generatePacking(tripId: string) {
 
   revalidatePath(`/trips/${tripId}/packing`);
   if (suggestions.length === 0) {
-    return { error: "Nothing matched. Add closet items with a slot, temperature range, and tags." };
+    return { error: t("errors.nothingMatched") };
   }
   return { ok: true, count: fresh.length };
 }
 
 export async function setPackingStatus(tripId: string, closetItemId: string, status: PackingStatus) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   if (status !== "PACKED" && status !== "SKIPPED" && status !== "SUGGESTED") {
-    return { error: "Unknown status." };
+    return { error: t("errors.unknownStatus") };
   }
   const updated = await prisma.packingChoice.updateMany({
     where: { tripId, userId: user.id, closetItemId },
     data: { status },
   });
-  if (updated.count === 0) return { error: "That item is not on this packing list." };
+  if (updated.count === 0) return { error: t("errors.notOnPackingList") };
   revalidatePath(`/trips/${tripId}/packing`);
   return { ok: true };
 }

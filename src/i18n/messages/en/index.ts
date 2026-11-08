@@ -9,6 +9,7 @@ import map from "./map";
 import money from "./money";
 import nav from "./nav";
 import notifications from "./notifications";
+import packing from "./packing";
 import profile from "./profile";
 import schedule from "./schedule";
 import trips from "./trips";
@@ -27,6 +28,7 @@ export const messages = {
   money,
   nav,
   notifications,
+  packing,
   profile,
   schedule,
   trips,

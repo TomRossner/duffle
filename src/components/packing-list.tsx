@@ -39,19 +39,26 @@ import {
 } from "@/lib/packing-meta";
 import {
   LUGGAGE_KINDS,
-  LUGGAGE_LABELS,
   PACKING_CATEGORIES,
-  CATEGORY_LABELS,
   categoryForSlot,
   isPackingCategory,
 } from "@/lib/packing-list";
 import { ClothingSlotIcon } from "@/lib/tag-meta";
 import {
-  SUGGEST_CLOTHES_STEP_LABELS,
   isSuggestClothesStep,
   type SuggestClothesStep,
 } from "@/lib/suggest-clothes-steps";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
+
+function useLabels() {
+  const tLabels = useT("labels");
+  return {
+    category: (category: string) =>
+      tLabels.dynamic(`packingCategories.${category}`, undefined, categoryLabel(category)),
+    luggage: (kind: string) => tLabels.dynamic(`luggage.${kind}`, undefined, luggageLabel(kind)),
+  };
+}
 
 export type PackingListItem = {
   id: string;
@@ -125,6 +132,7 @@ export function PackingBoard({
   travelers: SharedTraveler[];
   dev?: boolean;
 }) {
+  const t = useT("packing");
   const [optimisticBags, applyMove] = useOptimistic(bags, moveItemBetweenBags);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [, startMove] = useTransition();
@@ -150,24 +158,16 @@ export function PackingBoard({
       <SharedList tripId={tripId} items={sharedItems} bags={optimisticBags} travelers={travelers} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-medium">Your bags</h2>
-          <p className="max-w-xl text-sm text-muted-foreground">
-            These stay private. Split what you are bringing across packs, bags, trolleys, and luggage. Drag an item by
-            its handle to move it to another bag, and check items off as they go in.
-          </p>
-          {total > 0 ? (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {packed} of {total} packed
-            </p>
-          ) : null}
+          <h2 className="text-lg font-medium">{t("board.yourBags")}</h2>
+          <p className="max-w-xl text-sm text-muted-foreground">{t("board.hint")}</p>
+          {total > 0 ? <p className="mt-1 text-sm text-muted-foreground">{t("board.packedOf", { packed, total })}</p> : null}
           {moveError ? <p className="mt-1 text-sm text-destructive">{moveError}</p> : null}
         </div>
         <SuggestClothes tripId={tripId} bags={bags} />
       </div>
       {bags.length === 0 ? (
-        <EmptyState icon={Luggage} title="No bags yet">
-          Add a pack, bag, trolley or suitcase, then fill it from your closet or with anything else you need. Suggest
-          clothes picks pieces for the forecast and your plans.
+        <EmptyState icon={Luggage} title={t("board.emptyTitle")}>
+          {t("board.emptyBody")}
         </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
@@ -203,6 +203,7 @@ function SharedList({
   bags: PackingBag[];
   travelers: SharedTraveler[];
 }) {
+  const t = useT("packing");
   const [adding, setAdding] = useState(false);
   const [bagId, setBagId] = useState(bags[0]?.id ?? "");
   const selectedBagId = bags.some((bag) => bag.id === bagId) ? bagId : (bags[0]?.id ?? "");
@@ -215,23 +216,22 @@ function SharedList({
             <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Users className="size-4" />
             </span>
-            Everyone should bring
+            {t("shared.title")}
           </CardTitle>
           <CardDescription className="max-w-2xl">
-            A reminder for the whole trip. Anyone can add an item. Checking one packs your own copy
-            {bags.length > 0 ? " into the bag you choose" : " into a new day pack"} and leaves everyone else unchecked.
+            {bags.length > 0 ? t("shared.descBag") : t("shared.descNew")}
           </CardDescription>
         </div>
         <Button type="button" className="w-full shrink-0 sm:w-auto" onClick={() => setAdding(true)}>
           <Plus data-icon="inline-start" />
-          Add an item
+          {t("shared.addItem")}
         </Button>
       </CardHeader>
       <CardContent className="grid gap-4">
         {(items.length > 0 && travelers.length > 0) || bags.length > 1 ? (
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             {items.length > 0 && travelers.length > 0 ? (
-              <ul className="flex flex-wrap gap-2" aria-label="Packing progress">
+              <ul className="flex flex-wrap gap-2" aria-label={t("shared.progress")}>
                 {travelers.map((traveler) => {
                   const done = traveler.packed >= items.length;
                   return (
@@ -254,7 +254,7 @@ function SharedList({
               </ul>
             ) : null}
             {bags.length > 1 ? (
-              <Field label="Add checked items to" className="w-full lg:ml-auto lg:w-56 lg:shrink-0">
+              <Field label={t("shared.addCheckedTo")} className="w-full lg:ms-auto lg:w-56 lg:shrink-0">
                 <Select value={selectedBagId} onChange={(event) => setBagId(event.target.value)}>
                   {bags.map((bag) => (
                     <option key={bag.id} value={bag.id}>
@@ -268,7 +268,7 @@ function SharedList({
         ) : null}
         {items.length === 0 ? (
           <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-            Nothing yet. Add a passport, rain jacket, charger, or anything else each person should pack.
+            {t("shared.empty")}
           </p>
         ) : (
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
@@ -281,10 +281,10 @@ function SharedList({
       <EditorDialog
         open={adding}
         onOpenChange={setAdding}
-        title="Add to the shared list"
-        description="Everyone on the trip sees this, and each person checks off their own copy."
+        title={t("shared.addTitle")}
+        description={t("shared.addDescription")}
       >
-        <ActionForm action={createSharedPackingItem.bind(null, tripId)} submitLabel="Add item" onSaved={() => setAdding(false)}>
+        <ActionForm action={createSharedPackingItem.bind(null, tripId)} submitLabel={t("bag.addItem")} onSaved={() => setAdding(false)}>
           <ItemFields category="OTHER" quantity={1} />
         </ActionForm>
       </EditorDialog>
@@ -303,6 +303,8 @@ function SharedRow({
   bagId: string;
   travelerCount: number;
 }) {
+  const t = useT("packing");
+  const tCommon = useT("common");
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -312,7 +314,7 @@ function SharedRow({
   return (
     <li
       className={cn(
-        "grid gap-1 rounded-lg border bg-card py-1.5 pr-1 pl-2.5 transition-colors hover:bg-muted/40",
+        "grid gap-1 rounded-lg border bg-card py-1.5 pe-1 ps-2.5 transition-colors hover:bg-muted/40",
         optimistic && "bg-muted/30",
       )}
     >
@@ -320,7 +322,7 @@ function SharedRow({
         <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
           <CheckBox
             checked={optimistic}
-            aria-label={`Pack ${item.name}`}
+            aria-label={t("shared.pack", { name: item.name })}
             onChange={() => {
               const next = !item.packed;
               setError(null);
@@ -345,19 +347,19 @@ function SharedRow({
               "shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground tabular-nums",
               item.packedCount >= travelerCount && "bg-primary/10 text-primary",
             )}
-            title={`${item.packedCount} of ${travelerCount} travelers packed`}
+            title={t("shared.travelersPacked", { count: item.packedCount, total: travelerCount })}
           >
             {item.packedCount}/{travelerCount}
           </span>
         ) : null}
-        <ItemMenu label={`Actions for ${item.name}`}>
+        <ItemMenu label={tCommon("actionsFor", { name: item.name })}>
           <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
             <Pencil className="size-3.5" />
-            Edit
+            {tCommon("edit")}
           </Menu.Item>
           <Menu.Item className={cn(menuItemClass, "text-destructive")} onClick={() => setConfirmingDelete(true)}>
             <Trash2 className="size-3.5" />
-            Delete
+            {tCommon("delete")}
           </Menu.Item>
         </ItemMenu>
       </div>
@@ -365,12 +367,12 @@ function SharedRow({
       <EditorDialog
         open={editing}
         onOpenChange={setEditing}
-        title={`Edit ${item.name}`}
-        description="This updates the reminder and any copies already in bags."
+        title={t("bag.editTitle", { name: item.name })}
+        description={t("shared.editDescription")}
       >
         <ActionForm
           action={updateSharedPackingItem.bind(null, tripId, item.id)}
-          submitLabel="Save"
+          submitLabel={tCommon("save")}
           onSaved={() => setEditing(false)}
         >
           <ItemFields name={item.name} category={item.category} quantity={item.quantity} />
@@ -379,7 +381,7 @@ function SharedRow({
       <DeleteDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
-        message={`Are you sure you want to delete "${item.name}" from the shared list? Copies already in bags stay there.`}
+        message={t("shared.confirmDelete", { name: item.name })}
         onConfirm={() => {
           setConfirmingDelete(false);
           setError(null);
@@ -400,6 +402,7 @@ const SUGGEST_CLOTHES_STEP_ICONS = {
 } satisfies Record<SuggestClothesStep, typeof CloudSun>;
 
 function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }) {
+  const t = useT("packing");
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [steps, setSteps] = useState<SuggestClothesStep[]>([]);
@@ -418,19 +421,20 @@ function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }
     try {
       const response = await fetch(`/api/trips/${tripId}/suggest-clothes`, { method: "POST", body: formData });
       if (!response.ok || !response.body) {
-        setError("Could not suggest clothes.");
+        setError(t("suggest.failed"));
         return;
       }
       const result = await readSuggestEvents(response.body, (step) => {
         setSteps((current) => (current.includes(step) ? current : [...current, step]));
       });
       if (result.error) setError(result.error);
+      else if (result.count == null) setError(t("suggest.failed"));
       else {
         setCount(result.count ?? 0);
         router.refresh();
       }
     } catch {
-      setError("Could not suggest clothes.");
+      setError(t("suggest.failed"));
     } finally {
       setPending(false);
     }
@@ -440,7 +444,7 @@ function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }
     <div className="grid w-full gap-2 sm:w-auto sm:justify-items-start">
       <div className="grid gap-2 sm:flex sm:items-end">
         {bags.length > 0 ? (
-          <Field label="Suggest into" className="sm:w-40">
+          <Field label={t("suggest.into")} className="sm:w-40">
             <Select form={formId} name="luggageId" defaultValue={bags[0].id} disabled={pending}>
               {bags.map((bag) => (
                 <option key={bag.id} value={bag.id}>
@@ -454,14 +458,14 @@ function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }
           <form id={formId} onSubmit={onSubmit} className="flex">
             <Button type="submit" disabled={pending} className="w-full">
               <Sparkles data-icon="inline-start" />
-              Suggest clothes
+              {t("suggest.button")}
             </Button>
           </form>
           <AddBagButton tripId={tripId} />
         </div>
       </div>
       {pending && steps.length > 0 ? (
-        <ol className="grid justify-items-start gap-1 text-left text-sm" aria-live="polite">
+        <ol className="grid justify-items-start gap-1 text-start text-sm" aria-live="polite">
           {steps.map((step, index) => {
             const current = index === steps.length - 1;
             const Icon = SUGGEST_CLOTHES_STEP_ICONS[step];
@@ -475,7 +479,7 @@ function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }
                 </span>
                 <Icon className="size-3.5 shrink-0" aria-hidden="true" />
                 <span>
-                  {SUGGEST_CLOTHES_STEP_LABELS[step]}
+                  {t(`suggest.steps.${step}`)}
                   {current ? "…" : ""}
                 </span>
               </li>
@@ -483,11 +487,9 @@ function SuggestClothes({ tripId, bags }: { tripId: string; bags: PackingBag[] }
           })}
         </ol>
       ) : null}
-      {error ? <p className="max-w-sm text-left text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="max-w-sm text-start text-sm text-destructive">{error}</p> : null}
       {count != null && !pending ? (
-        <p className="max-w-sm text-left text-sm text-muted-foreground">
-          Added {count} {count === 1 ? "item" : "items"}.
-        </p>
+        <p className="max-w-sm text-start text-sm text-muted-foreground">{t("suggest.added", { count })}</p>
       ) : null}
     </div>
   );
@@ -522,20 +524,20 @@ async function readSuggestEvents(body: ReadableStream<Uint8Array>, onStep: (step
     for (const line of lines) take(line);
   }
   take(buffer);
-  if (!result.error && result.count == null) return { error: "Could not suggest clothes." };
   return result;
 }
 
 function AddBagButton({ tripId }: { tripId: string }) {
+  const t = useT("packing");
   const [open, setOpen] = useState(false);
   return (
     <span className="flex">
       <Button type="button" className="w-full" onClick={() => setOpen(true)}>
         <Plus data-icon="inline-start" />
-        Add a bag
+        {t("bag.add")}
       </Button>
-      <EditorDialog open={open} onOpenChange={setOpen} title="Add a bag" description="A pack, bag, trolley, or piece of luggage.">
-        <ActionForm action={createLuggage.bind(null, tripId)} submitLabel="Add bag" onSaved={() => setOpen(false)}>
+      <EditorDialog open={open} onOpenChange={setOpen} title={t("bag.add")} description={t("bag.addDescription")}>
+        <ActionForm action={createLuggage.bind(null, tripId)} submitLabel={t("bag.addSubmit")} onSaved={() => setOpen(false)}>
           <BagFields />
         </ActionForm>
       </EditorDialog>
@@ -558,6 +560,9 @@ function BagCard({
   dev: boolean;
   onMove: (itemId: string, toBagId: string) => void;
 }) {
+  const t = useT("packing");
+  const tCommon = useT("common");
+  const labels = useLabels();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [fromCloset, setFromCloset] = useState(false);
@@ -619,21 +624,19 @@ function BagCard({
         </CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
           <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-sm font-medium", kindColor(bag.kind))}>
-            {luggageLabel(bag.kind)}
+            {labels.luggage(bag.kind)}
           </span>
-          <span>
-            {packed} of {bag.items.length} packed
-          </span>
+          <span>{t("board.packedOf", { packed, total: bag.items.length })}</span>
         </CardDescription>
         <CardAction>
-          <ItemMenu label={`Actions for ${bag.name}`}>
+          <ItemMenu label={tCommon("actionsFor", { name: bag.name })}>
             <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
               <Pencil className="size-3.5" />
-              Edit
+              {tCommon("edit")}
             </Menu.Item>
             {dev ? (
               <Menu.Item className={menuItemClass} onClick={() => setConfirmingClear(true)}>
-                Clear items
+                {t("bag.clearItems")}
               </Menu.Item>
             ) : null}
             <Menu.Item
@@ -641,7 +644,7 @@ function BagCard({
               onClick={() => setConfirmingDelete(true)}
             >
               <Trash2 className="size-3.5" />
-              Delete
+              {tCommon("delete")}
             </Menu.Item>
           </ItemMenu>
         </CardAction>
@@ -649,13 +652,13 @@ function BagCard({
       <CardContent className="grid gap-3">
         {bag.items.length === 0 ? (
           <p className={cn("text-sm text-muted-foreground", over && "text-foreground")}>
-            {over ? "Drop here." : "Nothing in here yet."}
+            {over ? t("bag.dropHere") : t("bag.empty")}
           </p>
         ) : null}
         {PACKING_CATEGORIES.map((category) => {
           const items = bag.items
             .filter((item) => item.category === category)
-            .sort((a, b) => a.name.localeCompare(b.name));
+            .sort((a, b) => a.name.localeCompare(b.name, t.locale));
           if (items.length === 0) return null;
           return (
             <section key={category} className="grid gap-1">
@@ -668,7 +671,7 @@ function BagCard({
                 >
                   <PackingCategoryIcon category={category} className="size-4" />
                 </span>
-                {CATEGORY_LABELS[category]}
+                {labels.category(category)}
               </h3>
               <ul className="grid grid-cols-1 gap-1 [&>*]:min-w-0">
                 {items.map((item) => (
@@ -681,37 +684,47 @@ function BagCard({
         {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
-            Add item
+            {t("bag.addItem")}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => setFromCloset(true)}>
-            Add from closet
+            {t("bag.addFromCloset")}
           </Button>
         </div>
       </CardContent>
-      <EditorDialog open={editing} onOpenChange={setEditing} title={`Edit ${bag.name}`} description="Rename it or change what kind of bag it is.">
+      <EditorDialog
+        open={editing}
+        onOpenChange={setEditing}
+        title={t("bag.editTitle", { name: bag.name })}
+        description={t("bag.editDescription")}
+      >
         <ActionForm
           action={updateLuggage.bind(null, tripId, bag.id)}
-          submitLabel="Save"
+          submitLabel={tCommon("save")}
           onSaved={() => setEditing(false)}
         >
           <BagFields name={bag.name} kind={bag.kind} />
         </ActionForm>
       </EditorDialog>
-      <EditorDialog open={adding} onOpenChange={setAdding} title={`Add to ${bag.name}`} description="A closet piece, or anything else you want to bring.">
+      <EditorDialog
+        open={adding}
+        onOpenChange={setAdding}
+        title={t("bag.addTo", { name: bag.name })}
+        description={t("bag.addToDescription")}
+      >
         <AddItemForm tripId={tripId} luggageId={bag.id} closet={closet} onSaved={() => setAdding(false)} />
       </EditorDialog>
       <EditorDialog
         open={fromCloset}
         onOpenChange={setFromCloset}
-        title={`Closet items for ${bag.name}`}
-        description="Checked pieces are added as clothes or accessories."
+        title={t("bag.closetFor", { name: bag.name })}
+        description={t("bag.closetForDescription")}
       >
         {closet.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Everything in your closet is already on this list, or the closet is empty.</p>
+          <p className="text-sm text-muted-foreground">{t("bag.closetEmpty")}</p>
         ) : (
           <ActionForm
             action={addClosetItems.bind(null, tripId, bag.id)}
-            submitLabel="Add selected"
+            submitLabel={t("bag.addSelected")}
             onSaved={() => setFromCloset(false)}
           >
             <CheckList
@@ -725,8 +738,8 @@ function BagCard({
       <DeleteDialog
         open={confirmingClear}
         onOpenChange={setConfirmingClear}
-        message={`Are you sure you want to clear the items in "${bag.name}"?`}
-        confirmLabel="Clear items"
+        message={t("bag.confirmClear", { name: bag.name })}
+        confirmLabel={t("bag.clearItems")}
         onConfirm={() => {
           setConfirmingClear(false);
           setDeleteError(null);
@@ -738,7 +751,7 @@ function BagCard({
       <DeleteDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
-        message={`Are you sure you want to delete "${bag.name}"?`}
+        message={t("bag.confirmDelete", { name: bag.name })}
         onConfirm={() => {
           setConfirmingDelete(false);
           setDeleteError(null);
@@ -762,6 +775,8 @@ function PackingRow({
   item: PackingListItem;
   bags: PackingBag[];
 }) {
+  const t = useT("packing");
+  const tCommon = useT("common");
   const [editing, setEditing] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -773,8 +788,8 @@ function PackingRow({
       <span
         draggable
         role="button"
-        aria-label={`Drag ${item.name} to another bag`}
-        title="Drag to another bag"
+        aria-label={t("item.drag", { name: item.name })}
+        title={t("item.dragTitle")}
         className="inline-flex size-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-muted active:cursor-grabbing"
         onDragStart={(event) => {
           activeDrag = { itemId: item.id, fromBagId: bagId };
@@ -792,24 +807,29 @@ function PackingRow({
         <GripVertical className="size-4" />
       </span>
       <PackedCheck tripId={tripId} item={item} />
-      <ItemMenu label={`Actions for ${item.name}`}>
+      <ItemMenu label={tCommon("actionsFor", { name: item.name })}>
         <Menu.Item className={menuItemClass} onClick={() => setEditing(true)}>
           <Pencil className="size-3.5" />
-          Edit
+          {tCommon("edit")}
         </Menu.Item>
         <Menu.Item
           className={cn(menuItemClass, "text-destructive")}
           onClick={() => setConfirmingDelete(true)}
         >
           <Trash2 className="size-3.5" />
-          Delete
+          {tCommon("delete")}
         </Menu.Item>
       </ItemMenu>
       {deleteError ? <span className="text-xs text-destructive">{deleteError}</span> : null}
-      <EditorDialog open={editing} onOpenChange={setEditing} title={`Edit ${item.name}`} description="Change the name, category, quantity, or bag.">
+      <EditorDialog
+        open={editing}
+        onOpenChange={setEditing}
+        title={t("bag.editTitle", { name: item.name })}
+        description={t("item.editDescription")}
+      >
         <ActionForm
           action={updatePackingItem.bind(null, tripId, item.id)}
-          submitLabel="Save"
+          submitLabel={tCommon("save")}
           onSaved={() => setEditing(false)}
         >
           <ItemFields
@@ -824,7 +844,7 @@ function PackingRow({
       <DeleteDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
-        message={`Are you sure you want to delete "${item.name}"?`}
+        message={t("bag.confirmDelete", { name: item.name })}
         onConfirm={() => {
           setConfirmingDelete(false);
           setDeleteError(null);
@@ -888,15 +908,16 @@ function AddItemForm({
   closet: ClosetOption[];
   onSaved: () => void;
 }) {
+  const t = useT("packing");
   const [closetId, setClosetId] = useState("");
   const selected = closet.find((item) => item.id === closetId);
 
   return (
-    <ActionForm action={createPackingItem.bind(null, tripId, luggageId)} submitLabel="Add item" onSaved={onSaved}>
+    <ActionForm action={createPackingItem.bind(null, tripId, luggageId)} submitLabel={t("bag.addItem")} onSaved={onSaved}>
       {closet.length > 0 ? (
-        <Field label="Closet item">
+        <Field label={t("item.closetItem")}>
           <Select value={closetId} onChange={(event) => setClosetId(event.target.value)}>
-            <option value="">None</option>
+            <option value="">{t("item.none")}</option>
             {closet.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -917,16 +938,18 @@ function AddItemForm({
 }
 
 function BagFields({ name = "", kind = "PACK" }: { name?: string; kind?: string }) {
+  const t = useT("packing");
+  const labels = useLabels();
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Name">
+      <Field label={t("item.name")}>
         <Input name="name" defaultValue={name} required />
       </Field>
-      <Field label="Kind">
+      <Field label={t("item.kind")}>
         <Select name="kind" defaultValue={kind}>
           {LUGGAGE_KINDS.map((option) => (
             <option key={option} value={option}>
-              {LUGGAGE_LABELS[option]}
+              {labels.luggage(option)}
             </option>
           ))}
         </Select>
@@ -948,25 +971,27 @@ function ItemFields({
   luggageId?: string;
   bags?: PackingBag[];
 }) {
+  const t = useT("packing");
+  const labels = useLabels();
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Name" className="sm:col-span-2">
+      <Field label={t("item.name")} className="sm:col-span-2">
         <Input name="name" defaultValue={name} required />
       </Field>
-      <Field label="Category">
+      <Field label={t("item.category")}>
         <Select name="category" defaultValue={category}>
           {PACKING_CATEGORIES.map((option) => (
             <option key={option} value={option}>
-              {CATEGORY_LABELS[option]}
+              {labels.category(option)}
             </option>
           ))}
         </Select>
       </Field>
-      <Field label="Quantity">
+      <Field label={t("item.quantity")}>
         <Input name="quantity" type="number" min={1} max={99} step={1} defaultValue={quantity} />
       </Field>
       {bags && luggageId ? (
-        <Field label="Bag" className="sm:col-span-2">
+        <Field label={t("item.bag")} className="sm:col-span-2">
           <Select name="luggageId" defaultValue={luggageId}>
             {bags.map((bag) => (
               <option key={bag.id} value={bag.id}>
@@ -1010,6 +1035,7 @@ function EditorDialog({
   description: string;
   children: React.ReactNode;
 }) {
+  const tCommon = useT("common");
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -1021,7 +1047,7 @@ function EditorDialog({
                 <Dialog.Title className="text-lg font-medium">{title}</Dialog.Title>
                 <Dialog.Description className="text-sm text-muted-foreground">{description}</Dialog.Description>
               </div>
-              <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+              <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                 <X />
               </Dialog.Close>
             </div>

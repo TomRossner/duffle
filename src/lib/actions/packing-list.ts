@@ -2,6 +2,7 @@
 
 import type { PackingCategory as PrismaCategory, LuggageKind as PrismaKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { getT } from "@/i18n/server";
 import { collectPackingSuggestions } from "@/lib/actions/packing";
 import type { SuggestClothesStep } from "@/lib/suggest-clothes-steps";
 import { prisma } from "@/lib/prisma";
@@ -32,11 +33,12 @@ async function takenClosetIds(tripId: string, userId: string) {
 }
 
 export async function createLuggage(tripId: string, _state: ActionState, formData: FormData) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const name = cleanName(formData.get("name"));
   const kind = String(formData.get("kind") ?? "");
-  if (!name) return { error: "Name the bag." };
-  if (!isLuggageKind(kind)) return { error: "Choose a pack, bag, trolley, or luggage." };
+  if (!name) return { error: t("errors.nameBag") };
+  if (!isLuggageKind(kind)) return { error: t("errors.chooseKind") };
   const count = await prisma.luggage.count({ where: { tripId, userId: user.id } });
   await prisma.luggage.create({
     data: { tripId, userId: user.id, name, kind: kind as PrismaKind, sortOrder: count },
@@ -46,58 +48,62 @@ export async function createLuggage(tripId: string, _state: ActionState, formDat
 }
 
 export async function updateLuggage(tripId: string, luggageId: string, _state: ActionState, formData: FormData) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const luggage = await ownedLuggage(tripId, user.id, luggageId);
-  if (!luggage) return { error: "That bag is not on your list." };
+  if (!luggage) return { error: t("errors.bagNotYours") };
   const name = cleanName(formData.get("name"));
   const kind = String(formData.get("kind") ?? "");
-  if (!name) return { error: "Name the bag." };
-  if (!isLuggageKind(kind)) return { error: "Choose a pack, bag, trolley, or luggage." };
+  if (!name) return { error: t("errors.nameBag") };
+  if (!isLuggageKind(kind)) return { error: t("errors.chooseKind") };
   await prisma.luggage.update({ where: { id: luggage.id }, data: { name, kind: kind as PrismaKind } });
   revalidatePath(`/trips/${tripId}/packing`);
   return { ok: true };
 }
 
 export async function clearLuggageItems(tripId: string, luggageId: string) {
-  if (process.env.NODE_ENV === "production") return { error: "Not available." };
+  const t = await getT("packing");
+  if (process.env.NODE_ENV === "production") return { error: t("errors.notAvailable") };
   const { user } = await requireTrip(tripId);
   const luggage = await ownedLuggage(tripId, user.id, luggageId);
-  if (!luggage) return { error: "That bag is not on your list." };
+  if (!luggage) return { error: t("errors.bagNotYours") };
   await prisma.packingItem.deleteMany({ where: { luggageId: luggage.id } });
   revalidatePath(`/trips/${tripId}/packing`);
   return { ok: true };
 }
 
 export async function deleteLuggage(tripId: string, luggageId: string) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const luggage = await ownedLuggage(tripId, user.id, luggageId);
-  if (!luggage) return { error: "That bag is not on your list." };
+  if (!luggage) return { error: t("errors.bagNotYours") };
   await prisma.luggage.delete({ where: { id: luggage.id } });
   revalidatePath(`/trips/${tripId}/packing`);
   return { ok: true };
 }
 
 export async function createPackingItem(tripId: string, luggageId: string, _state: ActionState, formData: FormData) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const luggage = await ownedLuggage(tripId, user.id, luggageId);
-  if (!luggage) return { error: "That bag is not on your list." };
+  if (!luggage) return { error: t("errors.bagNotYours") };
   const quantity = readQuantity(formData.get("quantity"));
-  if (quantity == null) return { error: "Quantity must be a whole number from 1 to 99." };
+  if (quantity == null) return { error: t("errors.quantity") };
   const categoryValue = String(formData.get("category") ?? "");
-  if (!isPackingCategory(categoryValue)) return { error: "Choose a category." };
+  if (!isPackingCategory(categoryValue)) return { error: t("errors.chooseCategory") };
 
   const closetItemId = String(formData.get("closetItemId") ?? "");
   let name = cleanName(formData.get("name"));
   let category = categoryValue;
   if (closetItemId) {
     const closetItem = await prisma.closetItem.findFirst({ where: { id: closetItemId, userId: user.id } });
-    if (!closetItem) return { error: "That closet item is not yours." };
+    if (!closetItem) return { error: t("errors.closetNotYours") };
     const taken = await takenClosetIds(tripId, user.id);
-    if (taken.has(closetItem.id)) return { error: "That closet item is already on your list." };
+    if (taken.has(closetItem.id)) return { error: t("errors.closetTaken") };
     if (!name) name = closetItem.name;
     if (!formData.get("category")) category = categoryForSlot(closetItem.slot);
   }
-  if (!name) return { error: "Name the item." };
+  if (!name) return { error: t("errors.nameItem") };
 
   const count = await prisma.packingItem.count({ where: { luggageId: luggage.id } });
   await prisma.packingItem.create({
@@ -115,20 +121,21 @@ export async function createPackingItem(tripId: string, luggageId: string, _stat
 }
 
 export async function updatePackingItem(tripId: string, itemId: string, _state: ActionState, formData: FormData) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const item = await prisma.packingItem.findFirst({
     where: { id: itemId, luggage: { tripId, userId: user.id } },
   });
-  if (!item) return { error: "That item is not on your list." };
+  if (!item) return { error: t("errors.itemNotYours") };
   const name = cleanName(formData.get("name"));
   const category = String(formData.get("category") ?? "");
   const luggageId = String(formData.get("luggageId") ?? "");
   const quantity = readQuantity(formData.get("quantity"));
-  if (!name) return { error: "Name the item." };
-  if (!isPackingCategory(category)) return { error: "Choose a category." };
-  if (quantity == null) return { error: "Quantity must be a whole number from 1 to 99." };
+  if (!name) return { error: t("errors.nameItem") };
+  if (!isPackingCategory(category)) return { error: t("errors.chooseCategory") };
+  if (quantity == null) return { error: t("errors.quantity") };
   const luggage = await ownedLuggage(tripId, user.id, luggageId);
-  if (!luggage) return { error: "Choose a bag for this item." };
+  if (!luggage) return { error: t("errors.chooseBag") };
   await prisma.packingItem.update({
     where: { id: item.id },
     data: { name, category: category as PrismaCategory, quantity, luggageId: luggage.id },
@@ -138,25 +145,27 @@ export async function updatePackingItem(tripId: string, itemId: string, _state: 
 }
 
 export async function deletePackingItem(tripId: string, itemId: string) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const item = await prisma.packingItem.findFirst({
     where: { id: itemId, luggage: { tripId, userId: user.id } },
   });
-  if (!item) return { error: "That item is not on your list." };
+  if (!item) return { error: t("errors.itemNotYours") };
   await prisma.packingItem.delete({ where: { id: item.id } });
   revalidatePath(`/trips/${tripId}/packing`);
   return { ok: true };
 }
 
 export async function movePackingItem(tripId: string, itemId: string, luggageId: string) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const item = await prisma.packingItem.findFirst({
     where: { id: itemId, luggage: { tripId, userId: user.id } },
   });
-  if (!item) return { error: "That item is not on your list." };
+  if (!item) return { error: t("errors.itemNotYours") };
   if (item.luggageId === luggageId) return { ok: true };
   const luggage = await ownedLuggage(tripId, user.id, luggageId);
-  if (!luggage) return { error: "That bag is not on your list." };
+  if (!luggage) return { error: t("errors.bagNotYours") };
   const count = await prisma.packingItem.count({ where: { luggageId: luggage.id } });
   await prisma.packingItem.update({
     where: { id: item.id },
@@ -167,26 +176,28 @@ export async function movePackingItem(tripId: string, itemId: string, luggageId:
 }
 
 export async function setPackingItemPacked(tripId: string, itemId: string, packed: boolean) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const item = await prisma.packingItem.findFirst({
     where: { id: itemId, luggage: { tripId, userId: user.id } },
   });
-  if (!item) return { error: "That item is not on your list." };
+  if (!item) return { error: t("errors.itemNotYours") };
   await prisma.packingItem.update({ where: { id: item.id }, data: { packed } });
   revalidatePath(`/trips/${tripId}/packing`);
   return { ok: true };
 }
 
 export async function addClosetItems(tripId: string, luggageId: string, _state: ActionState, formData: FormData) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const luggage = await ownedLuggage(tripId, user.id, luggageId);
-  if (!luggage) return { error: "That bag is not on your list." };
+  if (!luggage) return { error: t("errors.bagNotYours") };
   const ids = formData.getAll("closetItemId").map(String).filter(Boolean);
-  if (ids.length === 0) return { error: "Choose at least one closet item." };
+  if (ids.length === 0) return { error: t("errors.chooseCloset") };
   const closetItems = await prisma.closetItem.findMany({ where: { userId: user.id, id: { in: ids } } });
   const taken = await takenClosetIds(tripId, user.id);
   const fresh = closetItems.filter((item) => !taken.has(item.id));
-  if (fresh.length === 0) return { error: "Those closet items are already on your list." };
+  if (fresh.length === 0) return { error: t("errors.closetAllTaken") };
   const count = await prisma.packingItem.count({ where: { luggageId: luggage.id } });
   await prisma.packingItem.createMany({
     data: fresh.map((item, index) => ({
@@ -207,6 +218,7 @@ export async function addSuggestedClothes(
   formData: FormData,
   onStep?: (step: SuggestClothesStep) => void | Promise<void>,
 ) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const collected = await collectPackingSuggestions(tripId, onStep);
   if ("error" in collected) return collected;
@@ -222,7 +234,7 @@ export async function addSuggestedClothes(
     return [{ item, quantity, note }];
   });
   if (fresh.length === 0) {
-    return { error: "Nothing new to add. Those clothes are already packed, or nothing matched the forecast." };
+    return { error: t("errors.nothingNew") };
   }
 
   await onStep?.("save");
@@ -234,7 +246,7 @@ export async function addSuggestedClothes(
       orderBy: { sortOrder: "asc" },
     });
   }
-  if (!luggage) return { error: "Add a bag before suggesting clothes." };
+  if (!luggage) return { error: t("errors.addBagFirst") };
 
   const count = await prisma.packingItem.count({ where: { luggageId: luggage.id } });
   await prisma.packingItem.createMany({
@@ -261,18 +273,19 @@ async function bagForSharedCheck(tripId: string, userId: string, luggageId: stri
   });
   if (existing) return existing;
   return prisma.luggage.create({
-    data: { tripId, userId, name: "Day pack", kind: "PACK" },
+    data: { tripId, userId, name: (await getT("packing"))("bag.defaultName"), kind: "PACK" },
   });
 }
 
 export async function createSharedPackingItem(tripId: string, _state: ActionState, formData: FormData) {
+  const t = await getT("packing");
   await requireTrip(tripId);
   const name = cleanName(formData.get("name"));
   const category = String(formData.get("category") ?? "");
   const quantity = readQuantity(formData.get("quantity"));
-  if (!name) return { error: "Name the item." };
-  if (!isPackingCategory(category)) return { error: "Choose a category." };
-  if (quantity == null) return { error: "Quantity must be a whole number from 1 to 99." };
+  if (!name) return { error: t("errors.nameItem") };
+  if (!isPackingCategory(category)) return { error: t("errors.chooseCategory") };
+  if (quantity == null) return { error: t("errors.quantity") };
   const count = await prisma.sharedPackingItem.count({ where: { tripId } });
   await prisma.sharedPackingItem.create({
     data: { tripId, name, category: category as PrismaCategory, quantity, sortOrder: count },
@@ -282,15 +295,16 @@ export async function createSharedPackingItem(tripId: string, _state: ActionStat
 }
 
 export async function updateSharedPackingItem(tripId: string, itemId: string, _state: ActionState, formData: FormData) {
+  const t = await getT("packing");
   await requireTrip(tripId);
   const item = await prisma.sharedPackingItem.findFirst({ where: { id: itemId, tripId } });
-  if (!item) return { error: "That item is not on the shared list." };
+  if (!item) return { error: t("errors.notShared") };
   const name = cleanName(formData.get("name"));
   const category = String(formData.get("category") ?? "");
   const quantity = readQuantity(formData.get("quantity"));
-  if (!name) return { error: "Name the item." };
-  if (!isPackingCategory(category)) return { error: "Choose a category." };
-  if (quantity == null) return { error: "Quantity must be a whole number from 1 to 99." };
+  if (!name) return { error: t("errors.nameItem") };
+  if (!isPackingCategory(category)) return { error: t("errors.chooseCategory") };
+  if (quantity == null) return { error: t("errors.quantity") };
   const checks = await prisma.sharedPackingCheck.findMany({
     where: { sharedItemId: item.id, packingItemId: { not: null } },
     select: { packingItemId: true },
@@ -316,18 +330,20 @@ export async function updateSharedPackingItem(tripId: string, itemId: string, _s
 }
 
 export async function deleteSharedPackingItem(tripId: string, itemId: string) {
+  const t = await getT("packing");
   await requireTrip(tripId);
   const item = await prisma.sharedPackingItem.findFirst({ where: { id: itemId, tripId } });
-  if (!item) return { error: "That item is not on the shared list." };
+  if (!item) return { error: t("errors.notShared") };
   await prisma.sharedPackingItem.delete({ where: { id: item.id } });
   revalidatePath(`/trips/${tripId}/packing`);
   return { ok: true };
 }
 
 export async function setSharedPackingChecked(tripId: string, itemId: string, checked: boolean, luggageId: string) {
+  const t = await getT("packing");
   const { user } = await requireTrip(tripId);
   const shared = await prisma.sharedPackingItem.findFirst({ where: { id: itemId, tripId } });
-  if (!shared) return { error: "That item is not on the shared list." };
+  if (!shared) return { error: t("errors.notShared") };
   const existing = await prisma.sharedPackingCheck.findUnique({
     where: { sharedItemId_userId: { sharedItemId: shared.id, userId: user.id } },
     include: { packingItem: true },

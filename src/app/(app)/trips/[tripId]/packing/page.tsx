@@ -1,4 +1,5 @@
 import { PackingBoard } from "@/components/packing-list";
+import { getT } from "@/i18n/server";
 import { prisma } from "@/lib/prisma";
 import { requireTrip } from "@/lib/trip-access";
 
@@ -7,6 +8,7 @@ export const maxDuration = 60;
 export default async function PackingPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const { user } = await requireTrip(tripId);
+  const tMoney = await getT("money");
   const [bags, closet, shared, members] = await Promise.all([
     prisma.luggage.findMany({
       where: { tripId, userId: user.id },
@@ -79,7 +81,7 @@ export default async function PackingPage({ params }: { params: Promise<{ tripId
       }))}
       travelers={members.map((member) => ({
         id: member.user.id,
-        name: member.user.name ?? "Traveler",
+        name: member.user.name ?? tMoney("balance.traveler"),
         packed: packedByUser.get(member.user.id) ?? 0,
       }))}
       dev={process.env.NODE_ENV !== "production"}
