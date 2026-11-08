@@ -4,6 +4,7 @@ import { CalendarDays } from "lucide-react";
 import { useState } from "react";
 import { Field } from "@/components/fields";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/i18n/client";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -16,6 +17,8 @@ function daysBetween(start: string, end: string) {
 
 /** Start and end date inputs that keep the end on or after the start and show the trip's length. */
 export function TripDatesFields({ defaultStart = "", defaultEnd = "" }: { defaultStart?: string; defaultEnd?: string }) {
+  const t = useT("trips");
+  const tCommon = useT("common");
   const [start, setStart] = useState(defaultStart);
   const [end, setEnd] = useState(defaultEnd);
   const nights = start && end ? daysBetween(start, end) : null;
@@ -23,7 +26,7 @@ export function TripDatesFields({ defaultStart = "", defaultEnd = "" }: { defaul
   return (
     <div className="grid gap-2">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Start">
+        <Field label={t("dates.start")}>
           <Input
             name="startDate"
             type="date"
@@ -37,17 +40,20 @@ export function TripDatesFields({ defaultStart = "", defaultEnd = "" }: { defaul
             }}
           />
         </Field>
-        <Field label="End">
+        <Field label={t("dates.end")}>
           <Input name="endDate" type="date" required min={start || undefined} value={end} onChange={(event) => setEnd(event.target.value)} />
         </Field>
       </div>
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
         <CalendarDays className="size-3.5 shrink-0" />
         {nights === null
-          ? "Pick the first and last day of the trip."
+          ? t("dates.pick")
           : nights === 0
-            ? "A day trip."
-            : `${nights + 1} days, ${nights} ${nights === 1 ? "night" : "nights"}.`}
+            ? t("dates.dayTrip")
+            : t("dates.length", {
+                days: tCommon("days", { count: nights + 1 }),
+                nights: tCommon("nights", { count: nights }),
+              })}
       </p>
     </div>
   );

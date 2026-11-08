@@ -6,8 +6,10 @@ import { Dialog } from "@base-ui/react/dialog";
 import { QRCodeSVG } from "qrcode.react";
 import { Check, Copy, Link2, Share2, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 
 export function ShareTrip({ tripId, name, url }: { tripId: string; name: string; url: string }) {
+  const t = useT("trips");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -17,7 +19,7 @@ export function ShareTrip({ tripId, name, url }: { tripId: string; name: string;
     <>
       <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setOpen(true)}>
         <Share2 />
-        Share
+        {t("header.share")}
       </Button>
       <ShareTripDialog open={open} onOpenChange={setOpen} name={name} url={url} />
     </>
@@ -50,8 +52,10 @@ function ShareTripDialog({
   name: string;
   url: string;
 }) {
+  const t = useT("trips");
+  const tCommon = useT("common");
   const [copied, setCopied] = useState(false);
-  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`Join ${name} on Duffle: ${url}`)}`;
+  const whatsapp = `https://wa.me/?text=${encodeURIComponent(t("share.whatsappText", { name, url }))}`;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -61,12 +65,12 @@ function ShareTripDialog({
           <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <Dialog.Title className="text-lg font-medium">Share this trip</Dialog.Title>
+                <Dialog.Title className="text-lg font-medium">{t("share.title")}</Dialog.Title>
                 <Dialog.Description className="text-sm text-muted-foreground">
-                  Anyone with a Duffle account can join from this link.
+                  {t("share.description")}
                 </Dialog.Description>
               </div>
-              <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+              <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                 <X />
               </Dialog.Close>
             </div>
@@ -78,6 +82,7 @@ function ShareTripDialog({
                 <input
                   readOnly
                   value={url}
+                  dir="ltr"
                   className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2 text-sm"
                   onFocus={(event) => event.currentTarget.select()}
                 />
@@ -93,7 +98,7 @@ function ShareTripDialog({
                     }}
                   >
                     {copied ? <Check /> : <Copy />}
-                    {copied ? "Copied" : "Copy link"}
+                    {copied ? tCommon("copied") : t("share.copyLink")}
                   </Button>
                   <Button
                     nativeButton={false}

@@ -5,19 +5,22 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CircleHelp, IdCard, LogIn, MapPinned, Menu, Shirt, UserPlus, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "/trips", label: "Trips", icon: MapPinned },
-  { href: "/closet", label: "Closet", icon: Shirt },
-  { href: "/documents", label: "Documents", icon: IdCard },
-  { href: "/profile", label: "Profile", icon: UserRound },
-  { href: "/how-it-works", label: "How it works", icon: CircleHelp },
-];
+  { href: "/trips", label: "trips", icon: MapPinned },
+  { href: "/closet", label: "closet", icon: Shirt },
+  { href: "/documents", label: "documents", icon: IdCard },
+  { href: "/profile", label: "profile", icon: UserRound },
+  { href: "/how-it-works", label: "howItWorks", icon: CircleHelp },
+] as const;
 
 const itemClass = "flex items-center gap-4 rounded-xl px-5 py-4 text-lg hover:bg-muted [&_svg]:size-6";
 
 export function MobileNav({ signedIn, signOut }: { signedIn: boolean; signOut?: React.ReactNode }) {
+  const t = useT("nav");
+  const tc = useT("common");
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,7 +67,7 @@ export function MobileNav({ signedIn, signOut }: { signedIn: boolean; signOut?: 
             className={cn(itemClass, pathname.startsWith(href) && "bg-muted font-medium text-primary")}
           >
             <Icon />
-            {label}
+            {t(label)}
           </Link>
         )),
         <div key="divider" className="my-1 h-px bg-border" />,
@@ -73,11 +76,11 @@ export function MobileNav({ signedIn, signOut }: { signedIn: boolean; signOut?: 
     : [
         <Link key="login" href="/login" onClick={() => setOpen(false)} className={itemClass}>
           <LogIn />
-          Sign in
+          {tc("signIn")}
         </Link>,
         <Link key="register" href="/register" onClick={() => setOpen(false)} className={itemClass}>
           <UserPlus />
-          Sign up
+          {tc("signUp")}
         </Link>,
       ];
 
@@ -87,7 +90,7 @@ export function MobileNav({ signedIn, signOut }: { signedIn: boolean; signOut?: 
         type="button"
         variant="outline"
         size="icon-lg"
-        aria-label={open ? "Close menu" : "Open menu"}
+        aria-label={open ? tc("closeMenu") : tc("openMenu")}
         aria-expanded={open}
         aria-controls="mobile-nav-menu"
         onClick={() => setOpen((current) => !current)}

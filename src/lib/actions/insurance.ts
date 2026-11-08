@@ -157,8 +157,8 @@ export async function createPolicy(tripId: string, _: unknown, formData: FormDat
   revalidatePath(`/trips/${tripId}/insurance`);
   await notifyTrip(tripId, user.id, {
     kind: "INSURANCE",
-    title: "Insurance added",
-    body: `${user.name ?? "A traveler"} added ${provider}.`,
+    message: "insuranceAdded",
+    values: { name: user.name ?? "", item: provider },
     href: `/trips/${tripId}/insurance`,
   });
   return { ok: true };
@@ -283,8 +283,8 @@ export async function updatePolicy(tripId: string, policyId: string, _: unknown,
   revalidatePath(`/trips/${tripId}/insurance`);
   await notifyTrip(tripId, user.id, {
     kind: "INSURANCE",
-    title: "Insurance updated",
-    body: `${user.name ?? "A traveler"} updated ${provider}.`,
+    message: "insuranceUpdated",
+    values: { name: user.name ?? "", item: provider },
     href: `/trips/${tripId}/insurance`,
   });
   return { ok: true };
@@ -299,8 +299,8 @@ export async function deletePolicy(tripId: string, policyId: string) {
   revalidatePath(`/trips/${tripId}/insurance`);
   await notifyTrip(tripId, user.id, {
     kind: "INSURANCE",
-    title: "Insurance removed",
-    body: `${user.name ?? "A traveler"} removed ${policy.provider}.`,
+    message: "insuranceRemoved",
+    values: { name: user.name ?? "", item: policy.provider },
     href: `/trips/${tripId}/insurance`,
   });
   return { ok: true };

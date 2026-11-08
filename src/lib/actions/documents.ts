@@ -41,8 +41,8 @@ export async function createDocument(tripId: string, _: unknown, formData: FormD
   revalidatePath(`/trips/${tripId}/documents`);
   await notifyTrip(tripId, user.id, {
     kind: "DOCUMENT",
-    title: "Document added",
-    body: `${user.name ?? "A traveler"} added ${title}.`,
+    message: "documentAdded",
+    values: { name: user.name ?? "", item: title },
     href: `/trips/${tripId}/documents`,
   });
   return { ok: true };
@@ -83,8 +83,8 @@ export async function updateDocument(tripId: string, documentId: string, _: unkn
   revalidatePath(`/trips/${tripId}/documents`);
   await notifyTrip(tripId, user.id, {
     kind: "DOCUMENT",
-    title: "Document updated",
-    body: `${user.name ?? "A traveler"} updated ${title}.`,
+    message: "documentUpdated",
+    values: { name: user.name ?? "", item: title },
     href: `/trips/${tripId}/documents`,
   });
   return { ok: true };
@@ -98,8 +98,8 @@ export async function deleteDocument(tripId: string, documentId: string) {
   revalidatePath(`/trips/${tripId}/documents`);
   await notifyTrip(tripId, user.id, {
     kind: "DOCUMENT",
-    title: "Document removed",
-    body: `${user.name ?? "A traveler"} removed ${document.title}.`,
+    message: "documentRemoved",
+    values: { name: user.name ?? "", item: document.title },
     href: `/trips/${tripId}/documents`,
   });
   return { ok: true };

@@ -6,6 +6,7 @@ import { BackButton } from "@/components/back-button";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
+import { getT } from "@/i18n/server";
 import { refreshUpcomingFlights } from "@/lib/flight-refresh";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
@@ -17,6 +18,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     select: { id: true, name: true, imageKey: true },
   });
   if (!user) return null;
+  const [t, tc] = await Promise.all([getT("nav"), getT("common")]);
   // Once the page is sent, check the traveler's upcoming flights for airline changes (throttled inside).
   after(() =>
     refreshUpcomingFlights(user.id).catch((error) => console.error("[flight-refresh] Failed:", error)),
@@ -30,7 +32,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             signedIn
             signOut={
               <SignOutButton
-                label="Log out"
+                label={tc("logOut")}
                 className="h-auto w-full justify-start gap-4 rounded-xl border-0 px-5 py-4 text-lg font-normal [&_svg]:size-6"
               />
             }
@@ -42,22 +44,22 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           <nav className="hidden items-center gap-4 text-sm sm:flex">
             <Link href="/trips" className="inline-flex items-center gap-1.5 hover:text-primary">
               <MapPinned className="size-4" />
-              Trips
+              {t("trips")}
             </Link>
             <Link href="/closet" className="inline-flex items-center gap-1.5 hover:text-primary">
               <Shirt className="size-4" />
-              Closet
+              {t("closet")}
             </Link>
             <Link href="/documents" className="inline-flex items-center gap-1.5 hover:text-primary">
               <IdCard className="size-4" />
-              Documents
+              {t("documents")}
             </Link>
             <Link href="/how-it-works" className="hidden items-center gap-1.5 hover:text-primary lg:inline-flex">
               <CircleHelp className="size-4" />
-              How it works
+              {t("howItWorks")}
             </Link>
           </nav>
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <div className="ms-auto flex items-center gap-2 sm:gap-3">
             <NotificationBell />
             <Link href="/profile" className="inline-flex min-w-0 items-center gap-2 text-sm hover:text-primary">
               <Avatar

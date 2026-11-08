@@ -146,6 +146,8 @@ model User {
   address      String?
   city         String?
   postalCode   String?
+  /// The language the app, emails and notifications use for this person ("en", "he", ...).
+  locale       String?
   emailVerified  DateTime?
   sessionVersion Int       @default(0)
   createdAt    DateTime  @default(now())

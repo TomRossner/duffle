@@ -4,6 +4,7 @@ import { InlineAction } from "@/components/action-form";
 import { CardContent } from "@/components/ui/card";
 import { InviteShell, TripInviteCard } from "@/components/trip-invite-card";
 import { acceptInvite, declineInvite } from "@/lib/actions/trips";
+import { getT } from "@/i18n/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { acceptedMembers } from "@/lib/trip-access";
@@ -11,6 +12,7 @@ import { acceptedMembers } from "@/lib/trip-access";
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const session = await auth();
+  const t = await getT("trips");
   if (!session?.user?.id) {
     redirect(`/login?callbackUrl=/invite/${token}`);
   }
@@ -26,9 +28,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <LinkIcon className="size-5" />
           </span>
-          <h1 className="text-lg font-semibold">Invite unavailable</h1>
+          <h1 className="text-lg font-semibold">{t("invitePage.unavailableTitle")}</h1>
           <p className="text-sm text-muted-foreground">
-            This link was already used, declined, or has expired. Ask the trip admin for a new one.
+            {t("invitePage.unavailableBody")}
           </p>
         </CardContent>
       </InviteShell>
@@ -40,7 +42,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   return (
     <TripInviteCard
-      eyebrow={`${invite.trip.owner.name} invited you to`}
+      eyebrow={t("invitePage.invitedYou", { name: invite.trip.owner.name })}
       trip={invite.trip}
       travelers={members.map((member) => ({
         userId: member.userId,
@@ -50,15 +52,18 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     >
       {emailMatches ? (
         <div className="grid gap-2">
-          <InlineAction action={acceptInvite.bind(null, token)} label="Join trip" variant="default" fullWidth />
-          <InlineAction action={declineInvite.bind(null, token)} label="Decline" variant="outline" fullWidth />
+          <InlineAction action={acceptInvite.bind(null, token)} label={t("invites.join")} variant="default" fullWidth />
+          <InlineAction action={declineInvite.bind(null, token)} label={t("invites.decline")} variant="outline" fullWidth />
         </div>
       ) : (
         <div className="flex gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
           <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <p className="min-w-0 break-words">
-            This invite was sent to <span className="font-medium">{invite.email}</span>, but you are signed in as{" "}
-            <span className="font-medium">{session.user.email}</span>. Sign in with that email to join.
+            {t.rich("invitePage.wrongEmail", {
+              email: invite.email,
+              current: session.user.email ?? "",
+              b: (chunks) => <span className="font-medium">{chunks}</span>,
+            })}
           </p>
         </div>
       )}

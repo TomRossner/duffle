@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { getT } from "@/i18n/server";
 import { takeRateLimit } from "@/lib/rate-limit";
 
 export async function clientAddress() {
@@ -23,6 +24,6 @@ export async function limitAuth(action: keyof typeof rules, email?: string) {
   const rule = rules[action];
   const checks = [takeRateLimit(`${action}:${ip}`, rule.limit, rule.windowMs)];
   if (email) checks.push(takeRateLimit(`${action}:${ip}:${email}`, Math.min(rule.limit, 8), rule.windowMs));
-  if (checks.some((result) => !result.ok)) return { error: "Too many attempts. Try again later." };
+  if (checks.some((result) => !result.ok)) return { error: (await getT("auth"))("errors.tooMany") };
   return null;
 }

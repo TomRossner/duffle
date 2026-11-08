@@ -2,7 +2,8 @@ import { FlagStack } from "@/components/country-flag";
 import { ShareTrip } from "@/components/share-trip";
 import { tripJoinUrl } from "@/lib/join-url";
 import { TripNav } from "@/components/trip-nav";
-import { countryName } from "@/lib/account-details";
+import { getT } from "@/i18n/server";
+import { countryList } from "@/lib/account-details";
 import { formatDateRange } from "@/lib/dates";
 import { currencySymbol } from "@/lib/money";
 import { requireTrip } from "@/lib/trip-access";
@@ -16,6 +17,7 @@ export default async function TripLayout({
 }) {
   const { tripId } = await params;
   const { trip } = await requireTrip(tripId);
+  const t = await getT("trips");
   const countries = trip.countries;
   const symbol = currencySymbol(trip.baseCurrency);
   const currencyLabel = symbol ? `${symbol} (${trip.baseCurrency})` : trip.baseCurrency;
@@ -27,11 +29,11 @@ export default async function TripLayout({
           <h1 className="text-2xl font-semibold tracking-tight break-words">{trip.name}</h1>
           {countries.length > 0 ? (
             <div className="mt-1 flex">
-              <FlagStack codes={countries} label={countries.map(countryName).join(", ")} size="sm" />
+              <FlagStack codes={countries} label={countryList(countries, t.locale)} size="sm" />
             </div>
           ) : null}
           <p className="text-sm text-muted-foreground">
-            {formatDateRange(trip.startDate, trip.endDate)} · Balances in {currencyLabel}
+            {formatDateRange(trip.startDate, trip.endDate, t.locale)} · {t("header.balancesIn", { currency: currencyLabel })}
           </p>
         </div>
         <ShareTrip

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
 import { Camera, RotateCcw, ScanLine, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 /** Trip links a QR code can carry: the shared join link or a personal invite. */
@@ -21,6 +22,8 @@ function tripPath(text: string) {
 
 /** Opens the camera and follows a scanned Duffle trip link. Shown on phone-sized screens only. */
 export function ScanQrButton({ className }: { className?: string }) {
+  const t = useT("trips");
+  const tCommon = useT("common");
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
 
@@ -28,7 +31,7 @@ export function ScanQrButton({ className }: { className?: string }) {
     <>
       <Button type="button" variant="outline" className={cn("sm:hidden", className)} onClick={() => setOpen(true)}>
         <ScanLine className="size-4" />
-        Scan QR code
+        {t("scan.button")}
       </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
@@ -37,12 +40,12 @@ export function ScanQrButton({ className }: { className?: string }) {
             <Dialog.Popup className="dialog-popup relative w-full max-w-sm rounded-xl bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
-                  <Dialog.Title className="text-lg font-medium">Scan a trip QR code</Dialog.Title>
+                  <Dialog.Title className="text-lg font-medium">{t("scan.title")}</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    Point the camera at a Duffle join code.
+                    {t("scan.description")}
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tCommon("close")}>
                   <X />
                 </Dialog.Close>
               </div>
@@ -79,6 +82,7 @@ function Scanner({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [cameraFailed, setCameraFailed] = useState(false);
+  const t = useT("trips");
 
   async function scanPhoto(file: File | undefined) {
     if (!file) return;
@@ -92,9 +96,9 @@ function Scanner({ onDone }: { onDone: () => void }) {
         router.push(path);
         return;
       }
-      setError(text ? "That QR code is not a Duffle trip link." : "No QR code found in that photo. Try again closer up.");
+      setError(text ? t("scan.notTrip") : t("scan.noCode"));
     } catch {
-      setError("Couldn't read that photo. Try again.");
+      setError(t("scan.unreadable"));
     } finally {
       if (photoRef.current) photoRef.current.value = "";
     }
@@ -110,7 +114,7 @@ function Scanner({ onDone }: { onDone: () => void }) {
     async function start() {
       if (!navigator.mediaDevices?.getUserMedia) {
         setCameraFailed(true);
-        setError("This browser can't show the camera here. Take a photo of the code instead.");
+        setError(t("scan.noCameraHere"));
         return;
       }
       try {
@@ -145,7 +149,7 @@ function Scanner({ onDone }: { onDone: () => void }) {
                 router.push(path);
                 return;
               }
-              setError("That QR code is not a Duffle trip link.");
+              setError(t("scan.notTrip"));
             }
           }
           frame = requestAnimationFrame(tick);
@@ -157,10 +161,10 @@ function Scanner({ onDone }: { onDone: () => void }) {
         setCameraFailed(true);
         setError(
           name === "NotAllowedError"
-            ? "Duffle can't use the camera. Take a photo of the code instead, or allow camera access for this site and try again."
+            ? t("scan.denied")
             : name === "NotFoundError"
-              ? "No camera was found on this device."
-              : "The camera couldn't start. It may be in use by another app.",
+              ? t("scan.missing")
+              : t("scan.failed"),
         );
       }
     }
@@ -171,7 +175,7 @@ function Scanner({ onDone }: { onDone: () => void }) {
       cancelAnimationFrame(frame);
       stream?.getTracks().forEach((track) => track.stop());
     };
-  }, [onDone, router, attempt]);
+  }, [onDone, router, attempt, t]);
 
   return (
     <div className="grid gap-3">
@@ -181,7 +185,7 @@ function Scanner({ onDone }: { onDone: () => void }) {
           <div className="pointer-events-none absolute inset-[15%] rounded-xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
         ) : (
           <p className="absolute inset-0 flex items-center justify-center text-sm text-white/80">
-            {status === "opening" ? "Opening trip..." : cameraFailed ? "Camera unavailable" : "Starting camera..."}
+            {status === "opening" ? t("scan.opening") : cameraFailed ? t("scan.unavailable") : t("scan.starting")}
           </p>
         )}
       </div>
@@ -204,7 +208,7 @@ function Scanner({ onDone }: { onDone: () => void }) {
           onClick={() => photoRef.current?.click()}
         >
           <Camera />
-          {cameraFailed ? "Take a photo of the code" : "Scan a photo instead"}
+          {cameraFailed ? t("scan.takePhoto") : t("scan.scanPhoto")}
         </Button>
         {cameraFailed ? (
           <Button
@@ -218,7 +222,7 @@ function Scanner({ onDone }: { onDone: () => void }) {
             }}
           >
             <RotateCcw />
-            Try the camera again
+            {t("scan.retry")}
           </Button>
         ) : null}
       </div>

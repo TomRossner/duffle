@@ -3,21 +3,23 @@ import { ActionForm } from "@/components/action-form";
 import { AuthLink, AuthNotice, AuthShell } from "@/components/auth-shell";
 import { Field } from "@/components/fields";
 import { Input } from "@/components/ui/input";
+import { getT } from "@/i18n/server";
+import type { Translator } from "@/i18n/translate";
 import { login } from "@/lib/actions/auth";
 
-function googleErrorMessage(error?: string) {
+function googleErrorMessage(t: Translator<"auth">, error?: string) {
   if (!error) return null;
   // Auth.js reports every server-side failure as "Configuration"; the real cause is in the server log.
-  if (error === "Configuration") return "Google sign-in failed on the server. Try again, or use email and password.";
-  if (error === "AccessDenied") return "Google did not confirm this email address.";
-  return "Google sign-in failed. Try again.";
+  if (error === "Configuration") return t("google.configuration");
+  if (error === "AccessDenied") return t("google.accessDenied");
+  return t("google.failed");
 }
 
-function noticeMessage(notice?: string) {
-  if (notice === "verified") return "Email confirmed. Sign in.";
-  if (notice === "password") return "Password updated. Sign in with the new one. Other sessions were signed out.";
-  if (notice === "reset") return "Password updated. Sign in with the new one.";
-  if (notice === "confirm") return "Confirm your email before joining a trip.";
+function noticeMessage(t: Translator<"auth">, notice?: string) {
+  if (notice === "verified") return t("notices.verified");
+  if (notice === "password") return t("notices.password");
+  if (notice === "reset") return t("notices.reset");
+  if (notice === "confirm") return t("notices.confirm");
   return null;
 }
 
@@ -27,14 +29,15 @@ export default async function LoginPage({
   searchParams: Promise<{ callbackUrl?: string; error?: string; notice?: string }>;
 }) {
   const params = await searchParams;
+  const t = await getT("auth");
   const callbackUrl = params.callbackUrl ?? "/trips";
-  const googleError = googleErrorMessage(params.error);
-  const notice = noticeMessage(params.notice);
+  const googleError = googleErrorMessage(t, params.error);
+  const notice = noticeMessage(t, params.notice);
 
   return (
     <AuthShell
-      title="Welcome back"
-      description="Sign in to plan, pack and split costs with your travel group."
+      title={t("login.title")}
+      description={t("login.description")}
       callbackUrl={callbackUrl}
       notices={
         googleError || notice ? (
@@ -45,25 +48,23 @@ export default async function LoginPage({
         ) : null
       }
       footer={
-        <>
-          No account yet? <AuthLink href="/register">Create one</AuthLink>
-        </>
+        <>{t.rich("login.noAccount", { link: (chunks) => <AuthLink href="/register">{chunks}</AuthLink> })}</>
       }
     >
-      <ActionForm action={login} submitLabel="Sign in" className="grid gap-4">
+      <ActionForm action={login} submitLabel={t("login.submit")} className="grid gap-4">
         <input type="hidden" name="callbackUrl" value={callbackUrl} />
-        <Field label="Email">
-          <Input name="email" type="email" autoComplete="email" placeholder="name@example.com" required />
+        <Field label={t("email")}>
+          <Input name="email" type="email" autoComplete="email" placeholder={t("emailPlaceholder")} required />
         </Field>
         <div className="grid gap-2">
-          <Field label="Password">
+          <Field label={t("password")}>
             <Input name="password" type="password" autoComplete="current-password" required />
           </Field>
           <Link
             href="/forgot-password"
             className="justify-self-end text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            Forgot password?
+            {t("login.forgot")}
           </Link>
         </div>
       </ActionForm>

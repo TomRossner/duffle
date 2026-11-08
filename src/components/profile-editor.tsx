@@ -9,6 +9,7 @@ import { Field } from "@/components/fields";
 import { ProfilePhotoField } from "@/components/profile-photo-field";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/i18n/client";
 import { updateProfile } from "@/lib/actions/profile";
 
 export function ProfileEditor({
@@ -25,13 +26,15 @@ export function ProfileEditor({
     postalCode: string | null;
   };
 }) {
+  const t = useT("profile");
+  const tc = useT("common");
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setOpen(true)}>
         <Pencil />
-        Edit profile
+        {t("editProfile")}
       </Button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
@@ -40,17 +43,17 @@ export function ProfileEditor({
             <Dialog.Popup className="dialog-popup relative my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <Dialog.Title className="text-lg font-medium">Edit profile</Dialog.Title>
+                  <Dialog.Title className="text-lg font-medium">{t("editProfile")}</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    Travelers see this name and photo. The rest stays on your account.
+                    {t("editHint")}
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tc("close")}>
                   <X />
                 </Dialog.Close>
               </div>
-              <ActionForm action={updateProfile} submitLabel="Save profile" onSaved={() => setOpen(false)}>
-                <Field label="Name">
+              <ActionForm action={updateProfile} submitLabel={t("saveProfile")} onSaved={() => setOpen(false)}>
+                <Field label={t("name")}>
                   <Input name="name" defaultValue={defaults.name} autoComplete="name" required />
                 </Field>
                 <ProfilePhotoField />

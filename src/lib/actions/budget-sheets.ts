@@ -199,8 +199,8 @@ export async function addBudgetRowToPlan(tripId: string, rowId: string) {
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "EXPENSE",
-    title: "Planned cost added",
-    body: `${user.name ?? "A traveler"} added ${row.label} from a budget sheet.`,
+    message: "budgetRowAdded",
+    values: { name: user.name ?? "", item: row.label },
     href: `/trips/${tripId}/money`,
   });
   return { ok: true };
@@ -281,8 +281,8 @@ export async function importBudgetWorkbook(tripId: string, _: unknown, formData:
   revalidatePath(`/trips/${tripId}/money`);
   await notifyTrip(tripId, user.id, {
     kind: "EXPENSE",
-    title: "Budget sheet imported",
-    body: `${user.name ?? "A traveler"} imported ${imported.length} budget ${imported.length === 1 ? "table" : "tables"}.`,
+    message: "budgetImported",
+    values: { name: user.name ?? "", count: imported.length },
     href: `/trips/${tripId}/money`,
   });
   return { ok: true, count: imported.length };

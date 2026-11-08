@@ -3,16 +3,16 @@
 import { compare, hash } from "bcryptjs";
 import { AuthError } from "next-auth";
 import { Prisma } from "@prisma/client";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isLocale, LOCALE_COOKIE, type Locale } from "@/i18n/config";
+import { getLocale, getT, translatorFor } from "@/i18n/server";
 import { readAccountDetails } from "@/lib/account-details";
 import { consumeAuthToken, issueAuthToken } from "@/lib/auth-tokens";
 import { signIn } from "@/lib/auth";
 import { appOrigin, deliverAuthMail, mailConfigured } from "@/lib/mail";
 import { prisma } from "@/lib/prisma";
 import { limitAuth } from "@/lib/request-address";
-
-const accountMail =
-  "Check your email. If this address can be used for an account, we sent a link.";
 
 function emailOf(formData: FormData) {
   return String(formData.get("email") ?? "")
@@ -24,60 +24,77 @@ function validEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-async function sendVerify(userId: string, email: string) {
+/** The language for an email: the account's saved one, or else the language of the page that sent it. */
+async function mailLocale(saved?: string | null): Promise<Locale> {
+  return isLocale(saved) ? saved : getLocale();
+}
+
+/** Switches a returning traveler to the language saved on their account. */
+async function applySavedLocale(saved: string | null | undefined) {
+  if (!isLocale(saved)) return;
+  (await cookies()).set(LOCALE_COOKIE, saved, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+}
+
+async function sendVerify(userId: string, email: string, savedLocale?: string | null) {
   const token = await issueAuthToken(userId, "VERIFY_EMAIL");
   const link = `${appOrigin()}/verify-email?token=${encodeURIComponent(token)}`;
+  const locale = await mailLocale(savedLocale);
+  const t = translatorFor(locale, "mail");
   return deliverAuthMail({
     to: email,
-    subject: "Confirm your Duffle account",
-    heading: "Confirm your email",
-    paragraphs: [`Welcome to Duffle! Confirm ${email} to finish setting up your account.`],
-    action: { label: "Confirm email", url: link },
-    note: "This link expires in 24 hours. If you didn't create an account, you can ignore this email.",
+    locale,
+    subject: t("verify.subject"),
+    heading: t("verify.heading"),
+    paragraphs: [t("verify.body", { email })],
+    action: { label: t("verify.action"), url: link },
+    note: t("verify.note"),
   });
 }
 
-async function sendExistingAccount(email: string, usesGoogle: boolean) {
+async function sendExistingAccount(email: string, usesGoogle: boolean, savedLocale?: string | null) {
   const link = `${appOrigin()}/login`;
+  const locale = await mailLocale(savedLocale);
+  const t = translatorFor(locale, "mail");
   return deliverAuthMail({
     to: email,
-    subject: "Your Duffle account",
-    heading: "You already have an account",
-    paragraphs: usesGoogle
-      ? [`The account for ${email} uses Google sign-in. Sign in with Google to get back to your trips.`]
-      : [`An account for ${email} already exists. Sign in, or reset the password if you've forgotten it.`],
-    action: { label: usesGoogle ? "Sign in with Google" : "Sign in", url: link },
+    locale,
+    subject: t("existing.subject"),
+    heading: t("existing.heading"),
+    paragraphs: [usesGoogle ? t("existing.google", { email }) : t("existing.password", { email })],
+    action: { label: usesGoogle ? t("existing.signInGoogle") : t("existing.signIn"), url: link },
     secondary: usesGoogle
       ? undefined
-      : { label: "Reset password", url: `${appOrigin()}/forgot-password` },
-    note: "If you didn't ask for this, you can ignore this email.",
+      : { label: t("existing.resetPassword"), url: `${appOrigin()}/forgot-password` },
+    note: t("existing.note"),
   });
 }
 
 export async function register(_: unknown, formData: FormData) {
+  const [t, tp, locale] = await Promise.all([getT("auth"), getT("profile"), getLocale()]);
+  const accountMail = t("messages.accountMail");
   const name = String(formData.get("name") ?? "").trim();
   const email = emailOf(formData);
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-  if (name.length < 2) return { error: "Name must be at least 2 characters." };
-  if (!validEmail(email)) return { error: "Enter a valid email." };
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
-  if (password !== confirmPassword) return { error: "Passwords do not match." };
-  const details = readAccountDetails(formData);
+  if (name.length < 2) return { error: t("errors.nameShort") };
+  if (!validEmail(email)) return { error: t("errors.email") };
+  if (password.length < 8) return { error: t("errors.passwordShort") };
+  if (password !== confirmPassword) return { error: t("errors.passwordMismatch") };
+  const details = readAccountDetails(formData, tp);
   if ("error" in details) return details;
 
   const limited = await limitAuth("register", email);
   if (limited) return limited;
   if (process.env.NODE_ENV === "production" && !mailConfigured()) {
-    return { error: "Password accounts need email delivery. Sign in with Google, or configure SMTP." };
+    return { error: t("errors.noMailRegister") };
   }
 
   const passwordHash = await hash(password, 12);
   const existing = await prisma.user.findUnique({ where: { email } });
 
   if (existing?.emailVerified || (existing && !existing.passwordHash)) {
-    const sent = await sendExistingAccount(email, !existing.passwordHash);
+    const sent = await sendExistingAccount(email, !existing.passwordHash, existing.locale);
     if ("error" in sent) return sent;
     return { ok: true, message: accountMail, ...("devLink" in sent ? { devLink: sent.devLink } : {}) };
   }
@@ -87,10 +104,10 @@ export async function register(_: unknown, formData: FormData) {
     user = existing
       ? await prisma.user.update({
           where: { id: existing.id },
-          data: { name, passwordHash, emailVerified: null, sessionVersion: { increment: 1 }, ...details.data },
+          data: { name, passwordHash, emailVerified: null, sessionVersion: { increment: 1 }, locale, ...details.data },
         })
       : await prisma.user.create({
-          data: { name, email, passwordHash, emailVerified: null, ...details.data },
+          data: { name, email, passwordHash, emailVerified: null, locale, ...details.data },
         });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -99,12 +116,13 @@ export async function register(_: unknown, formData: FormData) {
     throw error;
   }
 
-  const sent = await sendVerify(user.id, email);
+  const sent = await sendVerify(user.id, email, locale);
   if ("error" in sent) return sent;
   return { ok: true, message: accountMail, ...("devLink" in sent ? { devLink: sent.devLink } : {}) };
 }
 
 export async function login(_: unknown, formData: FormData) {
+  const t = await getT("auth");
   const email = emailOf(formData);
   const password = String(formData.get("password") ?? "");
   const callbackUrl = String(formData.get("callbackUrl") ?? "/trips");
@@ -116,19 +134,23 @@ export async function login(_: unknown, formData: FormData) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing?.passwordHash && !existing.emailVerified) {
     const valid = await compare(password, existing.passwordHash);
-    if (!valid) return { error: "Invalid email or password." };
-    const sent = await sendVerify(existing.id, email);
+    if (!valid) return { error: t("errors.invalidLogin") };
+    const sent = await sendVerify(existing.id, email, existing.locale);
     if ("error" in sent) return sent;
     return {
-      error: "Confirm your email before signing in. We sent a new link.",
+      error: t("errors.confirmFirst"),
       ...("devLink" in sent ? { devLink: sent.devLink } : {}),
     };
   }
 
+  // The saved language applies once the password checks out; signIn() redirects on success.
+  if (existing?.passwordHash && (await compare(password, existing.passwordHash))) {
+    await applySavedLocale(existing.locale);
+  }
   try {
     await signIn("credentials", { email, password, redirectTo: destination });
   } catch (error) {
-    if (error instanceof AuthError) return { error: "Invalid email or password." };
+    if (error instanceof AuthError) return { error: t("errors.invalidLogin") };
     throw error;
   }
 
@@ -142,19 +164,20 @@ export async function loginWithGoogle(formData: FormData) {
 }
 
 export async function requestPasswordReset(_: unknown, formData: FormData) {
+  const t = await getT("auth");
   const email = emailOf(formData);
-  if (!validEmail(email)) return { error: "Enter a valid email." };
+  if (!validEmail(email)) return { error: t("errors.email") };
   const limited = await limitAuth("forgot", email);
   if (limited) return limited;
   if (process.env.NODE_ENV === "production" && !mailConfigured()) {
-    return { error: "Password reset needs email delivery. Configure SMTP, or sign in with Google." };
+    return { error: t("errors.noMailReset") };
   }
 
-  const message = "If that email has a password account, we sent a reset link.";
+  const message = t("messages.resetSent");
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user?.passwordHash) {
     if (user) {
-      const sent = await sendExistingAccount(email, true);
+      const sent = await sendExistingAccount(email, true, user.locale);
       if ("error" in sent) return sent;
       return { ok: true, message, ...("devLink" in sent ? { devLink: sent.devLink } : {}) };
     }
@@ -163,13 +186,16 @@ export async function requestPasswordReset(_: unknown, formData: FormData) {
 
   const token = await issueAuthToken(user.id, "RESET_PASSWORD");
   const link = `${appOrigin()}/reset-password?token=${encodeURIComponent(token)}`;
+  const locale = await mailLocale(user.locale);
+  const tm = translatorFor(locale, "mail");
   const sent = await deliverAuthMail({
     to: email,
-    subject: "Reset your Duffle password",
-    heading: "Reset your password",
-    paragraphs: [`We got a request to reset the password for ${email}. Choose a new one below.`],
-    action: { label: "Reset password", url: link },
-    note: "This link expires in one hour. If you didn't ask for this, you can ignore this email — your password won't change.",
+    locale,
+    subject: tm("reset.subject"),
+    heading: tm("reset.heading"),
+    paragraphs: [tm("reset.body", { email })],
+    action: { label: tm("reset.action"), url: link },
+    note: tm("reset.note"),
   });
   if ("error" in sent) return sent;
   return { ok: true, message, ...("devLink" in sent ? { devLink: sent.devLink } : {}) };
@@ -180,7 +206,7 @@ export async function verifyEmail(_: unknown, formData: FormData) {
   if (limited) return limited;
   const token = String(formData.get("token") ?? "");
   const record = await consumeAuthToken(token, "VERIFY_EMAIL");
-  if (!record) return { error: "This link is invalid or has expired." };
+  if (!record) return { error: (await getT("auth"))("errors.linkInvalid") };
   await prisma.user.update({ where: { id: record.userId }, data: { emailVerified: new Date() } });
   redirect("/login?notice=verified");
 }
@@ -191,13 +217,14 @@ export async function resetPassword(_: unknown, formData: FormData) {
   const token = String(formData.get("token") ?? "");
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
-  if (password !== confirmPassword) return { error: "Passwords do not match." };
+  const t = await getT("auth");
+  if (password.length < 8) return { error: t("errors.passwordShort") };
+  if (password !== confirmPassword) return { error: t("errors.passwordMismatch") };
 
   const record = await consumeAuthToken(token, "RESET_PASSWORD");
-  if (!record) return { error: "This link is invalid or has expired." };
+  if (!record) return { error: t("errors.linkInvalid") };
   const user = await prisma.user.findUnique({ where: { id: record.userId } });
-  if (!user) return { error: "This link is invalid or has expired." };
+  if (!user) return { error: t("errors.linkInvalid") };
 
   await prisma.user.update({
     where: { id: user.id },

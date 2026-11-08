@@ -1,0 +1,58 @@
+const common = {
+  save: "Save",
+  saving: "Saving...",
+  cancel: "Cancel",
+  close: "Close",
+  remove: "Remove",
+  removing: "Removing...",
+  edit: "Edit",
+  delete: "Delete",
+  deleting: "Deleting...",
+  back: "Back",
+  tryAgain: "Try again",
+  goHome: "Go home",
+  gotIt: "Got it",
+  notAdded: "Not added",
+  copy: "Copy",
+  copied: "Copied",
+  actionsFor: "Actions for {name}",
+  confirmRemove: "Are you sure you want to remove {name}?",
+  openMenu: "Open menu",
+  closeMenu: "Close menu",
+  signIn: "Sign in",
+  signUp: "Sign up",
+  signOut: "Sign out",
+  logOut: "Log out",
+  you: "You",
+  language: "Language",
+  or: "or",
+  and: "and",
+  days: {
+    one: "{count} day",
+    other: "{count} days",
+  },
+  nights: {
+    one: "{count} night",
+    other: "{count} nights",
+  },
+  travelers: {
+    one: "{count} traveler",
+    other: "{count} travelers",
+  },
+  cookies: {
+    label: "Cookie notice",
+    text: "This site uses cookies to keep you signed in and remember your preferences.",
+  },
+  notFound: {
+    title: "Page not found",
+    heading: "This page isn't on the map.",
+    body: "The link may be out of date, or the page may have been removed.",
+  },
+  error: {
+    heading: "Something went wrong.",
+    body: "The page could not be loaded. Try it again.",
+    generic: "Something went wrong. Try again.",
+  },
+};
+
+export default common;

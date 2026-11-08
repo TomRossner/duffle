@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CircleHelp } from "lucide-react";
 import { AccountMenu } from "@/components/account-menu";
+import { LanguagePicker } from "@/components/language-picker";
 import { Avatar } from "@/components/avatar";
 import { CountryFlag, FlagStack } from "@/components/country-flag";
 import { PendingInvites } from "@/components/pending-invites";
@@ -9,23 +10,38 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { countryName, formatPhone, genderLabel } from "@/lib/account-details";
-import { formatDate, formatDateRange, formatDateText } from "@/lib/dates";
+import { getT } from "@/i18n/server";
+import { countryList, countryName, formatPhone } from "@/lib/account-details";
+import { formatDate, formatDateRange, formatDateText, formatMonthYear } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/trip-access";
 import { notFound } from "next/navigation";
 
-function Detail({ label, value, className }: { label: string; value: string | null; className?: string }) {
+function Detail({
+  label,
+  value,
+  empty,
+  className,
+}: {
+  label: string;
+  value: string | null;
+  empty: string;
+  className?: string;
+}) {
   return (
     <div className={className}>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={value ? "text-sm" : "text-sm text-muted-foreground"}>{value ?? "Not set"}</p>
+      <p className={value ? "text-sm" : "text-sm text-muted-foreground"}>{value ?? empty}</p>
     </div>
   );
 }
 
 export default async function ProfilePage() {
   const sessionUser = await requireUser();
+  const t = await getT("profile");
+  const tAccount = await getT("account");
+  const tCommon = await getT("common");
+  const { locale } = t;
   const user = await prisma.user.findUnique({
     where: { id: sessionUser.id },
     select: {
@@ -61,28 +77,29 @@ export default async function ProfilePage() {
   });
   if (!user) notFound();
 
-  const joined = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(user.createdAt);
+  const joined = formatMonthYear(user.createdAt, locale);
+  const notSet = t("notSet");
 
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Your name and photo are shown to the people on your trips. The other details stay on your account.
+          {t("intro")}
         </p>
       </div>
 
       <Card>
         <CardContent className="grid gap-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-col items-start gap-4 text-left sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-4 text-start sm:flex-row sm:items-center">
               <Avatar name={user.name} userId={user.id} imageKey={user.imageKey} size="lg" />
               <div className="grid min-w-0 gap-1">
                 <p className="text-lg font-medium break-words">{user.name}</p>
                 <p className="text-sm break-all text-muted-foreground">{user.email}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{user.passwordHash ? "Email and password" : "Google"}</Badge>
-                  <span className="text-xs text-muted-foreground">Joined {joined}</span>
+                  <Badge variant="secondary">{user.passwordHash ? t("signInPassword") : t("signInGoogle")}</Badge>
+                  <span className="text-xs text-muted-foreground">{t("joined", { date: joined })}</span>
                 </div>
               </div>
             </div>
@@ -103,22 +120,32 @@ export default async function ProfilePage() {
             </div>
           </div>
           <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
-            <Detail label="Gender" value={genderLabel(user.gender)} />
-            <Detail label="Birth date" value={user.birthDate ? formatDateText(user.birthDate) : null} />
-            <Detail label="Phone" value={formatPhone(user.phone, user.country)} />
+            <Detail label={t("gender")} empty={notSet} value={user.gender ? t.dynamic(`genders.${user.gender}`) : null} />
+            <Detail
+              label={t("birthDate")}
+              empty={notSet}
+              value={user.birthDate ? formatDateText(user.birthDate, locale) : null}
+            />
             <div>
-              <p className="text-xs text-muted-foreground">Country</p>
+              <p className="text-xs text-muted-foreground">{t("phone")}</p>
+              <p dir="ltr" className={user.phone ? "text-start text-sm" : "text-start text-sm text-muted-foreground"}>
+                {formatPhone(user.phone, user.country) ?? notSet}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("country")}</p>
               {user.country ? (
                 <p className="flex items-center gap-2 text-sm">
                   <CountryFlag code={user.country} />
-                  {countryName(user.country)}
+                  {countryName(user.country, locale)}
                 </p>
               ) : (
-                <p className="text-sm text-muted-foreground">Not set</p>
+                <p className="text-sm text-muted-foreground">{notSet}</p>
               )}
             </div>
             <Detail
-              label="Address"
+              empty={notSet}
+              label={t("address")}
               value={[user.address, [user.city, user.postalCode].filter(Boolean).join(" ")].filter(Boolean).join(", ") || null}
               className="sm:col-span-2"
             />
@@ -126,19 +153,29 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("language")}</CardTitle>
+          <CardDescription>{tAccount("languageHint")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LanguagePicker className="sm:max-w-xs" />
+        </CardContent>
+      </Card>
+
       <PendingInvites userId={user.id} />
 
       <Card>
         <CardHeader>
-          <CardTitle>Trips</CardTitle>
-          <CardDescription>Trips you have joined.</CardDescription>
+          <CardTitle>{t("trips")}</CardTitle>
+          <CardDescription>{t("tripsHint")}</CardDescription>
         </CardHeader>
         <CardContent>
           {user.memberships.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No trips yet.{" "}
+              {t("noTrips")}{" "}
               <Link href="/trips" className="text-foreground underline">
-                Go to Trips
+                {t("goToTrips")}
               </Link>
             </p>
           ) : (
@@ -154,14 +191,14 @@ export default async function ProfilePage() {
                       <span className="grid min-w-0 justify-items-start gap-0.5">
                         <span className="break-words font-medium">{membership.trip.name}</span>
                         {countries.length > 0 ? (
-                          <FlagStack codes={countries} label={countries.map(countryName).join(", ")} size="sm" />
+                          <FlagStack codes={countries} label={countryList(countries, locale)} size="sm" />
                         ) : null}
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
                         <span className="whitespace-nowrap text-sm text-muted-foreground">
-                          {formatDateRange(membership.trip.startDate, membership.trip.endDate)}
+                          {formatDateRange(membership.trip.startDate, membership.trip.endDate, locale)}
                         </span>
-                        <Badge variant="secondary">{membership.role === "ADMIN" ? "Admin" : "Traveler"}</Badge>
+                        <Badge variant="secondary">{membership.role === "ADMIN" ? t("admin") : t("traveler")}</Badge>
                       </span>
                     </Link>
                   </li>
@@ -180,9 +217,9 @@ export default async function ProfilePage() {
           render={<Link href="/how-it-works" />}
         >
           <CircleHelp />
-          How Duffle works
+          {t("howDuffleWorks")}
         </Button>
-        <SignOutButton label="Log out" className="h-11 w-full px-4 text-base sm:h-9 sm:w-auto sm:text-sm" />
+        <SignOutButton label={tCommon("logOut")} className="h-11 w-full px-4 text-base sm:h-9 sm:w-auto sm:text-sm" />
       </div>
     </div>
   );

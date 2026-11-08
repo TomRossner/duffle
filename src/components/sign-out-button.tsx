@@ -1,9 +1,11 @@
 import { signOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { getT } from "@/i18n/server";
 import { cn } from "@/lib/utils";
 
-export function SignOutButton({ className, label = "Sign out" }: { className?: string; label?: string }) {
+export async function SignOutButton({ className, label }: { className?: string; label?: string }) {
+  const t = await getT("common");
   return (
     <form
       action={async () => {
@@ -16,7 +18,7 @@ export function SignOutButton({ className, label = "Sign out" }: { className?: s
           className,
         )}>
         <LogOut className="size-4" />
-        {label}
+        {label ?? t("signOut")}
       </Button>
     </form>
   );

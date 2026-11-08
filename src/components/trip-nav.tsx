@@ -17,21 +17,25 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { dirOf } from "@/i18n/config";
+import { useLocale, useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
-const links: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "", label: "Overview", icon: Compass },
-  { href: "/map", label: "Map", icon: Map },
-  { href: "/weather", label: "Weather", icon: CloudSun },
-  { href: "/schedule", label: "Schedule", icon: CalendarDays },
-  { href: "/stays", label: "Stays", icon: BedDouble },
-  { href: "/money", label: "Money", icon: Wallet },
-  { href: "/documents", label: "Documents", icon: FileImage },
-  { href: "/insurance", label: "Insurance", icon: Shield },
-  { href: "/packing", label: "Packing", icon: Luggage },
-];
+const links = [
+  { href: "", label: "overview", icon: Compass },
+  { href: "/map", label: "map", icon: Map },
+  { href: "/weather", label: "weather", icon: CloudSun },
+  { href: "/schedule", label: "schedule", icon: CalendarDays },
+  { href: "/stays", label: "stays", icon: BedDouble },
+  { href: "/money", label: "money", icon: Wallet },
+  { href: "/documents", label: "tripDocuments", icon: FileImage },
+  { href: "/insurance", label: "insurance", icon: Shield },
+  { href: "/packing", label: "packing", icon: Luggage },
+] as const satisfies readonly { href: string; label: string; icon: LucideIcon }[];
 
 export function TripNav({ tripId }: { tripId: string }) {
+  const t = useT("nav");
+  const rtl = dirOf(useLocale()) === "rtl";
   const pathname = usePathname();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState({ left: false, right: false });
@@ -39,8 +43,13 @@ export function TripNav({ tripId }: { tripId: string }) {
   const updateOverflow = useCallback(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
-    const left = scroller.scrollLeft > 2;
-    const right = scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 2;
+    // Right-to-left pages scroll from 0 into negative values, so measure from whichever edge they start at.
+    const rtl = getComputedStyle(scroller).direction === "rtl";
+    const fromStart = Math.abs(scroller.scrollLeft);
+    const start = fromStart > 2;
+    const end = fromStart + scroller.clientWidth < scroller.scrollWidth - 2;
+    const left = rtl ? end : start;
+    const right = rtl ? start : end;
     setOverflow((current) => (current.left === left && current.right === right ? current : { left, right }));
   }, []);
 
@@ -58,8 +67,11 @@ export function TripNav({ tripId }: { tripId: string }) {
     const scroller = scrollerRef.current;
     const active = scroller?.querySelector<HTMLElement>('[aria-current="page"]');
     if (!scroller || !active) return;
-    const target = active.offsetLeft - (scroller.clientWidth - active.offsetWidth) / 2;
-    scroller.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+    // Center it within the tab row, in either direction, without scrolling the page.
+    const row = scroller.getBoundingClientRect();
+    const tab = active.getBoundingClientRect();
+    const offset = tab.left + tab.width / 2 - (row.left + row.width / 2);
+    scroller.scrollBy({ left: offset, behavior: "smooth" });
   }, [pathname]);
 
   function scrollBy(direction: 1 | -1) {
@@ -68,7 +80,7 @@ export function TripNav({ tripId }: { tripId: string }) {
   }
 
   return (
-    <nav aria-label="Trip sections" className="sticky top-0 z-10 -mx-4 min-w-0 bg-background/95 px-4 backdrop-blur sm:mx-0 sm:px-0">
+    <nav aria-label={t("tripSections")} className="sticky top-0 z-10 -mx-4 min-w-0 bg-background/95 px-4 backdrop-blur sm:mx-0 sm:px-0">
       <div className="relative border-b">
         <div
           ref={scrollerRef}
@@ -93,7 +105,7 @@ export function TripNav({ tripId }: { tripId: string }) {
                 )}
               >
                 <Icon className="size-5 sm:size-4" />
-                {link.label}
+                {t(link.label)}
               </Link>
             );
           })}
@@ -103,7 +115,7 @@ export function TripNav({ tripId }: { tripId: string }) {
           <div className="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center bg-gradient-to-r from-background via-background/80 to-transparent">
             <button
               type="button"
-              aria-label="Scroll tabs left"
+              aria-label={rtl ? t("scrollForward") : t("scrollBack")}
               onClick={() => scrollBy(-1)}
               className="pointer-events-auto grid size-9 place-items-center sm:size-7 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             >
@@ -115,7 +127,7 @@ export function TripNav({ tripId }: { tripId: string }) {
           <div className="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent">
             <button
               type="button"
-              aria-label="Scroll tabs right"
+              aria-label={rtl ? t("scrollBack") : t("scrollForward")}
               onClick={() => scrollBy(1)}
               className="pointer-events-auto grid size-9 place-items-center sm:size-7 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             >

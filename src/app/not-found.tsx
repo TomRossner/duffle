@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { getT } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Page not found · Duffle",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT("common");
+  return { title: `${t("notFound.title")} · Duffle` };
+}
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = await getT("common");
   return (
     <main className="mx-auto flex min-h-svh w-full max-w-lg flex-col items-center justify-center gap-6 px-6 py-20 text-center">
       <Link href="/">
@@ -14,13 +17,13 @@ export default function NotFound() {
       </Link>
       <div className="grid gap-2">
         <p className="font-mono text-sm tracking-widest text-muted-foreground">404</p>
-        <h1 className="text-balance text-3xl font-semibold tracking-tight">This page isn&apos;t on the map.</h1>
+        <h1 className="text-balance text-3xl font-semibold tracking-tight">{t("notFound.heading")}</h1>
         <p className="text-balance text-muted-foreground">
-          The link may be out of date, or the page may have been removed.
+          {t("notFound.body")}
         </p>
       </div>
       <Button nativeButton={false} render={<Link href="/" />}>
-        Go home
+        {t("goHome")}
       </Button>
     </main>
   );

@@ -3,7 +3,8 @@ import { InlineAction } from "@/components/action-form";
 import { FlagStack } from "@/components/country-flag";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { countryName } from "@/lib/account-details";
+import { getT } from "@/i18n/server";
+import { countryList } from "@/lib/account-details";
 import { acceptInvite, declineInvite } from "@/lib/actions/trips";
 import { eachDate, formatDateRange } from "@/lib/dates";
 import { claimPendingInvites } from "@/lib/invites";
@@ -31,6 +32,9 @@ export async function PendingInvites({ userId }: { userId: string }) {
     orderBy: { createdAt: "desc" },
   });
   if (invites.length === 0) return null;
+  const t = await getT("trips");
+  const tCommon = await getT("common");
+  const locale = t.locale;
 
   return (
     <Card className="ring-primary/30">
@@ -39,11 +43,11 @@ export async function PendingInvites({ userId }: { userId: string }) {
           <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Mail className="size-4" />
           </span>
-          Invitations
+          {t("invites.title")}
           <Badge>{invites.length}</Badge>
         </CardTitle>
         <CardDescription>
-          {invites.length === 1 ? "A trip is waiting for you to join." : "Trips waiting for you to join."}
+          {t("invites.waiting", { count: invites.length })}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -58,27 +62,30 @@ export async function PendingInvites({ userId }: { userId: string }) {
                   <p className="text-base font-medium break-words">{trip.name}</p>
                   {trip.countries.length > 0 ? (
                     <div className="flex">
-                      <FlagStack codes={trip.countries} label={trip.countries.map(countryName).join(", ")} size="sm" />
+                      <FlagStack codes={trip.countries} label={countryList(trip.countries, locale)} size="sm" />
                     </div>
                   ) : null}
                   <p className="text-sm text-muted-foreground">
-                    {formatDateRange(trip.startDate, trip.endDate)} · {days} {days === 1 ? "day" : "days"} ·{" "}
-                    {travelers} {travelers === 1 ? "traveler" : "travelers"}
+                    {formatDateRange(trip.startDate, trip.endDate, locale)} · {tCommon("days", { count: days })} ·{" "}
+                    {tCommon("travelers", { count: travelers })}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Invited by <span className="font-medium text-foreground">{trip.owner.name}</span>
+                    {t.rich("invites.invitedBy", {
+                      name: trip.owner.name,
+                      b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+                    })}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
                   <InlineAction
                     action={declineInvite.bind(null, invite.token)}
-                    label="Decline"
+                    label={t("invites.decline")}
                     variant="outline"
                     fullWidthOnMobile
                   />
                   <InlineAction
                     action={acceptInvite.bind(null, invite.token)}
-                    label="Join trip"
+                    label={t("invites.join")}
                     variant="default"
                     fullWidthOnMobile
                   />

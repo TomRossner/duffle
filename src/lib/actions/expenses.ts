@@ -1,5 +1,6 @@
 "use server";
 
+import { translatorFor } from "@/i18n/server";
 import { revalidatePath } from "next/cache";
 import { parseDate } from "@/lib/dates";
 import { createExpenseRecord, readExpenseForm, updateExpenseRecord } from "@/lib/expenses";
@@ -26,8 +27,8 @@ export async function createExpense(tripId: string, phase: "PLANNED" | "ACTUAL",
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "EXPENSE",
-    title: phase === "ACTUAL" ? "Expense added" : "Planned cost added",
-    body: `${user.name ?? "A traveler"} added ${parsed.draft.title}.`,
+    message: phase === "ACTUAL" ? "expenseAdded" : "plannedAdded",
+    values: { name: user.name ?? "", item: parsed.draft.title },
     href: `/trips/${tripId}/money`,
   });
   return { ok: true };
@@ -47,8 +48,8 @@ export async function updateExpense(tripId: string, expenseId: string, _: unknow
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "EXPENSE",
-    title: "Expense updated",
-    body: `${user.name ?? "A traveler"} updated ${parsed.draft.title}.`,
+    message: "expenseUpdated",
+    values: { name: user.name ?? "", item: parsed.draft.title },
     href: `/trips/${tripId}/money`,
   });
   return { ok: true };
@@ -62,8 +63,8 @@ export async function deleteExpense(tripId: string, expenseId: string) {
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "EXPENSE",
-    title: "Expense removed",
-    body: `${user.name ?? "A traveler"} removed ${expense.title}.`,
+    message: "expenseRemoved",
+    values: { name: user.name ?? "", item: expense.title },
     href: `/trips/${tripId}/money`,
   });
   return { ok: true };
@@ -79,8 +80,8 @@ export async function markExpensePaid(tripId: string, expenseId: string) {
     revalidatePath(`/trips/${tripId}`);
     await notifyTrip(tripId, user.id, {
       kind: "EXPENSE",
-      title: "Expense marked paid",
-      body: `${user.name ?? "A traveler"} marked ${expense.title} as paid.`,
+      message: "expensePaid",
+      values: { name: user.name ?? "", item: expense.title },
       href: `/trips/${tripId}/money`,
     });
   }
@@ -96,8 +97,8 @@ export async function markExpenseUnpaid(tripId: string, expenseId: string) {
     revalidatePath(`/trips/${tripId}`);
     await notifyTrip(tripId, user.id, {
       kind: "EXPENSE",
-      title: "Expense marked unpaid",
-      body: `${user.name ?? "A traveler"} marked ${expense.title} as unpaid.`,
+      message: "expenseUnpaid",
+      values: { name: user.name ?? "", item: expense.title },
       href: `/trips/${tripId}/money`,
     });
   }
@@ -157,8 +158,11 @@ export async function createSettlement(tripId: string, _: unknown, formData: For
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "EXPENSE",
-    title: "Settlement recorded",
-    body: `${fromUser?.name ?? "A traveler"} paid ${toUser?.name ?? "a traveler"}.`,
+    message: "settlement",
+    values: (locale) => ({
+      name: fromUser?.name ?? "",
+      to: toUser?.name ?? translatorFor(locale, "notifications")("someoneLower"),
+    }),
     href: `/trips/${tripId}/money`,
   });
   return { ok: true };

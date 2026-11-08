@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import nodemailer from "nodemailer";
+import { dirOf, type Locale } from "@/i18n/config";
+import { translatorFor } from "@/i18n/server";
 
 export function appOrigin() {
   const configured = process.env.AUTH_URL?.trim();
@@ -22,6 +24,8 @@ export type AuthMail = {
   action: MailLink;
   secondary?: MailLink;
   note?: string;
+  /** The recipient's language, for the email's frame and its errors. */
+  locale: Locale;
 };
 
 const logoCid = "duffle-logo@duffle";
@@ -59,6 +63,8 @@ function renderText(mail: AuthMail) {
 
 function renderHtml(mail: AuthMail, withLogo: boolean) {
   const origin = appOrigin();
+  const t = translatorFor(mail.locale, "mail");
+  const dir = dirOf(mail.locale);
   const paragraphs = mail.paragraphs
     .map(
       (p) =>
@@ -93,7 +99,7 @@ function renderHtml(mail: AuthMail, withLogo: boolean) {
     : `<span style="font-size:28px;font-weight:700;color:${colors.brand};">Duffle</span>`;
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${mail.locale}" dir="${dir}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -101,7 +107,7 @@ function renderHtml(mail: AuthMail, withLogo: boolean) {
   <meta name="supported-color-schemes" content="light" />
   <title>${escapeHtml(mail.subject)}</title>
 </head>
-<body style="margin:0;padding:0;background-color:${colors.page};font-family:${fontStack};-webkit-font-smoothing:antialiased;">
+<body dir="${dir}" style="margin:0;padding:0;background-color:${colors.page};font-family:${fontStack};-webkit-font-smoothing:antialiased;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(mail.paragraphs[0] ?? mail.heading)}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${colors.page}" style="background-color:${colors.page};">
     <tr>
@@ -129,7 +135,7 @@ function renderHtml(mail: AuthMail, withLogo: boolean) {
                 </tr>
                 <tr>
                   <td style="padding:16px 32px 28px;border-top:1px solid ${colors.border};font-family:${fontStack};">
-                    <p style="margin:0 0 6px;font-size:12px;line-height:18px;color:${colors.muted};">If the button doesn't work, paste this link into your browser:</p>
+                    <p style="margin:0 0 6px;font-size:12px;line-height:18px;color:${colors.muted};">${escapeHtml(t("buttonFallback"))}</p>
                     <p style="margin:0;font-size:12px;line-height:18px;word-break:break-all;">
                       <a href="${escapeHtml(mail.action.url)}" target="_blank" style="color:${colors.brand};text-decoration:underline;">${escapeHtml(mail.action.url)}</a>
                     </p>
@@ -140,7 +146,7 @@ function renderHtml(mail: AuthMail, withLogo: boolean) {
           </tr>
           <tr>
             <td align="center" style="padding:24px 16px 0;font-family:${fontStack};font-size:12px;line-height:18px;color:${colors.muted};">
-              Duffle · One place for the whole trip.<br />
+              ${escapeHtml(t("tagline"))}<br />
               <a href="${escapeHtml(origin)}" target="_blank" style="color:${colors.muted};text-decoration:underline;">${escapeHtml(origin.replace(/^https?:\/\//, ""))}</a>
             </td>
           </tr>
@@ -165,10 +171,11 @@ function loadLogo() {
 
 export async function deliverAuthMail(mail: AuthMail) {
   const text = renderText(mail);
+  const t = translatorFor(mail.locale, "mail");
 
   if (!mailConfigured()) {
     if (process.env.NODE_ENV === "production") {
-      return { error: "Email delivery is not configured yet." } as const;
+      return { error: t("notConfigured") } as const;
     }
     console.info(`[mail] ${mail.subject} -> ${mail.to}\n${text}`);
     return { ok: true as const, devLink: mail.action.url };
@@ -198,6 +205,6 @@ export async function deliverAuthMail(mail: AuthMail) {
     return { ok: true as const };
   } catch (error) {
     console.error("Mail send failed.", error instanceof Error ? error.message : error);
-    return { error: "Could not send the email. Try again." } as const;
+    return { error: t("sendFailed") } as const;
   }
 }

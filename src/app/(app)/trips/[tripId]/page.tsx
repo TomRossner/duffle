@@ -14,7 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { countryName } from "@/lib/account-details";
+import { getT } from "@/i18n/server";
+import { countryList } from "@/lib/account-details";
 import { formatDate, formatDateLong, formatDateRange } from "@/lib/dates";
 import { tripJoinUrl } from "@/lib/join-url";
 import { netBalances } from "@/lib/money";
@@ -26,6 +27,8 @@ import { deleteDestination } from "@/lib/actions/destinations";
 export default async function TripOverviewPage({ params }: { params: Promise<{ tripId: string }> }) {
   const { tripId } = await params;
   const { trip, membership } = await requireTrip(tripId);
+  const t = await getT("trips");
+  const locale = t.locale;
   const [members, invites, destinations, expenses] = await Promise.all([
     acceptedMembers(tripId),
     prisma.tripInvite.findMany({
@@ -39,7 +42,10 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
     }),
   ]);
 
-  const dateHint = `During the trip, ${formatDateLong(trip.startDate)} – ${formatDateLong(trip.endDate)}.`;
+  const dateHint = t("overview.dateHint", {
+    start: formatDateLong(trip.startDate, locale),
+    end: formatDateLong(trip.endDate, locale),
+  });
   const people = members.map((member) => ({
     id: member.userId,
     name: member.user.name.trim().split(/\s+/)[0] || member.user.name,
@@ -58,11 +64,11 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Travelers</CardTitle>
+          <CardTitle>{t("overview.travelers")}</CardTitle>
           <CardDescription>
             {membership.role === "ADMIN"
-              ? "Invite people with the email they will use to sign in, or share the join link."
-              : "People on this trip. Anyone with the join link can become a traveler."}
+              ? t("overview.travelersAdminHint")
+              : t("overview.travelersHint")}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4">
@@ -79,7 +85,7 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
                   <span className="truncate text-muted-foreground">{member.user.email}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
-                  <Badge variant="secondary">{member.role === "ADMIN" ? "Admin" : "Traveler"}</Badge>
+                  <Badge variant="secondary">{member.role === "ADMIN" ? t("roles.admin") : t("roles.traveler")}</Badge>
                   {membership.role === "ADMIN" && member.role !== "ADMIN" ? (
                     <MemberMenu
                       name={member.user.name ?? member.user.email}
@@ -93,35 +99,35 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
           </ul>
           {membership.role === "ADMIN" ? (
             <FormDialog
-              title="Invite a specific person"
-              description="Get a personal link that only works for the email you enter here."
-              triggerLabel="Invite by email"
+              title={t("overview.inviteTitle")}
+              description={t("overview.inviteDescription")}
+              triggerLabel={t("overview.inviteTrigger")}
               icon={<UserPlus />}
               triggerVariant="outline"
               triggerClassName="w-full"
             >
               <ActionForm
                 action={createInvite.bind(null, tripId)}
-                submitLabel="Get personal invite link"
+                submitLabel={t("overview.inviteSubmit")}
                 submitIcon={<UserPlus />}
               >
-                <Field label="Their email">
-                  <Input name="email" type="email" placeholder="name@example.com" required />
+                <Field label={t("overview.theirEmail")}>
+                  <Input name="email" type="email" placeholder={t("overview.emailPlaceholder")} dir="ltr" required />
                 </Field>
               </ActionForm>
             </FormDialog>
           ) : null}
           <div className="grid gap-2">
             {membership.role === "ADMIN" ? (
-              <p className="text-sm text-muted-foreground">Or share the trip&apos;s join link with anyone.</p>
+              <p className="text-sm text-muted-foreground">{t("overview.orShare")}</p>
             ) : null}
-            <ShareJoinLinkButton name={trip.name} url={tripJoinUrl(trip.joinToken)} label="Share join link" />
+            <ShareJoinLinkButton name={trip.name} url={tripJoinUrl(trip.joinToken)} label={t("overview.shareJoinLink")} />
           </div>
           {membership.role === "ADMIN" && invites.length > 0 ? (
             <div className="grid gap-1 text-sm text-muted-foreground">
               {invites.map((invite) => (
                 <p key={invite.id} className="break-all">
-                  Pending invite for {invite.email}. Link: /invite/{invite.token}
+                  {t("overview.pendingInvite", { email: invite.email, link: `/invite/${invite.token}` })}
                 </p>
               ))}
             </div>
@@ -131,49 +137,49 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
 
       <Card>
         <CardHeader>
-          <CardTitle>Trip details</CardTitle>
+          <CardTitle>{t("overview.details")}</CardTitle>
           {trip.coverNote ? <CardDescription>{trip.coverNote}</CardDescription> : null}
         </CardHeader>
         <CardContent className="grid gap-4">
           <dl className="grid gap-3 text-sm">
             <div className="grid gap-0.5">
-              <dt className="text-muted-foreground">Dates</dt>
-              <dd>{formatDateRange(trip.startDate, trip.endDate)}</dd>
+              <dt className="text-muted-foreground">{t("overview.dates")}</dt>
+              <dd>{formatDateRange(trip.startDate, trip.endDate, locale)}</dd>
             </div>
             {trip.countries.length > 0 ? (
               <div className="grid gap-1">
-                <dt className="text-muted-foreground">Countries</dt>
+                <dt className="text-muted-foreground">{t("overview.countries")}</dt>
                 <dd className="flex flex-wrap items-center gap-2">
-                  <FlagStack codes={trip.countries} label={trip.countries.map(countryName).join(", ")} />
-                  <span>{trip.countries.map(countryName).join(", ")}</span>
+                  <FlagStack codes={trip.countries} label={countryList(trip.countries, locale)} />
+                  <span>{countryList(trip.countries, locale)}</span>
                 </dd>
               </div>
             ) : null}
           </dl>
           <div className="grid gap-2">
             <FormDialog
-              title="Edit trip details"
+              title={t("overview.editTitle")}
               icon={<Pencil />}
-              triggerLabel="Edit details"
+              triggerLabel={t("overview.editTrigger")}
               triggerVariant="outline"
               triggerClassName="w-full"
             >
-              <ActionForm action={updateTrip.bind(null, tripId)} submitLabel="Save details">
-                <Field label="Name">
+              <ActionForm action={updateTrip.bind(null, tripId)} submitLabel={t("overview.saveDetails")}>
+                <Field label={t("overview.name")}>
                   <Input name="name" defaultValue={trip.name} required />
                 </Field>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Start">
+                  <Field label={t("dates.start")}>
                     <Input name="startDate" type="date" defaultValue={formatDate(trip.startDate)} required />
                   </Field>
-                  <Field label="End">
+                  <Field label={t("dates.end")}>
                     <Input name="endDate" type="date" defaultValue={formatDate(trip.endDate)} required />
                   </Field>
                 </div>
-                <FieldGroup label="Countries">
+                <FieldGroup label={t("overview.countries")}>
                   <CountriesPicker defaultValue={trip.countries} />
                 </FieldGroup>
-                <Field label="Note">
+                <Field label={t("overview.note")}>
                   <Textarea name="coverNote" defaultValue={trip.coverNote ?? ""} rows={3} />
                 </Field>
               </ActionForm>
@@ -181,9 +187,9 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
             {membership.role === "ADMIN" ? (
               <InlineAction
                 action={deleteTrip.bind(null, tripId)}
-                label="Delete trip"
+                label={t("overview.deleteTrip")}
                 variant="destructive"
-                confirmMessage={`Are you sure you want to delete "${trip.name}"?`}
+                confirmMessage={t("overview.confirmDelete", { name: trip.name })}
                 fullWidth
               />
             ) : null}
@@ -193,16 +199,18 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
 
       <Card>
         <CardHeader>
-          <CardTitle>Destinations</CardTitle>
+          <CardTitle>{t("overview.destinations")}</CardTitle>
         </CardHeader>
         <CardContent>
           {destinations.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              None yet.{" "}
-              <Link href={`/trips/${tripId}/map`} className="font-medium text-primary underline-offset-4 hover:underline">
-                Add the first one on the map
-              </Link>
-              .
+              {t.rich("overview.noDestinations", {
+                link: (chunks) => (
+                  <Link href={`/trips/${tripId}/map`} className="font-medium text-primary underline-offset-4 hover:underline">
+                    {chunks}
+                  </Link>
+                ),
+              })}
             </p>
           ) : (
             <ul className="grid gap-2 text-sm">
@@ -210,7 +218,7 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
                 <DestinationRow
                   key={destination.id}
                   tripId={tripId}
-                  dates={formatDateRange(destination.startDate, destination.endDate)}
+                  dates={formatDateRange(destination.startDate, destination.endDate, locale)}
                   dateHint={dateHint}
                   remove={deleteDestination.bind(null, tripId, destination.id)}
                   destination={{
@@ -233,8 +241,8 @@ export default async function TripOverviewPage({ params }: { params: Promise<{ t
 
       <Card>
         <CardHeader>
-          <CardTitle>Mid-trip balances</CardTitle>
-          <CardDescription>Who still needs to pay whom, in {trip.baseCurrency}.</CardDescription>
+          <CardTitle>{t("overview.balances")}</CardTitle>
+          <CardDescription>{t("overview.balancesHint", { currency: trip.baseCurrency })}</CardDescription>
         </CardHeader>
         <CardContent>
           <BalanceSummary currency={trip.baseCurrency} people={people} balances={balances} viewerId={membership.userId} />

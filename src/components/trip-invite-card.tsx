@@ -3,7 +3,9 @@ import { CalendarDays, MapPin, Users } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { CountryFlag } from "@/components/country-flag";
 import { Card, CardContent } from "@/components/ui/card";
-import { countryName } from "@/lib/account-details";
+import type { Translator } from "@/i18n/translate";
+import { getT } from "@/i18n/server";
+import { countryList } from "@/lib/account-details";
 import { eachDate, formatDateRange } from "@/lib/dates";
 
 const MAX_AVATARS = 5;
@@ -19,20 +21,21 @@ type InviteTrip = {
 type InviteTraveler = { userId: string; name: string; imageKey: string | null };
 
 /** Full-page shell for the invite and join pages: logo, a centered card and a way back to the trip list. */
-export function InviteShell({ children }: { children: React.ReactNode }) {
+export async function InviteShell({ children }: { children: React.ReactNode }) {
+  const t = await getT("trips");
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-6 px-4 py-10">
       <img src="/duffle%20logo.webp" alt="Duffle" className="h-16 w-auto sm:h-20" />
       <Card className="w-full">{children}</Card>
       <Link href="/trips" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-        Back to my trips
+        {t("invitePage.backToTrips")}
       </Link>
     </main>
   );
 }
 
 /** Invitation details plus the actions the visitor can take. */
-export function TripInviteCard({
+export async function TripInviteCard({
   eyebrow,
   trip,
   travelers,
@@ -43,6 +46,8 @@ export function TripInviteCard({
   travelers: InviteTraveler[];
   children: React.ReactNode;
 }) {
+  const t = await getT("trips");
+  const tCommon = await getT("common");
   const days = eachDate(trip.startDate, trip.endDate).length;
   const shown = travelers.slice(0, MAX_AVATARS);
   const extra = travelers.length - shown.length;
@@ -69,17 +74,17 @@ export function TripInviteCard({
           <li className="flex items-center gap-2.5">
             <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
             <span>
-              {formatDateRange(trip.startDate, trip.endDate)}
+              {formatDateRange(trip.startDate, trip.endDate, t.locale)}
               <span className="text-muted-foreground">
                 {" "}
-                · {days} {days === 1 ? "day" : "days"}
+                · {tCommon("days", { count: days })}
               </span>
             </span>
           </li>
           {trip.countries.length > 0 ? (
             <li className="flex items-center gap-2.5">
               <MapPin className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0">{trip.countries.map(countryName).join(", ")}</span>
+              <span className="min-w-0">{countryList(trip.countries, t.locale)}</span>
             </li>
           ) : null}
           {travelers.length > 0 ? (
@@ -92,12 +97,12 @@ export function TripInviteCard({
                     name={traveler.name}
                     userId={traveler.userId}
                     imageKey={traveler.imageKey}
-                    className="-ml-1.5 ring-2 ring-background first:ml-0"
+                    className="-ms-1.5 ring-2 ring-background first:ms-0"
                   />
                 ))}
               </span>
               <span className="min-w-0 truncate text-muted-foreground">
-                {travelerSummary(shown.map((traveler) => traveler.name), extra)}
+                {travelerSummary(shown.map((traveler) => traveler.name), extra, t)}
               </span>
             </li>
           ) : null}
@@ -109,9 +114,9 @@ export function TripInviteCard({
   );
 }
 
-function travelerSummary(names: string[], extra: number) {
+function travelerSummary(names: string[], extra: number, t: Translator<"trips">) {
   const first = names[0]?.split(/\s+/)[0] ?? "";
   const others = names.length - 1 + extra;
   if (others <= 0) return first;
-  return `${first} and ${others} ${others === 1 ? "other" : "others"}`;
+  return t("invitePage.andOthers", { name: first, count: others });
 }

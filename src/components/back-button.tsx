@@ -4,8 +4,10 @@ import { ArrowLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 
 export function BackButton() {
+  const t = useT("common");
   const pathname = usePathname();
   const router = useRouter();
   const history = useRef<string[]>([]);
@@ -25,9 +27,9 @@ export function BackButton() {
   if (!canGoBack) return null;
 
   return (
-    <Button type="button" variant="ghost" size="sm" className="-ml-2.5 mb-4" onClick={() => router.back()}>
-      <ArrowLeft />
-      Back
+    <Button type="button" variant="ghost" size="sm" className="-ms-2.5 mb-4" onClick={() => router.back()}>
+      <ArrowLeft className="rtl:-scale-x-100" />
+      {t("back")}
     </Button>
   );
 }

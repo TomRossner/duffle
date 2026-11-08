@@ -115,8 +115,12 @@ export async function refreshUpcomingFlights(userId: string) {
           ).map((member) => member.userId);
     await notifyUsers(flight.tripId, recipients, {
       kind: "FLIGHT",
-      title: `${flight.airline} ${flight.flightNumber} changed`,
-      body: `${flight.fromAirport} → ${flight.toAirport}: ${changes.map(describeChange).join(". ")}.`,
+      message: "flightChanged",
+      values: (locale) => ({
+        item: `${flight.airline} ${flight.flightNumber}`,
+        route: `${flight.fromAirport} → ${flight.toAirport}`,
+        changes: changes.map((change) => describeChange(change, locale)).join(". "),
+      }),
       href: `/trips/${flight.tripId}/schedule`,
     });
   }

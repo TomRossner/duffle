@@ -1,11 +1,14 @@
 import { getCountryCallingCode, isSupportedCountry } from "libphonenumber-js/min";
+import { INTL_LOCALES, type Locale } from "@/i18n/config";
+import type { Translator } from "@/i18n/translate";
 import { asDateOnly, parseDate } from "@/lib/dates";
 
+/** Labels are in the profile messages, under `genders`. */
 export const GENDERS = [
-  { value: "FEMALE", label: "Female" },
-  { value: "MALE", label: "Male" },
-  { value: "NON_BINARY", label: "Non-binary" },
-  { value: "UNSPECIFIED", label: "Prefer not to say" },
+  { value: "FEMALE" },
+  { value: "MALE" },
+  { value: "NON_BINARY" },
+  { value: "UNSPECIFIED" },
 ] as const;
 
 export type GenderValue = (typeof GENDERS)[number]["value"];
@@ -38,26 +41,35 @@ export const COUNTRY_CODES = [
   "ZA", "ZM", "ZW",
 ] as const;
 
-const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+const countryNames = new Map<Locale, Intl.DisplayNames>();
 
-export function countryName(code: string) {
-  return countryNames.of(code) ?? code;
+/** A country's name in a language ("DE" → "Germany", "Allemagne", "גרמניה"). */
+export function countryName(code: string, locale: Locale = "en") {
+  let names = countryNames.get(locale);
+  if (!names) {
+    names = new Intl.DisplayNames([INTL_LOCALES[locale]], { type: "region" });
+    countryNames.set(locale, names);
+  }
+  return names.of(code) ?? code;
 }
 
+/** The names of trip countries as one list, for labels: "Germany, Austria". */
+export function countryList(codes: string[], locale: Locale = "en") {
+  return codes.map((code) => countryName(code, locale)).join(", ");
+}
+
+// English names, for matching what a document reader or a person typed.
 const codeByName = new Map(COUNTRY_CODES.map((code) => [countryName(code).toLowerCase(), code]));
 
 export function countryCodeForName(name: string) {
   return codeByName.get(name.trim().toLowerCase()) ?? null;
 }
 
-export function countryOptions() {
-  return COUNTRY_CODES.map((code) => ({ code, name: countryName(code) })).sort((a, b) =>
-    a.name.localeCompare(b.name),
+/** Every country, named and sorted for a language. `english` is kept so searches in English still match. */
+export function countryOptions(locale: Locale = "en") {
+  return COUNTRY_CODES.map((code) => ({ code, name: countryName(code, locale), english: countryName(code) })).sort(
+    (a, b) => a.name.localeCompare(b.name, INTL_LOCALES[locale]),
   );
-}
-
-export function genderLabel(value: string | null | undefined) {
-  return GENDERS.find((gender) => gender.value === value)?.label ?? null;
 }
 
 export function callingCode(country: string | null | undefined) {
@@ -107,33 +119,36 @@ export function readTripCountries(formData: FormData) {
   return [...new Set(codes)].filter((code) => countrySet.has(code));
 }
 
-export function readAccountDetails(formData: FormData): { error: string } | { data: AccountDetails } {
+export function readAccountDetails(
+  formData: FormData,
+  t: Translator<"profile">,
+): { error: string } | { data: AccountDetails } {
   const gender = String(formData.get("gender") ?? "");
-  if (!GENDERS.some((option) => option.value === gender)) return { error: "Choose a gender." };
+  if (!GENDERS.some((option) => option.value === gender)) return { error: t("errors.gender") };
 
   const birthDate = parseDate(String(formData.get("birthDate") ?? ""));
   const earliest = parseDate("1900-01-01");
   if (!birthDate || !earliest || birthDate < earliest || birthDate > asDateOnly(new Date())) {
-    return { error: "Enter a valid birth date." };
+    return { error: t("errors.birthDate") };
   }
 
   const phone = String(formData.get("phone") ?? "").trim();
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 7 || digits.length > 15 || !/^\+?[0-9\s().-]+$/.test(phone)) {
-    return { error: "Enter a valid phone number." };
+    return { error: t("errors.phone") };
   }
 
   const country = String(formData.get("country") ?? "");
-  if (!countrySet.has(country)) return { error: "Choose a country." };
+  if (!countrySet.has(country)) return { error: t("errors.country") };
 
   const address = String(formData.get("address") ?? "").trim();
-  if (address.length < 3 || address.length > 120) return { error: "Enter a street address." };
+  if (address.length < 3 || address.length > 120) return { error: t("errors.address") };
 
   const city = String(formData.get("city") ?? "").trim();
-  if (city.length < 2 || city.length > 80) return { error: "Enter a city." };
+  if (city.length < 2 || city.length > 80) return { error: t("errors.city") };
 
   const postalCode = String(formData.get("postalCode") ?? "").trim();
-  if (postalCode.length < 2 || postalCode.length > 12) return { error: "Enter a postal code." };
+  if (postalCode.length < 2 || postalCode.length > 12) return { error: t("errors.postalCode") };
 
   return {
     data: {

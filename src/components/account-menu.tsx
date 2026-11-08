@@ -9,12 +9,15 @@ import { DeleteDialog } from "@/components/delete-dialog";
 import { Field } from "@/components/fields";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/i18n/client";
 import { deleteAccount, updatePassword } from "@/lib/actions/profile";
 
 const menuItemClass =
   "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent";
 
 export function AccountMenu({ hasPassword }: { hasPassword: boolean }) {
+  const t = useT("account");
+  const tc = useT("common");
   const [changingPassword, setChangingPassword] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -25,7 +28,7 @@ export function AccountMenu({ hasPassword }: { hasPassword: boolean }) {
       <Menu.Root>
         <Menu.Trigger
           className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-          aria-label="Account actions"
+          aria-label={t("actions")}
         >
           <EllipsisVertical />
         </Menu.Trigger>
@@ -35,12 +38,12 @@ export function AccountMenu({ hasPassword }: { hasPassword: boolean }) {
               {hasPassword ? (
                 <Menu.Item className={menuItemClass} onClick={() => setChangingPassword(true)}>
                   <KeyRound className="size-3.5" />
-                  Change password
+                  {t("changePassword")}
                 </Menu.Item>
               ) : null}
               <Menu.Item className={`${menuItemClass} text-destructive`} onClick={() => setConfirmingDelete(true)}>
                 <Trash2 className="size-3.5" />
-                Delete account
+                {t("deleteAccount")}
               </Menu.Item>
             </Menu.Popup>
           </Menu.Positioner>
@@ -54,23 +57,23 @@ export function AccountMenu({ hasPassword }: { hasPassword: boolean }) {
             <Dialog.Popup className="dialog-popup relative my-auto w-full max-w-md rounded-xl bg-popover p-6 text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none">
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <Dialog.Title className="text-lg font-medium">Change password</Dialog.Title>
+                  <Dialog.Title className="text-lg font-medium">{t("changePassword")}</Dialog.Title>
                   <Dialog.Description className="text-sm text-muted-foreground">
-                    Use your current password, then choose a new one.
+                    {t("changePasswordHint")}
                   </Dialog.Description>
                 </div>
-                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Close">
+                <Dialog.Close className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label={tc("close")}>
                   <X />
                 </Dialog.Close>
               </div>
-              <ActionForm action={updatePassword} submitLabel="Update password" onSaved={() => setChangingPassword(false)}>
-                <Field label="Current password">
+              <ActionForm action={updatePassword} submitLabel={t("updatePassword")} onSaved={() => setChangingPassword(false)}>
+                <Field label={t("currentPassword")}>
                   <Input name="currentPassword" type="password" autoComplete="current-password" required />
                 </Field>
-                <Field label="New password">
+                <Field label={t("newPassword")}>
                   <Input name="password" type="password" autoComplete="new-password" minLength={8} required />
                 </Field>
-                <Field label="Confirm new password">
+                <Field label={t("confirmNewPassword")}>
                   <Input name="confirmPassword" type="password" autoComplete="new-password" minLength={8} required />
                 </Field>
               </ActionForm>
@@ -82,7 +85,7 @@ export function AccountMenu({ hasPassword }: { hasPassword: boolean }) {
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
         pending={deleting}
-        message="Your profile, closet, and personal documents are deleted. Trips that still have other travelers stay, with another admin in charge. Shared expenses keep a Deleted traveler so the balances still add up."
+        message={t("deleteMessage")}
         onConfirm={() => {
           setDeleting(true);
           setDeleteError(null);

@@ -151,8 +151,8 @@ export async function attachPersonalDocument(tripId: string, documentId: string)
   revalidatePath("/documents");
   await notifyTrip(tripId, user.id, {
     kind: "DOCUMENT",
-    title: "Document added",
-    body: `${user.name ?? "A traveler"} added ${document.title}.`,
+    message: "documentAdded",
+    values: { name: user.name ?? "", item: document.title },
     href: `/trips/${tripId}/documents`,
   });
   return { ok: true };
@@ -171,8 +171,8 @@ export async function detachPersonalDocument(tripId: string, documentId: string)
   revalidatePath("/documents");
   await notifyTrip(tripId, user.id, {
     kind: "DOCUMENT",
-    title: "Document removed",
-    body: `${user.name ?? "A traveler"} removed ${document.title}.`,
+    message: "documentRemoved",
+    values: { name: user.name ?? "", item: document.title },
     href: `/trips/${tripId}/documents`,
   });
   return { ok: true };

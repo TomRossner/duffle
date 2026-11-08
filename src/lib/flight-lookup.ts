@@ -11,6 +11,8 @@
  * and follows each onto the legs that continue it, so the form can add one leg or all of them.
  */
 
+import type { Locale } from "@/i18n/config";
+
 export type FlightMatch = {
   airline: string;
   flightNumber: string;
@@ -229,10 +231,19 @@ export function journeyRoute(legs: Pick<FlightMatch, "fromAirport" | "toAirport"
 }
 
 /** "1" and "T1" → "Terminal 1", "2e" → "Terminal 2E", "B" → "Terminal B"; "Terminal 3" stays. Empty for none. */
-export function terminalLabel(terminal: string | null | undefined) {
+const TERMINAL: Record<Locale, string> = {
+  en: "Terminal",
+  he: "טרמינל",
+  es: "Terminal",
+  fr: "Terminal",
+  de: "Terminal",
+  ru: "Терминал",
+};
+
+export function terminalLabel(terminal: string | null | undefined, locale: Locale = "en") {
   const value = (terminal ?? "").trim();
   const short = /^T?(\d{1,2}[A-Z]?|[A-Z])$/i.exec(value);
-  return short ? `Terminal ${short[1].toUpperCase()}` : value;
+  return short ? `${TERMINAL[locale] ?? TERMINAL.en} ${short[1].toUpperCase()}` : value;
 }
 
 /** Days between the local departure and arrival dates: 1 for an overnight flight, -1 across the date line. */
@@ -241,11 +252,22 @@ export function dayOffset(departAt: string, arriveAt: string) {
 }
 
 /** 95 → "1h 35m". */
-export function formatMinutes(minutes: number) {
+/** Hour and minute abbreviations per language, for durations like "2h 30m". */
+const DURATION_UNITS: Record<Locale, { h: string; m: string }> = {
+  en: { h: "h", m: "m" },
+  he: { h: " ש׳", m: " ד׳" },
+  es: { h: " h", m: " min" },
+  fr: { h: " h", m: " min" },
+  de: { h: " Std.", m: " Min." },
+  ru: { h: " ч", m: " мин" },
+};
+
+export function formatMinutes(minutes: number, locale: Locale = "en") {
+  const { h, m } = DURATION_UNITS[locale] ?? DURATION_UNITS.en;
   const hours = Math.floor(minutes / 60);
   const rest = Math.round(minutes % 60);
-  if (hours === 0) return `${rest}m`;
-  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+  if (hours === 0) return `${rest}${m}`;
+  return rest === 0 ? `${hours}${h}` : `${hours}${h} ${rest}${m}`;
 }
 
 /** The most seats one flight can list. */
@@ -330,24 +352,48 @@ export function flightChanges(saved: SavedFlight, leg: FlightMatch): FlightChang
 }
 
 /** "2026-11-10T11:30" → "Tue 10 Nov 11:30". */
-function dayAndTime(local: string) {
+function dayAndTime(local: string, locale: Locale) {
   const day = new Date(`${local.slice(0, 10)}T00:00:00Z`);
-  const date = day.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  // The test runner loads this file without path aliases, so it takes the language code as is.
+  const date = day.toLocaleDateString(locale in CHANGE_TEXT && locale !== "en" ? locale : "en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
   return `${date} ${local.slice(11, 16)}`;
 }
 
+/** How a flight change reads in each language. {after} and {before} are times or terminals. */
+const CHANGE_TEXT: Record<
+  Locale,
+  { departs: string; arrives: string; departsFrom: string; arrivesAt: string; instead: string }
+> = {
+  en: { departs: "Departs {after}", arrives: "Arrives {after}", departsFrom: "Departs from {after}", arrivesAt: "Arrives at {after}", instead: " instead of {before}" },
+  he: { departs: "ממריאה ב-{after}", arrives: "נוחתת ב-{after}", departsFrom: "ממריאה מ{after}", arrivesAt: "נוחתת ב{after}", instead: " במקום {before}" },
+  es: { departs: "Sale a las {after}", arrives: "Llega a las {after}", departsFrom: "Sale de la {after}", arrivesAt: "Llega a la {after}", instead: " en lugar de {before}" },
+  fr: { departs: "Départ à {after}", arrives: "Arrivée à {after}", departsFrom: "Départ du {after}", arrivesAt: "Arrivée au {after}", instead: " au lieu de {before}" },
+  de: { departs: "Abflug {after}", arrives: "Ankunft {after}", departsFrom: "Abflug von {after}", arrivesAt: "Ankunft an {after}", instead: " statt {before}" },
+  ru: { departs: "Вылет в {after}", arrives: "Прилёт в {after}", departsFrom: "Вылет из: {after}", arrivesAt: "Прилёт в: {after}", instead: " вместо {before}" },
+};
+
 /** "Departs 11:30 instead of 11:00", "Departs from Terminal 2 instead of Terminal 1". */
-export function describeChange(change: FlightChange) {
+export function describeChange(change: FlightChange, locale: Locale = "en") {
+  // Also called as a .map() callback, where the second argument is an index.
+  const text = CHANGE_TEXT[locale] ?? CHANGE_TEXT.en;
+  const fill = (template: string, after: string, before: string) =>
+    template.replace("{after}", after) + (before ? text.instead.replace("{before}", before) : "");
   if (change.field === "departAt" || change.field === "arriveAt") {
-    const verb = change.field === "departAt" ? "Departs" : "Arrives";
     const sameDay = change.before.slice(0, 10) === change.after.slice(0, 10);
-    const after = sameDay ? change.after.slice(11, 16) : dayAndTime(change.after);
-    const before = sameDay ? change.before.slice(11, 16) : dayAndTime(change.before);
-    return `${verb} ${after} instead of ${before}`;
+    const after = sameDay ? change.after.slice(11, 16) : dayAndTime(change.after, locale);
+    const before = sameDay ? change.before.slice(11, 16) : dayAndTime(change.before, locale);
+    return fill(change.field === "departAt" ? text.departs : text.arrives, after, before);
   }
-  const verb = change.field === "fromTerminal" ? "Departs from" : "Arrives at";
-  const before = terminalLabel(change.before);
-  return `${verb} ${terminalLabel(change.after)}${before ? ` instead of ${before}` : ""}`;
+  return fill(
+    change.field === "fromTerminal" ? text.departsFrom : text.arrivesAt,
+    terminalLabel(change.after, locale),
+    terminalLabel(change.before, locale),
+  );
 }
 
 /**

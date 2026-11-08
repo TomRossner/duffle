@@ -6,6 +6,7 @@ import { TripDatesFields } from "@/components/trip-dates-fields";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getT } from "@/i18n/server";
 import { createTrip } from "@/lib/actions/trips";
 
 function FormSection({
@@ -39,22 +40,23 @@ function FormSection({
   );
 }
 
-export default function NewTripPage() {
+export default async function NewTripPage() {
+  const t = await getT("trips");
   return (
     <div className="mx-auto grid w-full max-w-xl gap-6 py-4 sm:py-8">
       <header className="grid gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Plan a new trip</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("newTrip.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Start with the essentials. You can change any of this later and invite travelers once the trip exists.
+          {t("newTrip.intro")}
         </p>
       </header>
 
       <Card className="shadow-lg shadow-primary/5">
         <CardContent className="px-5 py-2 sm:px-8 sm:py-4">
-          <ActionForm action={createTrip} submitLabel="Create trip" submitIcon={<PlaneTakeoff />} className="grid gap-6">
-            <FormSection id="trip-basics" icon={Sparkles} title="The basics" hint="What you'll call it and when it happens.">
-              <Field label="Trip name">
-                <Input name="name" placeholder="Summer in Lisbon" minLength={2} autoComplete="off" autoFocus required />
+          <ActionForm action={createTrip} submitLabel={t("newTrip.create")} submitIcon={<PlaneTakeoff />} className="grid gap-6">
+            <FormSection id="trip-basics" icon={Sparkles} title={t("newTrip.basics")} hint={t("newTrip.basicsHint")}>
+              <Field label={t("newTrip.tripName")}>
+                <Input name="name" placeholder={t("newTrip.namePlaceholder")} minLength={2} autoComplete="off" autoFocus required />
               </Field>
               <TripDatesFields />
             </FormSection>
@@ -62,8 +64,8 @@ export default function NewTripPage() {
             <FormSection
               id="trip-countries"
               icon={Globe2}
-              title="Where you're headed"
-              hint="Add every country on the route. Optional."
+              title={t("newTrip.where")}
+              hint={t("newTrip.whereHint")}
             >
               <CountriesPicker />
             </FormSection>
@@ -71,10 +73,10 @@ export default function NewTripPage() {
             <FormSection
               id="trip-money"
               icon={Wallet}
-              title="Money"
-              hint="Expenses in other currencies are converted to this one for totals and balances."
+              title={t("newTrip.money")}
+              hint={t("newTrip.moneyHint")}
             >
-              <Field label="Base currency">
+              <Field label={t("newTrip.baseCurrency")}>
                 <CurrencySelect name="baseCurrency" withSymbols />
               </Field>
             </FormSection>
@@ -82,14 +84,14 @@ export default function NewTripPage() {
             <FormSection
               id="trip-note"
               icon={NotebookPen}
-              title="Note"
-              hint="A line for the trip card: the occasion, the mood, the plan. Optional."
+              title={t("newTrip.note")}
+              hint={t("newTrip.noteHint")}
             >
               <Textarea
                 name="coverNote"
                 rows={3}
                 aria-labelledby="trip-note"
-                placeholder="Anniversary trip, mostly beaches and long lunches."
+                placeholder={t("newTrip.notePlaceholder")}
               />
             </FormSection>
           </ActionForm>

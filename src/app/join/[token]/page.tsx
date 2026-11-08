@@ -4,6 +4,7 @@ import { InlineAction } from "@/components/action-form";
 import { CardContent } from "@/components/ui/card";
 import { InviteShell, TripInviteCard } from "@/components/trip-invite-card";
 import { acceptJoin } from "@/lib/actions/trips";
+import { getT } from "@/i18n/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { acceptedMembers } from "@/lib/trip-access";
@@ -11,6 +12,7 @@ import { acceptedMembers } from "@/lib/trip-access";
 export default async function JoinPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const session = await auth();
+  const t = await getT("trips");
   if (!session?.user?.id) {
     redirect(`/login?callbackUrl=/join/${token}`);
   }
@@ -26,9 +28,9 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
           <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <LinkIcon className="size-5" />
           </span>
-          <h1 className="text-lg font-semibold">Link unavailable</h1>
+          <h1 className="text-lg font-semibold">{t("invitePage.linkUnavailableTitle")}</h1>
           <p className="text-sm text-muted-foreground">
-            This join link does not match a trip. Ask a traveler on the trip to share it again.
+            {t("invitePage.linkUnavailableBody")}
           </p>
         </CardContent>
       </InviteShell>
@@ -44,7 +46,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
   return (
     <TripInviteCard
-      eyebrow={`${trip.owner.name} invited you to`}
+      eyebrow={t("invitePage.invitedYou", { name: trip.owner.name })}
       trip={trip}
       travelers={members.map((member) => ({
         userId: member.userId,
@@ -54,9 +56,9 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     >
       <div className="grid gap-2">
         <p className="text-center text-sm text-muted-foreground">
-          Join as a traveler to plan, pack and split costs with everyone.
+          {t("invitePage.joinHint")}
         </p>
-        <InlineAction action={acceptJoin.bind(null, token)} label="Join trip" variant="default" fullWidth />
+        <InlineAction action={acceptJoin.bind(null, token)} label={t("invites.join")} variant="default" fullWidth />
       </div>
     </TripInviteCard>
   );

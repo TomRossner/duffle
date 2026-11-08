@@ -1,10 +1,11 @@
 import { Prisma } from "@prisma/client";
+import { translatorFor } from "@/i18n/server";
 import { prisma } from "@/lib/prisma";
 
 export async function claimPendingInvites(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, emailVerified: true },
+    select: { email: true, emailVerified: true, locale: true },
   });
   const email = user?.emailVerified ? user.email.toLowerCase().trim() : "";
   if (!email || email.endsWith("@users.invalid")) return;
@@ -43,8 +44,8 @@ export async function claimPendingInvites(userId: string) {
           userId,
           tripId: invite.tripId,
           kind: "INVITE",
-          title: "Trip invitation",
-          body: `You are invited to ${invite.trip.name}.`,
+          title: translatorFor(user?.locale, "notifications")("invited.title"),
+          body: translatorFor(user?.locale, "notifications")("invited.body", { trip: invite.trip.name }),
           href,
         },
       });

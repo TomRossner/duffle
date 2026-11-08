@@ -159,8 +159,8 @@ export async function createFlight(tripId: string, _: unknown, formData: FormDat
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "FLIGHT",
-    title: legs.length > 1 ? "Flights added" : "Flight added",
-    body: `${user.name ?? "A traveler"} added ${flightsTitle(legs)}.`,
+    message: legs.length > 1 ? "flightsAdded" : "flightAdded",
+    values: { name: user.name ?? "", item: flightsTitle(legs) },
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };
@@ -219,8 +219,8 @@ export async function updateFlight(tripId: string, flightId: string, _: unknown,
   revalidatePath(`/trips/${tripId}/schedule`);
   await notifyTrip(tripId, user.id, {
     kind: "FLIGHT",
-    title: "Flight updated",
-    body: `${user.name ?? "A traveler"} updated ${leg.airline} ${leg.flightNumber}.`,
+    message: "flightUpdated",
+    values: { name: user.name ?? "", item: `${leg.airline} ${leg.flightNumber}` },
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };
@@ -260,8 +260,8 @@ export async function deleteFlight(tripId: string, flightId: string) {
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "FLIGHT",
-    title: "Flight removed",
-    body: `${user.name ?? "A traveler"} removed ${flight.airline} ${flight.flightNumber}.`,
+    message: "flightRemoved",
+    values: { name: user.name ?? "", item: `${flight.airline} ${flight.flightNumber}` },
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };
@@ -309,8 +309,8 @@ export async function createStay(tripId: string, _: unknown, formData: FormData)
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "STAY",
-    title: "Stay added",
-    body: `${user.name ?? "A traveler"} added ${name}.`,
+    message: "stayAdded",
+    values: { name: user.name ?? "", item: name },
     href: `/trips/${tripId}/stays`,
   });
   return { ok: true };
@@ -358,8 +358,8 @@ export async function updateStay(tripId: string, stayId: string, _: unknown, for
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "STAY",
-    title: "Stay updated",
-    body: `${user.name ?? "A traveler"} updated ${name}.`,
+    message: "stayUpdated",
+    values: { name: user.name ?? "", item: name },
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };
@@ -374,15 +374,11 @@ export async function deleteStay(tripId: string, stayId: string) {
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "STAY",
-    title: "Stay removed",
-    body: `${user.name ?? "A traveler"} removed ${stay.name}.`,
+    message: "stayRemoved",
+    values: { name: user.name ?? "", item: stay.name },
     href: `/trips/${tripId}/stays`,
   });
   return { ok: true };
-}
-
-function onDays(count: number) {
-  return count === 1 ? "" : ` on ${count} days`;
 }
 
 export async function createScheduleItem(tripId: string, _: unknown, formData: FormData) {
@@ -427,8 +423,8 @@ export async function createScheduleItem(tripId: string, _: unknown, formData: F
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "SCHEDULE",
-    title: "Schedule updated",
-    body: `${user.name ?? "A traveler"} added ${title}${onDays(times.length)}.`,
+    message: "planAdded",
+    values: { name: user.name ?? "", item: title, count: times.length },
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };
@@ -482,8 +478,8 @@ export async function updateScheduleItem(tripId: string, itemId: string, _: unkn
   const days = plan.update.length + plan.create.length;
   await notifyTrip(tripId, user.id, {
     kind: "SCHEDULE",
-    title: "Schedule updated",
-    body: `${user.name ?? "A traveler"} updated ${title}${onDays(days)}.`,
+    message: "planUpdated",
+    values: { name: user.name ?? "", item: title, count: days },
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };
@@ -497,8 +493,8 @@ export async function deleteScheduleItem(tripId: string, itemId: string) {
   revalidatePath(`/trips/${tripId}`);
   await notifyTrip(tripId, user.id, {
     kind: "SCHEDULE",
-    title: "Schedule updated",
-    body: `${user.name ?? "A traveler"} removed ${item.title}.`,
+    message: "planRemoved",
+    values: { name: user.name ?? "", item: item.title },
     href: `/trips/${tripId}/schedule`,
   });
   return { ok: true };

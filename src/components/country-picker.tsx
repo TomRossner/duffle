@@ -4,6 +4,7 @@ import { Select } from "@base-ui/react/select";
 import { Check, ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CountryFlag } from "@/components/country-flag";
+import { useLocale, useT } from "@/i18n/client";
 import { countryOptions } from "@/lib/account-details";
 import { cn } from "@/lib/utils";
 
@@ -16,12 +17,17 @@ export function CountryPicker({
   value: string;
   onValueChange: (value: string) => void;
 }) {
+  const t = useT("profile");
+  const locale = useLocale();
   const [query, setQuery] = useState("");
-  const countries = useMemo(() => countryOptions(), []);
+  const countries = useMemo(() => countryOptions(locale), [locale]);
   const needle = query.trim().toLowerCase();
   const visible = needle
     ? countries.filter(
-        (country) => country.name.toLowerCase().includes(needle) || country.code.toLowerCase().includes(needle),
+        (country) =>
+          country.name.toLowerCase().includes(needle) ||
+          country.english.toLowerCase().includes(needle) ||
+          country.code.toLowerCase().includes(needle),
       )
     : countries;
 
@@ -51,7 +57,7 @@ export function CountryPicker({
                 <span className="truncate">{countries.find((country) => country.code === selected)?.name ?? selected}</span>
               </span>
             ) : (
-              "Choose"
+              t("choose")
             )
           }
         </Select.Value>
@@ -67,14 +73,14 @@ export function CountryPicker({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => event.stopPropagation()}
-                placeholder="Search countries"
-                aria-label="Search countries"
+                placeholder={t("searchCountries")}
+                aria-label={t("searchCountries")}
                 className="h-11 w-full rounded-md bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground sm:h-8 sm:px-2 sm:text-sm"
               />
             </div>
             <Select.List className="max-h-64 overflow-y-auto p-1">
               {visible.length === 0 ? (
-                <p className="px-2 py-1.5 text-muted-foreground">No matches.</p>
+                <p className="px-2 py-1.5 text-muted-foreground">{t("noMatches")}</p>
               ) : (
                 visible.map((country) => (
                   <Select.Item

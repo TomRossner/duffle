@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { GoogleSignIn } from "@/components/google-sign-in";
+import { LanguagePicker } from "@/components/language-picker";
+import { getT } from "@/i18n/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 /** Shared layout for the sign-in and create-account pages. */
-export function AuthShell({
+export async function AuthShell({
   title,
   description,
   callbackUrl,
@@ -25,10 +27,14 @@ export function AuthShell({
   footer: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const t = await getT("auth");
   return (
     <main className="relative flex min-h-dvh w-full justify-center overflow-hidden bg-gradient-to-b from-primary/10 via-background to-background px-4 py-8 sm:items-center sm:py-12">
       <div className={cn("relative grid w-full content-start gap-6", wide ? "max-w-xl" : "max-w-md")}>
-        <Link href="/" className="justify-self-center" aria-label="Duffle home">
+        <div className="justify-self-end">
+          <LanguagePicker compact />
+        </div>
+        <Link href="/" className="justify-self-center" aria-label={t("home")}>
           <img src="/duffle%20logo.webp" alt="Duffle" className="h-16 w-auto sm:h-20" />
         </Link>
         <Card className="w-full shadow-lg shadow-primary/5">
@@ -41,7 +47,7 @@ export function AuthShell({
             <GoogleSignIn callbackUrl={callbackUrl} />
             <div className="flex items-center gap-3 text-xs text-muted-foreground" role="separator">
               <span className="h-px flex-1 bg-border" />
-              or continue with email
+              {t("orEmail")}
               <span className="h-px flex-1 bg-border" />
             </div>
             {children}

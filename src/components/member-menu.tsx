@@ -5,6 +5,7 @@ import { EllipsisVertical, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { DeleteDialog } from "@/components/delete-dialog";
 import { buttonVariants } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 
 const menuItemClass =
   "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-base sm:gap-2 sm:px-2 sm:py-1.5 sm:text-sm [&_svg]:size-4 sm:[&_svg]:size-3.5 outline-none data-highlighted:bg-accent data-disabled:cursor-default data-disabled:opacity-50";
@@ -20,6 +21,8 @@ export function MemberMenu({
   makeAdmin: () => Promise<Result>;
   remove: () => Promise<Result>;
 }) {
+  const t = useT("trips");
+  const tCommon = useT("common");
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState<"admin" | "remove" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +34,7 @@ export function MemberMenu({
       .then((result) => {
         if (result && "error" in result && result.error) setError(result.error);
       })
-      .catch(() => setError("Something went wrong. Try again."))
+      .catch(() => setError(tCommon("error.generic")))
       .finally(() => setPending(null));
   }
 
@@ -40,7 +43,7 @@ export function MemberMenu({
       <Menu.Root>
         <Menu.Trigger
           className={`${buttonVariants({ variant: "ghost", size: "icon-sm" })} shrink-0`}
-          aria-label={`Actions for ${name}`}
+          aria-label={tCommon("actionsFor", { name })}
           disabled={pending !== null}
         >
           <EllipsisVertical />
@@ -50,7 +53,7 @@ export function MemberMenu({
             <Menu.Popup className="min-w-52 sm:min-w-40 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
               <Menu.Item className={menuItemClass} disabled={pending !== null} onClick={() => run("admin", makeAdmin)}>
                 <ShieldCheck className="size-3.5" />
-                {pending === "admin" ? "Saving..." : "Make admin"}
+                {pending === "admin" ? tCommon("saving") : t("member.makeAdmin")}
               </Menu.Item>
               <Menu.Item
                 className={`${menuItemClass} text-destructive`}
@@ -58,7 +61,7 @@ export function MemberMenu({
                 onClick={() => setConfirming(true)}
               >
                 <Trash2 className="size-3.5" />
-                {pending === "remove" ? "Removing..." : "Remove"}
+                {pending === "remove" ? tCommon("removing") : tCommon("remove")}
               </Menu.Item>
             </Menu.Popup>
           </Menu.Positioner>
@@ -68,8 +71,8 @@ export function MemberMenu({
       <DeleteDialog
         open={confirming}
         onOpenChange={setConfirming}
-        message={`Are you sure you want to remove ${name} from this trip?`}
-        confirmLabel="Remove"
+        message={t("member.confirmRemove", { name })}
+        confirmLabel={tCommon("remove")}
         pending={pending === "remove"}
         onConfirm={() => {
           setConfirming(false);
