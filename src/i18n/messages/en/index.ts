@@ -3,6 +3,7 @@ import auth from "./auth";
 import closet from "./closet";
 import common from "./common";
 import documents from "./documents";
+import guide from "./guide";
 import insurance from "./insurance";
 import labels from "./labels";
 import mail from "./mail";
@@ -23,6 +24,7 @@ export const messages = {
   closet,
   common,
   documents,
+  guide,
   insurance,
   labels,
   mail,

@@ -20,10 +20,10 @@ const buttonVariants = cva(
       },
       size: {
         default:
-          "h-11 gap-2 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3 sm:h-8 sm:gap-1.5 sm:px-2.5 sm:has-data-[icon=inline-end]:pr-2 sm:has-data-[icon=inline-start]:pl-2",
-        xs: "h-8 gap-1 rounded-[min(var(--radius-md),10px)] px-2.5 text-sm sm:h-6 sm:px-2 sm:text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5 sm:[&_svg:not([class*='size-'])]:size-3",
-        sm: "h-10 gap-1.5 rounded-[min(var(--radius-md),12px)] px-3 text-[0.9375rem] sm:h-7 sm:gap-1 sm:px-2.5 sm:text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-12 gap-2 px-5 has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4 sm:h-9 sm:gap-1.5 sm:px-2.5 sm:has-data-[icon=inline-end]:pr-2 sm:has-data-[icon=inline-start]:pl-2",
+          "h-11 gap-2 px-4 has-data-[icon=inline-end]:pe-3 has-data-[icon=inline-start]:ps-3 sm:h-8 sm:gap-1.5 sm:px-2.5 sm:has-data-[icon=inline-end]:pe-2 sm:has-data-[icon=inline-start]:ps-2",
+        xs: "h-8 gap-1 rounded-[min(var(--radius-md),10px)] px-2.5 text-sm sm:h-6 sm:px-2 sm:text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pe-1.5 has-data-[icon=inline-start]:ps-1.5 [&_svg:not([class*='size-'])]:size-3.5 sm:[&_svg:not([class*='size-'])]:size-3",
+        sm: "h-10 gap-1.5 rounded-[min(var(--radius-md),12px)] px-3 text-[0.9375rem] sm:h-7 sm:gap-1 sm:px-2.5 sm:text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pe-1.5 has-data-[icon=inline-start]:ps-1.5 [&_svg:not([class*='size-'])]:size-4 sm:[&_svg:not([class*='size-'])]:size-3.5",
+        lg: "h-12 gap-2 px-5 has-data-[icon=inline-end]:pe-4 has-data-[icon=inline-start]:ps-4 sm:h-9 sm:gap-1.5 sm:px-2.5 sm:has-data-[icon=inline-end]:pe-2 sm:has-data-[icon=inline-start]:ps-2",
         icon: "size-11 sm:size-8",
         "icon-xs":
           "size-8 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg sm:size-6 [&_svg:not([class*='size-'])]:size-3.5 sm:[&_svg:not([class*='size-'])]:size-3",

@@ -51,7 +51,7 @@ function StatusButton({
       <Button type="submit" size="sm" variant={status === "PACKED" ? "default" : "outline"} disabled={pending}>
         {label}
       </Button>
-      {state?.error ? <span className="ml-2 text-xs text-destructive">{state.error}</span> : null}
+      {state?.error ? <span className="ms-2 text-xs text-destructive">{state.error}</span> : null}
     </form>
   );
 }

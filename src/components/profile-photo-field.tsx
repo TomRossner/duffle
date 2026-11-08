@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 import { compressImage, formatFileSize, setInputFile } from "@/lib/image-compress";
 import { cn } from "@/lib/utils";
 
 const serverLimit = 5 * 1024 * 1024;
 
 export function ProfilePhotoField() {
+  const t = useT("profile");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -19,7 +21,7 @@ export function ProfilePhotoField() {
     }
 
     setBusy(true);
-    setStatus(`Optimizing ${original.name}…`);
+    setStatus(t("photo.optimizing", { name: original.name }));
     try {
       // Avatars render at most ~100px; 512px covers high-density screens with room to spare.
       const compressed = await compressImage(original, {
@@ -29,9 +31,15 @@ export function ProfilePhotoField() {
       });
       if (compressed !== original) setInputFile(input, compressed);
       if (compressed.size > serverLimit) {
-        setStatus(`${original.name} is still over 5MB. Choose a smaller photo.`);
+        setStatus(t("photo.tooBig", { name: original.name }));
       } else if (compressed !== original) {
-        setStatus(`${original.name} · optimized ${formatFileSize(original.size)} → ${formatFileSize(compressed.size)}`);
+        setStatus(
+          t("photo.optimized", {
+            name: original.name,
+            from: formatFileSize(original.size),
+            to: formatFileSize(compressed.size),
+          }),
+        );
       } else {
         setStatus(`${original.name} · ${formatFileSize(original.size)}`);
       }
@@ -45,7 +53,7 @@ export function ProfilePhotoField() {
 
   return (
     <div className="grid gap-1.5">
-      <span className="text-sm leading-none font-medium">Profile picture</span>
+      <span className="text-sm leading-none font-medium">{t("photo.label")}</span>
       <label className="flex min-w-0 flex-wrap items-center gap-3">
         <input
           name="file"
@@ -55,10 +63,10 @@ export function ProfilePhotoField() {
           onChange={(event) => void handleChange(event.currentTarget)}
         />
         <span className={cn(buttonVariants({ variant: "outline" }), busy && "pointer-events-none opacity-60")}>
-          {status ? "Change photo" : "Choose photo"}
+          {status ? t("photo.change") : t("photo.choose")}
         </span>
         <span className="min-w-0 text-sm break-all text-muted-foreground">
-          {status ?? "JPEG, PNG, WebP, or GIF. Large photos are resized automatically."}
+          {status ?? t("photo.hint")}
         </span>
       </label>
     </div>

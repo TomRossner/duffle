@@ -50,6 +50,15 @@ const profile: Translation<Messages["profile"]> = {
     city: "Gib eine Stadt ein.",
     postalCode: "Gib eine Postleitzahl ein.",
   },
+  photo: {
+    label: "Profilbild",
+    change: "Foto ändern",
+    choose: "Foto auswählen",
+    hint: "JPEG, PNG, WebP oder GIF. Große Fotos werden automatisch verkleinert.",
+    optimizing: "{name} wird optimiert…",
+    tooBig: "{name} ist immer noch größer als 5 MB. Wähle ein kleineres Foto.",
+    optimized: "{name} · optimiert {from} → {to}",
+  },
 };
 
 export default profile;

@@ -47,6 +47,15 @@ const profile = {
     city: "Enter a city.",
     postalCode: "Enter a postal code.",
   },
+  photo: {
+    label: "Profile picture",
+    change: "Change photo",
+    choose: "Choose photo",
+    hint: "JPEG, PNG, WebP, or GIF. Large photos are resized automatically.",
+    optimizing: "Optimizing {name}…",
+    tooBig: "{name} is still over 5MB. Choose a smaller photo.",
+    optimized: "{name} · optimized {from} → {to}",
+  },
 };
 
 export default profile;

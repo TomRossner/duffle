@@ -18,9 +18,9 @@ export function CountryFlag({ code, className }: { code: string; className?: str
 const MOTION = "transition-[margin,rotate] duration-200 ease-out";
 const TILT = ["group-hover/flags:-rotate-6", "group-hover/flags:rotate-6"];
 const SIZES = {
-  default: { overlap: "-ml-3", spread: "-ml-3 group-hover/flags:ml-1.5", flag: "h-6 w-9", badge: "h-6 min-w-9 text-xs" },
+  default: { overlap: "-ms-3", spread: "-ms-3 group-hover/flags:ms-1.5", flag: "h-6 w-9", badge: "h-6 min-w-9 text-xs" },
   // The row under a trip's name.
-  sm: { overlap: "-ml-2.5", spread: "-ml-2.5 group-hover/flags:ml-1", flag: "h-5 w-7.5", badge: "h-5 min-w-7.5 text-[0.6875rem] leading-none" },
+  sm: { overlap: "-ms-2.5", spread: "-ms-2.5 group-hover/flags:ms-1", flag: "h-5 w-7.5", badge: "h-5 min-w-7.5 text-[0.6875rem] leading-none" },
 };
 type FlagSize = keyof typeof SIZES;
 

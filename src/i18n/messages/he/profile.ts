@@ -50,6 +50,15 @@ const profile: Translation<Messages["profile"]> = {
     city: "יש להזין עיר.",
     postalCode: "יש להזין מיקוד.",
   },
+  photo: {
+    label: "תמונת פרופיל",
+    change: "החלפת תמונה",
+    choose: "בחירת תמונה",
+    hint: "JPEG,‏ PNG,‏ WebP או GIF. תמונות גדולות מוקטנות אוטומטית.",
+    optimizing: "מייעל את {name}…",
+    tooBig: "{name} עדיין גדול מ-5MB. בחרו תמונה קטנה יותר.",
+    optimized: "{name} · ייעול {from} ← {to}",
+  },
 };
 
 export default profile;
